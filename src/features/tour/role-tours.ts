@@ -122,6 +122,8 @@ export type VendorTourCtx = {
   toSign: number;
   kycDone: boolean;
   openDocs: number;
+  /** Open documents that are uploaded by hand (the rest are declarations signed during registration). */
+  uploadDocs: number;
   docs: number;
   /** The demo account (Profile shows "Switch demo role"). */
   demo: boolean;
@@ -342,7 +344,7 @@ function staffSteps(id: StaffTourId, ctx: StaffTourCtx): TourStep[] {
       ];
     case 'it_admin':
       return [
-        s.needsYou('Requests from your team waiting for you. Tap one to open it.'),
+        s.needsYou(),
         s.inbox('Approve in Inbox', 'Leave, work from home and attendance fixes from your team wait here.', () => ctx.approvals > 0),
         s.open(),
         s.meTeam('Who’s in today and the holiday list are on Me.'),
@@ -533,10 +535,16 @@ function vendorSteps(id: VendorTourId, ctx: VendorTourCtx): TourStep[] {
       screen: SCREENS.vendorHome,
       when: () => filling && !ctx.kycDone,
     }),
-    step(k('docs'), 'vendor.todoDocs', 'Documents to add', 'Upload a clear photo or PDF of each one.', {
-      screen: SCREENS.vendorHome,
-      when: () => filling && ctx.openDocs > 0,
-    }),
+    step(
+      k('docs'),
+      'vendor.todoDocs',
+      ctx.uploadDocs > 0 ? 'Documents to add' : 'Forms to sign',
+      ctx.uploadDocs > 0 ? 'Upload a clear photo or PDF of each one.' : 'You’ll sign these during registration. Tap one to carry on.',
+      {
+        screen: SCREENS.vendorHome,
+        when: () => filling && ctx.openDocs > 0,
+      },
+    ),
     step(k('check'), 'vendor.checkStatus', 'Check your status', 'Tap Check status to see if you’ve been approved.', {
       screen: SCREENS.vendorHome,
       when: () => review,

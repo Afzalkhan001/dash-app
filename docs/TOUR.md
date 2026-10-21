@@ -1,6 +1,6 @@
 # DASH mobile: first-login tour (coach marks)
 
-Version 1 (21 Oct 2026). Status: **spec, not built yet**. Covers the staff app (`src/app/(app)`) and the vendor portal (`src/app/(vendor)`). Read docs/DESIGN.md first (0A app structure, 0B plain words, 13 motion, 14 accessibility); this file only adds what is new.
+Version 1 (21 Oct 2026). Status: **built**: engine in `src/ui/tour/`, role tours in `src/features/tour/` (`role-tours.ts` steps and copy, `hosts.tsx` context, `use-role-tour.ts` first-run start and replay, `replay-row.tsx` "Show me around"). Built differences from this spec: the demo account gets one extra step before "See this again" ("Try another role", pointing at Switch demo role), so demo tours can have 9 steps; "Open to decide" points at the first request, never a visitor at reception; a target filling 40 % or more of the screen docks the card at the bottom (no arrow) rather than squeezing its text; on a narrow phone Back and Next share a row unless text is at 130 % or more. Covers the staff app (`src/app/(app)`) and the vendor portal (`src/app/(vendor)`). Read docs/DESIGN.md first (0A app structure, 0B plain words, 13 motion, 14 accessibility); this file only adds what is new.
 
 Every step below points at something the person **actually sees**. Each was checked against the real screens and gates: `src/lib/access.ts`, `src/features/more/menu.ts`, `src/features/create/create-sheet.tsx`, `src/features/inbox/use-inbox.ts`, `src/features/home/*`, `src/features/me/*`, `src/app/(app)/(tabs)/*`, `src/app/(vendor)/portal/**` and the demo personas (`src/demo/personas.ts`, `src/demo/vendor/personas.ts`).
 
@@ -443,7 +443,7 @@ Intro: "Here's where your team's requests and your IT tickets are. It takes abou
 
 | # | Target | Screen | Title | Body | When |
 |---|---|---|---|---|---|
-| 1 | `home.needsYou` | Home | Needs you | Requests from your team waiting for you. Tap one to open it. | `needsYou > 0` |
+| 1 | `home.needsYou` | Home | Needs you | The newest requests waiting for you. Tap one to open it. | `needsYou > 0` |
 | 2 | `tabs.inbox` | — | Approve in Inbox | Leave, work from home and attendance fixes from your team wait here. | `approvals.length > 0` |
 | 3 | `inbox.firstItem` | Inbox | Open to decide | *S-OPEN* | S-OPEN |
 | 4 | `tabs.me` | — | Team attendance | Who's in today and the holiday list are on Me. | S-ME-TEAM |
@@ -561,7 +561,7 @@ Intro, while filling in: "Here's how to finish your registration and see where i
 | 2 | `vendor.stepProgress` | Home | Steps to finish | Each bar is one step. You'll pick up where you stopped. | `draft` / `mobile_verified` |
 | 3 | `vendor.registrationButton` | Home | Continue here | Tap Continue registration for the next step. Use Save draft to stop and come back later. | `draft` / `mobile_verified` |
 | 4 | `vendor.todoKyc` | Home | Verify ID and bank | It takes a few minutes with Digio, our checking partner. Tap here to start. | filling in and `kycState ≠ done` (the "KYC pending" persona) |
-| 5 | `vendor.todoDocs` | Home | Documents to add | Upload a clear photo or PDF of each one. | filling in and `openDocs ≥ 1` |
+| 5 | `vendor.todoDocs` | Home | Documents to add | Upload a clear photo or PDF of each one. *(Only declarations left, signed during registration: "Forms to sign" / "You’ll sign these during registration. Tap one to carry on.")* | filling in and `openDocs ≥ 1` |
 | 6 | `vendor.checkStatus` | Home | Check your status | Tap here to see if you've been approved. | `submitted` / `pending_verification` |
 | 7 | `vtabs.home` | — | After approval | Your bills, payments and agreements will show here once you're approved. | `submitted` / `pending_verification` |
 | 8 | `vtabs.profile` | — | Your profile | The details and documents you sent, and your password. | always |

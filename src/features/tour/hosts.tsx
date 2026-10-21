@@ -27,7 +27,7 @@ import { usePolicyPendingCount } from '@/features/policies/use-policy-actions';
 import { hasTeam } from '@/features/team/team';
 import { buildStaffTour, buildVendorTour, staffTourIdFor, type StaffTourCtx, type VendorTourCtx, vendorTourIdFor } from '@/features/tour/role-tours';
 import { useRoleTour } from '@/features/tour/use-role-tour';
-import { agreementExpired, agreementPending } from '@/features/vendor/constants';
+import { agreementExpired, agreementPending, GENERATED_DECLARATIONS } from '@/features/vendor/constants';
 import { billBuckets, registrationTodo } from '@/features/vendor/home';
 import { useAccess } from '@/lib/use-access';
 import { firstName } from '@/lib/format';
@@ -120,6 +120,7 @@ export function VendorTourHost() {
     toSign: toSign.length,
     kycDone: todo?.kycState === 'done',
     openDocs: todo?.openDocs.length ?? 0,
+    uploadDocs: (todo?.openDocs ?? []).filter((c) => !GENERATED_DECLARATIONS.includes(c.docType)).length,
     docs: docs.length,
     demo,
   };
