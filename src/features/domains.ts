@@ -160,15 +160,32 @@ export function domainWorkspaceRows(access: Access): WorkspaceRow[] {
 // The domains' own `order` sorts inside a domain; these lists fix the order ACROSS domains. A key not
 // listed keeps its domain's `order`, after the listed ones.
 
-/** + sheet, after the built-in 8: Assign task, Book, New chat, Raise for someone, Add asset, Start kiosk, … */
-export const CREATE_ORDER: readonly string[] = ['work.assign', 'booking.book', 'chat.new', 'servicedesk.raise', 'itdesk.asset', 'desk.kiosk', 'desk.invite', 'people.add'];
+/**
+ * + sheet, after the built-in 8: Assign task, Book, New chat, Raise for someone, Add asset, Start kiosk,
+ * Invite visitor, Add employee, then (pass 2) Post news, Post job, Post task. The everyday actions come
+ * first, so the per-role cap trims the occasional ones.
+ */
+export const CREATE_ORDER: readonly string[] = [
+  'work.assign',
+  'booking.book',
+  'chat.new',
+  'servicedesk.raise',
+  'itdesk.asset',
+  'desk.kiosk',
+  'desk.invite',
+  'people.add',
+  'newsroom.post',
+  'hiring.post',
+  'bountyadmin.post',
+];
 
 /** At most this many round actions in the + sheet (3 rows of 4); the domain actions are trimmed first. */
 export const CREATE_CAP = 12;
 
 /**
  * Inbox chips, top to bottom (also the order of the queues, Past decisions and the hooks): people at
- * reception first, then the HR kinds, money, work, bookings and the service desk. Built-in kinds are
+ * reception first, then the HR kinds (referred candidates after them), money (use-coins requests last),
+ * work (bounty work after tasks and time fixes), bookings and the service desk. Built-in kinds are
  * here too, so a plug-in can sit right next to its built-in neighbour (Accounts' petty cash after the
  * project owner's).
  */
@@ -182,17 +199,22 @@ export const INBOX_CHIP_ORDER: readonly string[] = [
   'reimbursements',
   'loans',
   'keka',
+  'referral',
   'petty',
   'petty-acct',
   'reimb-acct',
   'vbill',
   'agree-sign',
+  'bounty-coins',
   'task',
   'timefix',
+  'bounty-claim',
   'booking',
   'bkdone',
   'bkrate',
   'desk-it',
+  // Never drawn: its hook only loads the Team Roster lists the menu needs (features/teamboard/inbox).
+  'team-board',
 ];
 
 /** Sort by a fixed key list; unlisted keys keep their current order, after the listed ones. */

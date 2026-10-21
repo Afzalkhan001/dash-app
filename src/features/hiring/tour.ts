@@ -1,14 +1,19 @@
-// Hiring domain (wave 2) — tour.ts. This domain’s first-sign-in tour steps.
-// Stub created by the integrator in Wave 0 and already wired into the shared screens through
-// features/domains.ts, so filling it in needs no shared edit. Owner: the hiring agent (docs/port/PLAN.md
-// §2.1; spec docs/port/hr-people.md). Scope: Job openings, candidates, referral pipeline, Refer & earn. Routes: src/app/(app)/admin/hiring/**.
-// API and rules: docs/port/EXTENSION-POINTS.md.
-//   tourSteps(ctx)  TourStep[] appended before the demo step and "See this again". Build them with
-//                   features/tour/step tourStep(), gate each with `when` (ctx.tourId, ctx.role,
-//                   ctx.workspaceRows, ctx.createKeys, ctx.homeCards).
+// Hiring domain (wave 2) — tour steps: where hiring lives in More (for creators, the Application Manager
+// and forwarded reviewers) and the Refer & earn link (for everyone who has it). Appended before the demo
+// step (features/tour/role-tours).
 
 import type { DomainTourCtx, TourStep } from '@/features/plugin-types';
+import { tourStep } from '@/features/tour/step';
 
 export function tourSteps(ctx: DomainTourCtx): TourStep[] {
-  return [];
+  return [
+    tourStep('hiring.desk', 'more.hiring.desk', 'Hiring on your phone', 'Post job openings and move referred candidates along in Hiring.', {
+      screen: '/more',
+      when: () => ctx.workspaceRows.includes('hiring.desk'),
+    }),
+    tourStep('hiring.refer', 'more.hiring.refer', 'Refer and earn coins', 'Know someone for an open position? Refer them here and earn coins when they join.', {
+      screen: '/more',
+      when: () => ctx.workspaceRows.includes('hiring.refer') && !ctx.workspaceRows.includes('hiring.desk'),
+    }),
+  ];
 }

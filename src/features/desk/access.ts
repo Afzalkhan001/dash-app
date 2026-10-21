@@ -38,6 +38,8 @@ export const canSeeDeskBoard = (a: WebOnly) => a.web('visitors-dashboard') || vi
 export const canSeeVisitorLog = (a: WebOnly) => a.web('visitors-log') || viaDesk(a);
 /** The desk's Invites tab (visitors-invites): the invites the desk user created. */
 export const canSeeDeskInvites = (a: WebOnly) => a.web('visitors-invites') || viaDesk(a);
+/** Kiosk mode (visitors-kiosk; the Super Admin's Visitor Desk tab "Kiosk Mode", dash.html:35924). */
+export const canSeeKiosk = (a: WebOnly) => a.web('visitors-kiosk') || viaDesk(a);
 /** The check-in QR code page (visitors-qr). */
 export const canSeeDeskQr = (a: WebOnly) => a.web('visitors-qr') || viaDesk(a);
 /** "Regenerate QR code…" (dash.html:35771 canRegen). */

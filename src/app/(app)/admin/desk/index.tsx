@@ -1,5 +1,5 @@
 // Visitor desk — today's board (web: VisitorTodayBoard, dash.html:35693; GET /visitors/today).
-//   1. SummaryHero: who is inside now, "N today", and "Invite a visitor".
+//   1. SummaryHero: who is inside now, "N today", and "Invite a visitor" (empty day: "Start kiosk").
 //   2. Chips with the day's counts (Everyone · Waiting · No answer · Rejected); a tap shows only those.
 //   3. Waiting for a host: each row's "Respond" opens /inbox/desk/<id> (Let in / Turn away for the host).
 //   4. Inside now: a row opens the visit, where Check out is (a swipe in a ConfirmSheet; no undo).
@@ -8,14 +8,14 @@
 // anyone else is sent home (the server answers 403 to them anyway).
 
 import { Redirect, useIsFocused, useRouter } from 'expo-router';
-import { DoorOpen, History, QrCode, UserPlus } from 'lucide-react-native';
+import { DoorOpen, History, MonitorSmartphone, QrCode, UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { useDeskToday } from '@/api/desk';
 import type { Visit } from '@/api/visitors';
 import { useTodayIst } from '@/features/attendance/use-now';
-import { canRunDesk } from '@/features/desk/access';
+import { canRunDesk, canSeeKiosk } from '@/features/desk/access';
 import { plural, splitToday } from '@/features/desk/format';
 import { DESK_ROUTES } from '@/features/desk/routes';
 import { DeskVisitRow, WaitingVisitRow } from '@/features/desk/visit-row';
@@ -122,8 +122,14 @@ export default function VisitorDeskScreen() {
         <EmptyState
           icon={<DoorOpen color={palette.textMuted} />}
           title="No visitors yet today"
-          message="People who check in with the QR code or an invite code show up here."
-          action={<Button size="md" variant="accent" title="Share check-in link" icon={<QrCode />} onPress={() => router.push(DESK_ROUTES.qr)} />}
+          message="People who check in with the QR code, the kiosk or an invite code show up here."
+          action={
+            canSeeKiosk(access) ? (
+              <Button size="md" variant="accent" title="Start kiosk" icon={<MonitorSmartphone />} onPress={() => router.push(DESK_ROUTES.kiosk)} />
+            ) : (
+              <Button size="md" variant="accent" title="Share check-in link" icon={<QrCode />} onPress={() => router.push(DESK_ROUTES.qr)} />
+            )
+          }
         />
       ) : (
         <>

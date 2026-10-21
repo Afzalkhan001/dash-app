@@ -27,6 +27,7 @@ import {
 } from 'lucide-react-native';
 
 import type { Tenant } from '@/api/me';
+import { canSeeReimbursements } from '@/features/reimbursements/access';
 import { hasTeam } from '@/features/team/team';
 import { webNav } from '@/lib/access';
 import type { useAccess } from '@/lib/use-access';
@@ -81,9 +82,12 @@ export function buildMoreMenu(access: Access, extra: { policiesToRead?: number }
   const toRead = Number(extra.policiesToRead);
 
   const tiles: MenuItem[] = [];
-  // Accounts ▸ Reimbursement / Petty Cash (the ACN group in navForRaw).
+  // Accounts ▸ Reimbursement / Petty Cash (the ACN group in navForRaw). Expense claims also needs a
+  // role reimbursements.js lets in: the web lists it for the App Manager, but the server refuses them
+  // (features/reimbursements/access), as the Home shortcut and the + sheet already do.
   if (has('accounts')) {
-    tiles.push({ key: 'reimbursements', label: 'Expense claims', href: '/reimbursements', icon: Receipt, module: 'expenses', caption: 'Get back money you spent' });
+    if (canSeeReimbursements(access.user))
+      tiles.push({ key: 'reimbursements', label: 'Expense claims', href: '/reimbursements', icon: Receipt, module: 'expenses', caption: 'Get back money you spent' });
     tiles.push({ key: 'petty-cash', label: 'Petty cash', href: '/petty-cash', icon: Banknote, module: 'pettyCash', caption: 'Small office expenses' });
   }
   if (role && !['master_admin', 'announcement_viewer', 'visitor_manager'].includes(role)) {

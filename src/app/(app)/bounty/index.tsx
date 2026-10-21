@@ -5,13 +5,16 @@
 //   2. at most one notice: a task I accepted and haven't started, or the monthly limit,
 //   3. Find tasks: the latest 3 tasks I can still join, "See all" for the full board,
 //   4. links: My bounty tasks (what I joined and where it stands; hidden for people who can't take
-//      part and never did) and Leaderboard.
+//      part and never did), Leaderboard and — for task posters, Super Admin / CEO / COO, HR and the App
+//      Manager — Bounty admin (/admin/bounty: post and check tasks, give coins, approvals).
+//   5. Refer & earn (features/hiring/refer-card, mounted by the integrator in pass 2): referral bonuses
+//      are paid in coins too. It draws nothing for people off the Referral Program.
 // Shown only while the company has Bounty switched on and the role has it (BountyGate).
 // Old links /bounty?tab=claims|leaderboard|wallet open the matching screen.
 
 import { useQueryClient } from '@tanstack/react-query';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ListChecks, Search, Trophy } from 'lucide-react-native';
+import { ListChecks, Search, ShieldCheck, Trophy } from 'lucide-react-native';
 import { View } from 'react-native';
 
 import {
@@ -27,7 +30,9 @@ import {
 import { useTodayIst } from '@/features/attendance/use-now';
 import { BountyCapBanner, BountyClaimReminderCard, BountyCoinsHero, BountyCoinsHeroSkeleton, BountyTaskList, BountyTaskListSkeleton } from '@/features/bounty/components';
 import { BountyGate } from '@/features/bounty/gate';
+import { bountyAdminGates, canOpenBountyAdmin } from '@/features/bountyadmin/access';
 import { useBountyLabels } from '@/features/bounty/hooks';
+import { ReferCard } from '@/features/hiring/refer-card';
 import { asArray, boardTasks, claimIsActive, coins, earnedThisMonth, myClaimOf, num, tasksToFind } from '@/features/bounty/logic';
 import { palette } from '@/theme/tokens';
 import { ActivityList, ActivityRow, Card, EmptyState, ErrorState, NavHeader, Screen, SectionHeader } from '@/ui';
@@ -50,7 +55,8 @@ export default function BountyScreen() {
 function BountyHub() {
   const router = useRouter();
   const qc = useQueryClient();
-  const { user, canClaim } = useBountyLabels();
+  const { user, tenant, canClaim } = useBountyLabels();
+  const admin = bountyAdminGates(user, tenant);
   const today = useTodayIst();
   const userId = user?.id;
 
@@ -174,7 +180,18 @@ function BountyHub() {
           chevron
           onPress={() => router.push('/bounty/leaderboard')}
         />
+        {canOpenBountyAdmin(admin) ? (
+          <ActivityRow
+            module="bounty"
+            icon={ShieldCheck}
+            title="Bounty admin"
+            subtitle={admin.create ? 'Post tasks and check the work sent' : admin.superTier ? 'Give coins, task posters and approvals' : 'Task posters and use-coins requests'}
+            chevron
+            onPress={() => router.push('/admin/bounty')}
+          />
+        ) : null}
       </ActivityList>
+      <ReferCard />
     </Screen>
   );
 }

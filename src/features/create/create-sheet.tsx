@@ -12,7 +12,7 @@
 //   Salary advance     usePayAccess().advances                 → /pay/loans               (Me › Pay)
 //   …then every domain's createActions(access) (features/<domain>/nav.ts via features/domains), in
 //   the integrator's CREATE_ORDER (Assign task, Book, New chat, Raise for someone, Add asset, Start
-//   kiosk, Invite visitor, Add employee) — the EXTENSION POINT from Wave 0
+//   kiosk, Invite visitor, Add employee, Post news, Post job, Post task) — the EXTENSION POINT from Wave 0
 //   (docs/port/EXTENSION-POINTS.md §4). A domain action whose key or screen repeats a built-in one is
 //   dropped, and the sheet holds at most CREATE_CAP actions (12: three rows of four).
 // Choosing one closes the sheet, then opens the screen after the close animation (like MenuSheet).

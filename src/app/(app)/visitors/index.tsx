@@ -12,7 +12,9 @@ import { DoorOpen, Ticket, UserPlus } from 'lucide-react-native';
 import { View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LayoutAnimationConfig, LinearTransition } from 'react-native-reanimated';
 
+import { VISITOR_HIDDEN_ROLES } from '@/api/inbox';
 import { useMyVisitors } from '@/api/visitors';
+import { useSession } from '@/auth/session';
 import { asVisits } from '@/features/visitors/format';
 import { RecentVisitors } from '@/features/visitors/history-list';
 import { VisitCard } from '@/features/visitors/visit-card';
@@ -31,8 +33,13 @@ export default function VisitorsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
   const focused = useIsFocused();
-  const visits = useMyVisitors({ poll: focused });
+  // Same rule as the website's nav (dash.html:1492): no "Visitors" for the platform owner, the office
+  // TV or the Visitor Manager (who has the whole desk instead) — also when reached by a link.
+  const role = useSession((s) => s.user?.role);
+  const hub = !role || !VISITOR_HIDDEN_ROLES.includes(role);
+  const visits = useMyVisitors({ poll: focused && hub, enabled: hub });
 
+  if (!hub) return <Redirect href={role === 'visitor_manager' ? '/admin/desk' : '/'} />;
   if (params.tab === 'invite') return <Redirect href="/visitors/invite" />;
   if (params.tab === 'history') return <Redirect href="/visitors/history" />;
 

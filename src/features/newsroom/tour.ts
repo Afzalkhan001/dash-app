@@ -1,14 +1,19 @@
-// Newsroom domain (wave 2) — tour.ts. This domain’s first-sign-in tour steps.
-// Stub created by the integrator in Wave 0 and already wired into the shared screens through
-// features/domains.ts, so filling it in needs no shared edit. Owner: the newsroom agent (docs/port/PLAN.md
-// §2.1; spec docs/port/hr-people.md). Scope: News studio (post, schedule, pop-up, TV priority, celebrations) and office TVs. Routes: src/app/(app)/admin/news/**.
-// API and rules: docs/port/EXTENSION-POINTS.md.
-//   tourSteps(ctx)  TourStep[] appended before the demo step and "See this again". Build them with
-//                   features/tour/step tourStep(), gate each with `when` (ctx.tourId, ctx.role,
-//                   ctx.workspaceRows, ctx.createKeys, ctx.homeCards).
+// Newsroom domain (wave 2) — first-sign-in tour steps (docs/TOUR.md copy rules: ≤ 4-word titles,
+// ≤ 2 short sentences naming the control as it reads). Appended before the demo step.
 
 import type { DomainTourCtx, TourStep } from '@/features/plugin-types';
+import { tourStep } from '@/features/tour/step';
 
 export function tourSteps(ctx: DomainTourCtx): TourStep[] {
-  return [];
+  const rows = ctx.workspaceRows;
+  return [
+    tourStep('newsroom.studio', 'more.newsroom.studio', 'Post the news', 'Share an update, a pop-up or a file with everyone, now or at a set time.', {
+      screen: '/more',
+      when: () => rows.includes('newsroom.studio'),
+    }),
+    tourStep('newsroom.tvs', 'more.newsroom.tvs', 'Office TVs', 'Pair a TV with the code on its screen, then show any post on it.', {
+      screen: '/more',
+      when: () => rows.includes('newsroom.tvs'),
+    }),
+  ];
 }

@@ -10,15 +10,26 @@
 //                                    signed-in person (DEMO_USER, which the demo server shows as the persona)
 //   GET  /visitors/qr                { tenantId, token, path, companyName }
 //   POST /visitors/qr/regenerate     rotates the token (demo-qr-<n>)
-//   POST /visitors/kiosk/exit        demo password Demo@123 (kiosk mode is wave 2)
+//   POST /visitors/kiosk/exit        demo password Demo@123
 // The desk routes answer 403 to anyone but visitor_manager / super_admin, like requireRole(DESK_ROLES).
+//
+// Kiosk mode calls the PUBLIC check-in routes (visitors.js:305-530), answered here too. They check the
+// company and the CURRENT token (so "Make a new link" visibly breaks a running demo kiosk with the
+// server's 404), and a check-in lands in the shared visit store, so it shows on the board at once:
+//   GET  /public/visit/:t/:token/employees?q        >= 2 letters, name only, <= 25 (+ companyName)
+//   POST /public/visit/:t/:token                    the server's checks and words; a pending visit
+//   GET  /public/visit/:t/:token/status/:id         the host "answers" ~12 s after arrival (turned away
+//                                                   when the visitor's name has "test" in it), unless
+//                                                   the desk or the host answered first
+//   POST /public/visit/:t/:token/invite             today's code (Kavya Reddy: 482615)
+//   POST /public/visit/:t/:token/invite/:id/arrive  an approved 'invite' visit; the invite is used
 
 import type { Invite, Visit } from '@/api/visitors';
 import { DEMO_PASSWORD, DEMO_TENANT_ID, DEMO_USER } from '@/demo/config';
-import { personById, TENANT } from '@/demo/fixtures/org';
+import { allPeople, personById, TENANT } from '@/demo/fixtures/org';
 import { inviteStore, makeVisit, visitStore } from '@/demo/fixtures/visitors';
 import { currentPersona } from '@/demo/personas';
-import { addDays, fail, isWeeklyOff, istDateOf, istIso, minutesAgo, nowIso, rand, today, type Route } from '@/demo/state';
+import { addDays, fail, isWeeklyOff, istDateOf, istIso, minutesAgo, newId, nowIso, rand, today, type Route } from '@/demo/state';
 import { VISIT_DESK_ROLES } from '@/lib/access';
 
 const T0 = today();
@@ -273,10 +284,145 @@ export const deskRoutes: Route[] = [
       if (!isDesk()) return deskOnly();
       const pw = String((body as { password?: unknown })?.password ?? '');
       if (!pw) return fail('Enter your password to exit kiosk mode.', 400);
-      return pw === DEMO_PASSWORD ? { ok: true } : fail('That password is not right.', 403);
+      return pw === DEMO_PASSWORD ? { ok: true } : fail(`That password is not right. The demo password is ${DEMO_PASSWORD}.`, 403);
     },
   ],
 ];
 
-/** The current demo check-in token (for the wave-2 kiosk's public routes: an old token must 404). */
+/** The current demo check-in token (an old token must 404 on the public routes). */
 export const deskQrToken = () => token;
+
+// ── Public check-in (kiosk) ──────────────────────────────────────────────────
+const BAD_LINK = 'This check-in link is not valid. Ask the security desk for the current QR code.';
+const linkOk = (tid?: string, tok?: string) => decodeURIComponent(tid ?? '') === DEMO_TENANT_ID && decodeURIComponent(tok ?? '') === token;
+const companyName = () => TENANT.name ?? 'Tamada Media';
+const clip = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
+/** normalizeWaPhone: digits; a 10-digit Indian number gets 91, a leading 0 is dropped. */
+function waPhone(v: unknown) {
+  let d = String(v ?? '').replace(/\D/g, '');
+  if (d.length === 11 && d.startsWith('0')) d = d.slice(1);
+  return d.length === 10 ? `91${d}` : d;
+}
+const MAX_PHOTO = 600 * 1024; // visitors.js MAX_PHOTO_BYTES
+function photoProblem(photo: unknown) {
+  const m = /^data:(image\/[a-z+.-]+);base64,(.+)$/i.exec(String(photo || ''));
+  if (!m) return 'The photo could not be read. Take it again.';
+  const bytes = Math.floor((m[2]!.length * 3) / 4);
+  if (!bytes) return 'The photo was empty. Take it again.';
+  if (bytes > MAX_PHOTO) return 'That photo is too large. Take it again.';
+  return '';
+}
+// The demo "host" answers this long after a kiosk check-in, if nobody has answered yet.
+const HOST_ANSWERS_AFTER_MS = 12_000;
+const kioskArrivals = new Map<string, number>();
+
+function findHosts(query: URLSearchParams) {
+  const q = clip(query.get('q'), 60).toLowerCase();
+  if (q.length < 2) return { ok: true, employees: [], companyName: companyName() };
+  const employees = allPeople()
+    .filter((u) => u.name && String(u.resigned) !== 'true' && u.status !== 'inactive' && !['master_admin', 'announcement_viewer'].includes(String(u.role)))
+    .filter((u) => String(u.name).toLowerCase().includes(q))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+    .slice(0, 25)
+    .map((u) => ({ id: u.id, name: u.name, jobTitle: u.jobTitle || '', dept: u.dept || '', hasAvatar: false }));
+  return { ok: true, employees, companyName: companyName() };
+}
+
+function publicCheckIn(body: unknown) {
+  const b = (body || {}) as Record<string, unknown>;
+  const visitorName = clip(b.visitorName, 120);
+  const visitorMobile = waPhone(b.visitorMobile);
+  const purpose = clip(b.purpose, 200);
+  if (!visitorName) return fail('Your name is required.');
+  if (visitorMobile.length < 10 || visitorMobile.length > 15) return fail('A valid mobile number is required so we can send you the result.');
+  if (!purpose) return fail('Tell us the purpose of your visit.');
+  if (b.consent !== true) return fail('Please accept the photo and WhatsApp consent to continue.');
+  const host = personById(clip(b.hostUserId, 80));
+  if (!host) return fail('Choose who you are here to meet.');
+  const bad = photoProblem(b.photo);
+  if (bad) return fail(bad);
+  const id = newId('vis');
+  visitStore.push(
+    makeVisit({
+      id,
+      hostUserId: host.id,
+      hostName: host.name,
+      visitorName,
+      visitorMobile,
+      purpose,
+      source: b.source === 'kiosk' ? 'kiosk' : 'qr',
+      status: 'pending',
+      createdAt: nowIso(),
+      workDate: today(),
+      // The demo keeps the selfie in memory so the board shows the face, as the real one does.
+      photoUrl: String(b.photo),
+    }),
+  );
+  kioskArrivals.set(id, Date.now());
+  return { ok: true, visitId: id, status: 'pending', hostName: host.name, hostHasMobile: true };
+}
+
+function publicStatus(id: string) {
+  const v = visitStore.find((x) => x.id === id);
+  if (!v) return fail('Visit not found.', 404);
+  const at = kioskArrivals.get(id);
+  if (v.status === 'pending' && at && Date.now() - at >= HOST_ANSWERS_AFTER_MS) {
+    const approve = !/test/i.test(v.visitorName);
+    Object.assign(v, { status: approve ? 'approved' : 'rejected', decidedAt: nowIso(), decidedVia: 'whatsapp', decidedBy: v.hostName });
+  }
+  return { ok: true, status: v.status, hostName: v.hostName };
+}
+
+function publicInvite(body: unknown) {
+  const code = clip((body as { code?: unknown })?.code, 10).replace(/\D/g, '');
+  if (code.length !== 6) return fail('Enter the 6-digit code from your invitation.');
+  const inv = inviteStore.find((i) => i.code === code && i.visitDate === today());
+  if (!inv) return fail('That code is not valid for today. Please check with your host.', 404);
+  if (inv.status === 'used') return fail('That code has already been used.', 409);
+  if (inv.status === 'cancelled') return fail('That invitation was cancelled. Please contact your host.', 409);
+  return { ok: true, inviteId: inv.id, guestName: inv.guestName, hostName: String(DEMO_USER.name), timeFrom: inv.timeFrom ?? '', timeTo: inv.timeTo ?? '' };
+}
+
+function publicArrive(inviteId: string, body: unknown) {
+  const inv = inviteStore.find((i) => i.id === inviteId);
+  if (!inv) return fail('That invitation no longer exists.', 404);
+  if (inv.status !== 'active') return fail('That invitation is no longer active.', 409);
+  if (inv.visitDate !== today()) return fail('That invitation is not valid today.', 409);
+  const photo = (body as { photo?: unknown })?.photo;
+  const bad = photoProblem(photo);
+  if (bad) return fail(bad);
+  const id = newId('vis');
+  const hostName = String(DEMO_USER.name);
+  visitStore.push(
+    makeVisit({
+      id,
+      visitorName: inv.guestName,
+      visitorMobile: inv.guestMobile || '',
+      purpose: inv.purpose || 'Invited guest',
+      source: 'invite',
+      inviteId: inv.id,
+      status: 'approved',
+      createdAt: nowIso(),
+      decidedAt: nowIso(),
+      decidedVia: 'app',
+      decidedBy: hostName,
+      workDate: today(),
+      photoUrl: String(photo),
+    }),
+  );
+  Object.assign(inv, { status: 'used', usedAt: nowIso() });
+  return { ok: true, visitId: id, status: 'approved', hostName };
+}
+
+const pub = (rest: string) => new RegExp(`^\\/public\\/visit\\/([^/]+)\\/([^/]+)${rest}$`);
+type PubHandler = (p: string[], body: unknown, query: URLSearchParams) => unknown;
+/** requirePublicTenant: a wrong company or an old token both get the same 404. */
+const guarded = (h: PubHandler): PubHandler => (p, body, query) => (linkOk(p[1], p[2]) ? h(p, body, query) : fail(BAD_LINK, 404));
+
+deskRoutes.push(
+  ['GET', pub('\\/employees'), guarded((_p, _b, query) => findHosts(query))],
+  ['GET', pub('\\/status\\/([^/]+)'), guarded((p) => publicStatus(decodeURIComponent(p[3]!)))],
+  ['POST', pub('\\/invite'), guarded((_p, body) => publicInvite(body))],
+  ['POST', pub('\\/invite\\/([^/]+)\\/arrive'), guarded((p, body) => publicArrive(decodeURIComponent(p[3]!), body))],
+  ['POST', pub(''), guarded((_p, body) => publicCheckIn(body))],
+);

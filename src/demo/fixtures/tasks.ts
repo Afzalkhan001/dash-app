@@ -13,6 +13,7 @@ import type { RunningTask, TimesheetEntry } from '@/api/attendance';
 import type { Booking, Client, PendingOtp, Task } from '@/api/tasks';
 import { DEMO_USER } from '@/demo/config';
 import { projectById } from '@/demo/fixtures/org';
+import { runningTeamBoardTasks } from '@/demo/fixtures/teamboard';
 import { currentPersona, type StaffPersonaId } from '@/demo/personas';
 import {
   addDays,
@@ -369,7 +370,12 @@ export function taskLinesOn(date: string): TimesheetEntry[] {
   return out.sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
 
+/** The demo person's running timers: their own tasks, then their Team board tasks (integrator pass 2). */
 export function runningTasks(): RunningTask[] {
+  return [...ownRunningTasks(), ...runningTeamBoardTasks()];
+}
+
+function ownRunningTasks(): RunningTask[] {
   return TASKS.filter((t) => isMine(t) && !!t.startedAt).map((t) => ({
     id: t.id,
     taskSource: 'tasks',
@@ -482,7 +488,6 @@ export const taskRoutes: Route[] = [
     },
   ],
   ['POST', /^\/tasks\/([^/]+)\/verify-otp$/, ([, id], body) => verify(TASKS.find((x) => x.id === id), 'Task', body?.type, body?.otp)],
-  ['PUT', /^\/team-roster\/tasks\/([^/]+)$/, () => ({ ok: true })],
 
   [
     'GET',

@@ -1,14 +1,14 @@
 // Desk domain — what the visitor desk adds to More, the + sheet and Home (docs/port/visitor-desk.md §4.1).
-//   More › Reception   Visitor desk · Visitor log · Invites · Check-in link, for both desk roles
-//                      (visitor_manager: visitors-dashboard…visitors-qr; super_admin: visitors-desk).
-//   + sheet            "Invite visitor" for the Visitor Manager (the Super Admin already has the
-//                      built-in "Invite a visitor" through its Visitors tile).
+//   More › Reception   Visitor desk · Kiosk mode · Visitor log · Invites · Check-in link, for both desk
+//                      roles (visitor_manager: visitors-dashboard…visitors-qr; super_admin: visitors-desk).
+//   + sheet            "Start kiosk" and "Invite visitor" for the Visitor Manager (the Super Admin already
+//                      has the built-in "Invite a visitor"; its kiosk is one row away in More).
 //   Home               the desk hero for the Visitor Manager (instead of the light Today card).
 // Pure: decided from `access` only (features/desk/access.ts holds the gates, cited to dash.html).
 
-import { History, LayoutDashboard, QrCode, Ticket, UserPlus } from 'lucide-react-native';
+import { History, LayoutDashboard, MonitorSmartphone, QrCode, Ticket, UserPlus } from 'lucide-react-native';
 
-import { canSeeDeskBoard, canSeeDeskInvites, canSeeDeskQr, canSeeVisitorLog, isDeskRole, isVisitorManager } from '@/features/desk/access';
+import { canSeeDeskBoard, canSeeDeskInvites, canSeeDeskQr, canSeeKiosk, canSeeVisitorLog, isDeskRole, isVisitorManager } from '@/features/desk/access';
 import { DeskHeroCard } from '@/features/desk/home-card';
 import { DESK_ROUTES } from '@/features/desk/routes';
 import type { Access, CreateAction, HomeCard, WorkspaceRow } from '@/features/plugin-types';
@@ -27,6 +27,19 @@ export function workspaceRows(access: Access): WorkspaceRow[] {
       module: 'visitors',
       order: 10,
       tourId: 'more.desk.board',
+    });
+  }
+  if (canSeeKiosk(access)) {
+    rows.push({
+      key: 'desk.kiosk',
+      section: 'reception',
+      label: 'Kiosk mode',
+      subtitle: 'Turn this phone into a check-in stand for the lobby',
+      href: DESK_ROUTES.kiosk,
+      icon: MonitorSmartphone,
+      module: 'visitors',
+      order: 15,
+      tourId: 'more.desk.kiosk',
     });
   }
   if (canSeeVisitorLog(access)) {
@@ -52,8 +65,15 @@ export function workspaceRows(access: Access): WorkspaceRow[] {
 }
 
 export function createActions(access: Access): CreateAction[] {
-  if (!isVisitorManager(access.user) || !canSeeDeskInvites(access)) return [];
-  return [{ key: 'desk.invite', label: 'Invite visitor', href: DESK_ROUTES.invite, icon: UserPlus, module: 'visitors', hint: 'Send a guest an entry code' }];
+  if (!isVisitorManager(access.user)) return [];
+  const out: CreateAction[] = [];
+  if (canSeeKiosk(access)) {
+    out.push({ key: 'desk.kiosk', label: 'Start kiosk', href: DESK_ROUTES.kiosk, icon: MonitorSmartphone, module: 'visitors', hint: 'Opens the lobby check-in stand' });
+  }
+  if (canSeeDeskInvites(access)) {
+    out.push({ key: 'desk.invite', label: 'Invite visitor', href: DESK_ROUTES.invite, icon: UserPlus, module: 'visitors', hint: 'Send a guest an entry code' });
+  }
+  return out;
 }
 
 export function homeCards(access: Access): HomeCard[] {

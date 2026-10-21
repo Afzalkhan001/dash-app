@@ -1,15 +1,17 @@
 // The Visitor Manager's Home hero (placement 'hero', in place of the light "Today" card): how many
-// visitors are in the building now, a "Waiting" chip that opens the board, and "Invite a visitor" —
+// visitors are in the building now, a "Waiting" chip that opens the board, and "Start kiosk" (spec §4.1) —
 // then the desk's four shortcuts. The waiting visitors themselves are listed by Home's "Needs you"
 // (the Inbox kind `desk`), so the hero doesn't list them again. Same read as the board
 // (GET /visitors/today, shared cache), refreshed with the Inbox's one-minute poll.
 
 import { useRouter } from 'expo-router';
-import { DoorOpen, History, LayoutDashboard, QrCode, Ticket, UserPlus } from 'lucide-react-native';
+import { DoorOpen, History, LayoutDashboard, MonitorSmartphone, QrCode, Ticket } from 'lucide-react-native';
 import { View } from 'react-native';
 
 import { useDeskToday } from '@/api/desk';
+import { canSeeKiosk } from '@/features/desk/access';
 import { DESK_ROUTES } from '@/features/desk/routes';
+import { useAccess } from '@/lib/use-access';
 import { radius } from '@/theme/tokens';
 import { CategoryGrid, Skeleton, SummaryHero, TourTarget, useLayout } from '@/ui';
 
@@ -20,6 +22,7 @@ export function DeskHeroCard() {
   const s = board.data?.stats;
   const waiting = s ? s.waiting + s.noResponse : 0;
   const openBoard = () => router.push(DESK_ROUTES.board);
+  const kiosk = canSeeKiosk(useAccess());
 
   return (
     <View style={{ gap }}>
@@ -44,7 +47,7 @@ export function DeskHeroCard() {
               : undefined
           }
           sub={s ? `${s.total} ${s.total === 1 ? 'visitor' : 'visitors'} today` : board.isError ? 'Couldn’t load today’s visitors. Pull to refresh.' : undefined}
-          action={{ title: 'Invite a visitor', icon: <UserPlus />, onPress: () => router.push(DESK_ROUTES.invite) }}
+          action={kiosk ? { title: 'Start kiosk', icon: <MonitorSmartphone />, onPress: () => router.push(DESK_ROUTES.kiosk) } : undefined}
         />
       </TourTarget>
       <CategoryGrid

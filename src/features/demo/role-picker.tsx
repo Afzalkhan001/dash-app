@@ -35,8 +35,17 @@ export async function startStaffDemo(id: string) {
   const p = staffPersona(id);
   if (!p || !DEMO_ENABLED) return;
   const s = useSession.getState();
-  if (s.kind) queryClient.clear();
+  const switching = !!s.kind;
+  if (switching) queryClient.clear();
   await s.signIn({ kind: 'staff', token: personaToken(p), tokenExpiresAt: Date.now() + FIFTEEN_DAYS, user: personaUser(p) });
+  // Screens still mounted for the old role can refetch between the clear and the sign-in, with the old
+  // token, and store the old role's answer under a key both roles share (['tenants']: one company for
+  // staff, every company for Master Admin). Drop those answers (cancel stops one still on its way, which
+  // would otherwise land after the invalidation and count as fresh), then ask again as the new role.
+  if (switching) {
+    await queryClient.cancelQueries();
+    void queryClient.invalidateQueries();
+  }
 }
 
 /** Sign in — or switch — as a vendor persona (the vendor side of the demo does the signing in). */

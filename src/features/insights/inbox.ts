@@ -1,11 +1,5 @@
-// Insights domain (wave 2) — inbox.ts. The Inbox kinds this domain adds.
-// Stub created by the integrator in Wave 0 and already wired into the shared screens through
-// features/domains.ts, so filling it in needs no shared edit. Owner: the insights agent (docs/port/PLAN.md
-// §2.1; spec docs/port/team-ops.md). Scope: Reports (computed from /tasks, CSV) and device monitoring (TM360). Routes: src/app/(app)/admin/insights/**.
-// API and rules: docs/port/EXTENSION-POINTS.md.
-//   inboxKinds  InboxKindPlugin[] (features/plugin-types): key, label, title, module, icon, the
-//               useItems(access) hook, row(item, ctx), Detail and optional History. Wrap each one in
-//               defineInboxKind() to keep your record type. Keys must be unique app-wide.
+// Insights domain (wave 2) — Inbox kinds. None: Reports and Device monitoring never wait on a
+// decision (docs/port/team-ops.md §3–4), so nothing here joins the Inbox.
 
 import type { InboxKindPlugin } from '@/features/plugin-types';
 

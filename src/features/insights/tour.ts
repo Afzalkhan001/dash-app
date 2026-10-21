@@ -1,14 +1,19 @@
-// Insights domain (wave 2) — tour.ts. This domain’s first-sign-in tour steps.
-// Stub created by the integrator in Wave 0 and already wired into the shared screens through
-// features/domains.ts, so filling it in needs no shared edit. Owner: the insights agent (docs/port/PLAN.md
-// §2.1; spec docs/port/team-ops.md). Scope: Reports (computed from /tasks, CSV) and device monitoring (TM360). Routes: src/app/(app)/admin/insights/**.
-// API and rules: docs/port/EXTENSION-POINTS.md.
-//   tourSteps(ctx)  TourStep[] appended before the demo step and "See this again". Build them with
-//                   features/tour/step tourStep(), gate each with `when` (ctx.tourId, ctx.role,
-//                   ctx.workspaceRows, ctx.createKeys, ctx.homeCards).
+// Insights domain (wave 2) — first-sign-in tour steps (docs/TOUR.md copy rules: ≤ 4-word titles,
+// ≤ 2 short sentences naming the control as it reads). Appended before the demo step.
 
 import type { DomainTourCtx, TourStep } from '@/features/plugin-types';
+import { tourStep } from '@/features/tour/step';
 
 export function tourSteps(ctx: DomainTourCtx): TourStep[] {
-  return [];
+  const rows = ctx.workspaceRows;
+  return [
+    tourStep('insights.reports', 'more.insights.reports', 'Hours reports', 'See hours by person, project or Keka code, and share them as a CSV.', {
+      screen: '/more',
+      when: () => rows.includes('insights.reports'),
+    }),
+    tourStep('insights.devices', 'more.insights.devices', 'Device monitoring', 'Who is active or idle on their work computer right now, as TM360 records it.', {
+      screen: '/more',
+      when: () => rows.includes('insights.devices'),
+    }),
+  ];
 }

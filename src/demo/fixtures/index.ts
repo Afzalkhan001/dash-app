@@ -32,7 +32,7 @@ import { callsRoutes } from '@/demo/fixtures/calls';
 
 export const domainRoutes: Route[] = [
   ...integrate('work', workRoutes),
-  ...bookingRoutes,
+  ...integrate('booking', bookingRoutes),
   ...integrate('servicedesk', servicedeskRoutes),
   ...integrate('people', peopleRoutes),
   ...hrtimeRoutes,
@@ -47,8 +47,8 @@ export const domainRoutes: Route[] = [
   ...payrollRoutes,
   ...hiringRoutes,
   ...newsroomRoutes,
-  ...bountyadminRoutes,
-  ...platformRoutes,
+  ...integrate('bountyadmin', bountyadminRoutes),
+  ...integrate('platform', platformRoutes),
   ...pushRoutes,
   ...callsRoutes,
 ];

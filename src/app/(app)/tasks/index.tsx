@@ -14,8 +14,12 @@
 // Search sits behind the magnifier in the header: while it holds text the groups give way to one
 // flat list of every task whose title or project code matches, each with its status.
 // Start and End may ask for the requester's 6-digit code (see use-task-flow).
+//
+// Team board (teamboard domain, PLAN §2.4): someone with Team Roster tasks (the website's "My Team
+// Tasks", canSeeMyTeamTasksNav) gets a "My tasks · Team tasks" switch at the top; Team tasks is
+// features/teamboard/my-team-tasks. `?view=team` opens on it.
 
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ListChecks, Pause, Search, SearchX, Square, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -41,6 +45,8 @@ import {
 import { PendingOtpsCard, useLiveCodes } from '@/features/tasks/pending-otps';
 import { rowSubtitle, TaskActivityRow, type TaskFlow, taskIcon, taskMenu, TaskMetricRow } from '@/features/tasks/task-card';
 import { useTaskFlow } from '@/features/tasks/use-task-flow';
+import { MyTeamTasks } from '@/features/teamboard/my-team-tasks';
+import { useTeamTasksGate } from '@/features/teamboard/use-board';
 import { palette, radius, space } from '@/theme/tokens';
 import {
   ActionRow,
@@ -53,6 +59,7 @@ import {
   PillField,
   Screen,
   SectionHeader,
+  Segmented,
   Skeleton,
   SkeletonList,
   StripedProgress,
@@ -63,10 +70,20 @@ import {
 import { themedStyles } from '@/theme/themed';
 
 // How many rows each group shows before "Show more" (which adds MORE at a time).
-const FIRST: Record<TaskGroup, number> = { in_progress: 5, todo: 5, waiting: 3, done: 3 };
+const FIRST: Record<TaskGroup, number> = {
+  in_progress: 5,
+  todo: 5,
+  waiting: 3,
+  done: 3,
+};
 const MORE = 20;
 // Open work is a stack of MetricRows; waiting and done work is a quieter list.
-const AS_METRICS: Record<TaskGroup, boolean> = { in_progress: true, todo: true, waiting: false, done: false };
+const AS_METRICS: Record<TaskGroup, boolean> = {
+  in_progress: true,
+  todo: true,
+  waiting: false,
+  done: false,
+};
 
 // Work still to do reads soonest first — overdue and today's on top, then upcoming, undated last —
 // so today's work is never hidden behind "Show more". Display order only; the other groups stay
@@ -74,7 +91,12 @@ const AS_METRICS: Record<TaskGroup, boolean> = { in_progress: true, todo: true, 
 const NO_DATE = '9999-99-99';
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const soonestFirst = (a: TaskRow, b: TaskRow) => cmp(a.due || NO_DATE, b.due || NO_DATE) || cmp(a.time, b.time);
-const SOONEST_FIRST: Record<TaskGroup, boolean> = { in_progress: true, todo: true, waiting: false, done: false };
+const SOONEST_FIRST: Record<TaskGroup, boolean> = {
+  in_progress: true,
+  todo: true,
+  waiting: false,
+  done: false,
+};
 
 /** Title or project code contains the search text (as the web's MyTasks search). */
 const matches = (r: TaskRow, q: string) => {
@@ -122,6 +144,10 @@ function RunningHero({ task, row, flow, today, onOpen }: { task: Task; row: Task
 
 export default function MyTasksScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ view?: string }>();
+  const teamGate = useTeamTasksGate();
+  const [view, setView] = useState<'mine' | 'team'>(params.view === 'team' ? 'team' : 'mine');
+  const teamView = teamGate.allowed && view === 'team';
   const tasksQ = useMyTasks();
   const bookingsQ = useMyProBookings();
   const projectsQ = useProjects();
@@ -144,7 +170,10 @@ export default function MyTasksScreen() {
   // The running task is the hero, so it isn't listed again under Paused.
   const groups = TASK_GROUPS.map((g) => {
     const inGroup = rows.filter((r) => taskGroup(r) === g.key && !(running && r.id === String(running.id)));
-    return { ...g, rows: SOONEST_FIRST[g.key] ? inGroup.slice().sort(soonestFirst) : inGroup };
+    return {
+      ...g,
+      rows: SOONEST_FIRST[g.key] ? inGroup.slice().sort(soonestFirst) : inGroup,
+    };
   }).filter((g) => g.rows.length > 0);
 
   const openWork = groups.filter((g) => AS_METRICS[g.key]).reduce((n, g) => n + g.rows.length, 0);
@@ -186,11 +215,32 @@ export default function MyTasksScreen() {
       header={
         <NavHeader
           title="My tasks"
-          actions={hasData && rows.length ? [{ icon: searchOpen ? X : Search, label: searchOpen ? 'Close search' : 'Search tasks', onPress: toggleSearch }] : undefined}
+          actions={
+            !teamView && hasData && rows.length
+              ? [
+                  {
+                    icon: searchOpen ? X : Search,
+                    label: searchOpen ? 'Close search' : 'Search tasks',
+                    onPress: toggleSearch,
+                  },
+                ]
+              : undefined
+          }
         />
       }
-      onRefresh={() => Promise.all([tasksQ.refetch(), bookingsQ.refetch()])}>
-      {hasData && rows.length && searchOpen ? (
+      onRefresh={() => Promise.all([tasksQ.refetch(), bookingsQ.refetch(), teamGate.query.refetch()])}>
+      {teamGate.allowed ? (
+        <Segmented
+          options={[
+            { key: 'mine', label: 'My tasks' },
+            { key: 'team', label: 'Team tasks' },
+          ]}
+          value={teamView ? 'team' : 'mine'}
+          onChange={setView}
+        />
+      ) : null}
+      {teamView ? <MyTeamTasks /> : null}
+      {!teamView && hasData && rows.length && searchOpen ? (
         <PillField
           icon={Search}
           value={q}
@@ -204,65 +254,70 @@ export default function MyTasksScreen() {
         />
       ) : null}
 
-      {/* Codes someone is waiting for me to read out (also on Home's "Needs you"), only while one is live. */}
-      {codes.list.length ? <PendingOtpsCard codes={codes} /> : null}
+      {!teamView ? (
+        <>
+          {/* Codes someone is waiting for me to read out (also on Home's "Needs you"), only while one is live. */}
+          {codes.list.length ? <PendingOtpsCard codes={codes} /> : null}
 
-      {hero}
-      {tasksQ.isLoading && !hasData ? (
-        <View style={styles.loading}>
-          <Skeleton height={176} radius={radius.xxl} />
-          <SkeletonList rows={4} avatar />
-        </View>
-      ) : null}
-      {tasksQ.isError && !hasData ? <ErrorState message={tasksQ.error?.message ?? ''} onRetry={() => tasksQ.refetch()} /> : null}
-      {hasData && !rows.length ? (
-        <EmptyState icon={<ListChecks color={palette.textMuted} />} title="No tasks yet" message="Work assigned to you shows up here." />
-      ) : null}
+          {hero}
+          {tasksQ.isLoading && !hasData ? (
+            <View style={styles.loading}>
+              <Skeleton height={176} radius={radius.xxl} />
+              <SkeletonList rows={4} avatar />
+            </View>
+          ) : null}
+          {tasksQ.isError && !hasData ? <ErrorState message={tasksQ.error?.message ?? ''} onRetry={() => tasksQ.refetch()} /> : null}
+          {hasData && !rows.length ? (
+            <EmptyState icon={<ListChecks color={palette.textMuted} />} title="No tasks yet" message="Work assigned to you shows up here." />
+          ) : null}
 
-      {hasData && query && found.length ? (
-        <ActivityList title="Results" overline={found.length === 1 ? '1 task' : `${found.length} tasks`}>
-          {found.map((r: TaskRow) => (
-            <TaskActivityRow key={r.id} row={r} today={today} showStatus onOpen={() => open(r.id)} />
-          ))}
-        </ActivityList>
-      ) : null}
-      {hasData && query && !found.length ? (
-        <EmptyState
-          icon={<SearchX color={palette.textMuted} />}
-          title="No tasks found"
-          message={`Nothing matches “${query}”.`}
-          action={<Button title="Clear search" variant="accent" size="md" onPress={() => setQ('')} />}
-        />
-      ) : null}
+          {hasData && query && found.length ? (
+            <ActivityList title="Results" overline={found.length === 1 ? '1 task' : `${found.length} tasks`}>
+              {found.map((r: TaskRow) => (
+                <TaskActivityRow key={r.id} row={r} today={today} showStatus onOpen={() => open(r.id)} />
+              ))}
+            </ActivityList>
+          ) : null}
+          {hasData && query && !found.length ? (
+            <EmptyState
+              icon={<SearchX color={palette.textMuted} />}
+              title="No tasks found"
+              message={`Nothing matches “${query}”.`}
+              action={<Button title="Clear search" variant="accent" size="md" onPress={() => setQ('')} />}
+            />
+          ) : null}
 
-      {hasData && !query
-        ? groups.map((g) => {
-            const shown = g.rows.slice(0, limits[g.key]);
-            const left = g.rows.length - shown.length;
-            const showMore = left > 0 ? <Button title={`Show more (${left})`} variant="text" size="md" onPress={() => more(g.key)} style={styles.more} /> : null;
-            if (AS_METRICS[g.key]) {
-              return (
-                <View key={g.key} style={styles.metricGroup}>
-                  <SectionHeader title={g.title} overline={left > 0 ? `${g.rows.length} ${tasksWord(g.rows.length)}` : undefined} />
-                  {shown.map((r: TaskRow) => (
-                    <TaskMetricRow key={r.id} row={r} today={today} onOpen={() => open(r.id)} onMore={() => showMenu(r)} />
-                  ))}
-                  {showMore}
-                </View>
-              );
-            }
-            return (
-              <View key={g.key}>
-                <ActivityList title={g.title} overline={left > 0 ? `${g.rows.length} ${tasksWord(g.rows.length)}` : undefined}>
-                  {shown.map((r: TaskRow) => (
-                    <TaskActivityRow key={r.id} row={r} today={today} onOpen={() => open(r.id)} />
-                  ))}
-                </ActivityList>
-                {showMore}
-              </View>
-            );
-          })
-        : null}
+          {hasData && !query
+            ? groups.map((g) => {
+                const shown = g.rows.slice(0, limits[g.key]);
+                const left = g.rows.length - shown.length;
+                const showMore =
+                  left > 0 ? <Button title={`Show more (${left})`} variant="text" size="md" onPress={() => more(g.key)} style={styles.more} /> : null;
+                if (AS_METRICS[g.key]) {
+                  return (
+                    <View key={g.key} style={styles.metricGroup}>
+                      <SectionHeader title={g.title} overline={left > 0 ? `${g.rows.length} ${tasksWord(g.rows.length)}` : undefined} />
+                      {shown.map((r: TaskRow) => (
+                        <TaskMetricRow key={r.id} row={r} today={today} onOpen={() => open(r.id)} onMore={() => showMenu(r)} />
+                      ))}
+                      {showMore}
+                    </View>
+                  );
+                }
+                return (
+                  <View key={g.key}>
+                    <ActivityList title={g.title} overline={left > 0 ? `${g.rows.length} ${tasksWord(g.rows.length)}` : undefined}>
+                      {shown.map((r: TaskRow) => (
+                        <TaskActivityRow key={r.id} row={r} today={today} onOpen={() => open(r.id)} />
+                      ))}
+                    </ActivityList>
+                    {showMore}
+                  </View>
+                );
+              })
+            : null}
+        </>
+      ) : null}
 
       {flow.ui}
       <MenuSheet

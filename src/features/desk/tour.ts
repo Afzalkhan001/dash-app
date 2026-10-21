@@ -1,5 +1,5 @@
 // Desk domain — first-sign-in tour steps (docs/TOUR.md copy rules: ≤ 4-word title, ≤ 2 short sentences).
-//   Visitor Manager: the desk hero on Home, then the Visitor desk and Check-in link rows in More.
+//   Visitor Manager: the desk hero on Home, then the Visitor desk, Kiosk mode and Check-in link rows in More.
 //   Super Admin (leadership tour): the Visitor desk row in More.
 
 import type { DomainTourCtx, TourStep } from '@/features/plugin-types';
@@ -24,6 +24,9 @@ export function tourSteps(ctx: DomainTourCtx): TourStep[] {
         { screen: '/more' },
       ),
     );
+  }
+  if (ctx.role === 'visitor_manager' && ctx.workspaceRows.includes('desk.kiosk')) {
+    steps.push(tourStep('desk.kiosk', 'more.desk.kiosk', 'Kiosk mode', 'Turn this phone into a check-in stand. Visitors check themselves in.', { screen: '/more' }));
   }
   if (ctx.role === 'visitor_manager' && ctx.workspaceRows.includes('desk.qr')) {
     steps.push(tourStep('desk.qr', 'more.desk.qr', 'The check-in link', 'Share the link visitors open to check in.', { screen: '/more' }));

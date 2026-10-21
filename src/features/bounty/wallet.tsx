@@ -185,7 +185,7 @@ export function CreatorFundsCard({ wallet }: { wallet: BountyWallet | undefined 
         total={{ label: 'Available', value: `${coins(available)} coins` }}
       />
       <Text variant="caption" muted numberOfLines={2} style={{ paddingHorizontal: space.xxs }}>
-        For tasks you post. These can’t be used for rewards. Post tasks on the DASH website.
+        For tasks you post from Bounty admin. These can’t be used for rewards.
       </Text>
     </View>
   );

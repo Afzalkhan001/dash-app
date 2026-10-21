@@ -1,24 +1,40 @@
-// Payroll domain (wave 2) — nav.ts. What this domain adds to More, the + sheet and Home.
-// Stub created by the integrator in Wave 0 and already wired into the shared screens through
-// features/domains.ts, so filling it in needs no shared edit. Owner: the payroll agent (docs/port/PLAN.md
-// §2.1; spec docs/port/hr-setup-payroll.md). Scope: Payroll runs, salaries, tax profiles, structures and statutory (read-only). Routes: src/app/(app)/admin/payroll/**.
-// API and rules: docs/port/EXTENSION-POINTS.md.
-//   workspaceRows(access)  rows in More › Workspace (section: work, people, money, it, company,
-//                          platform, reception, or links for a plain link under the app grid)
-//   createActions(access)  round actions in the + sheet, after the built-in 8
-//   homeCards(access)      Home cards (placement: hero, top, needs, end)
-// Pure: read `access` only (access.web(id) is the website's sidebar test), return [] without the gate.
+// Payroll domain (wave 2) — nav.ts. One row in More › Workspace › People & HR: "Payroll", which opens
+// the hub (/admin/payroll) for Super Admin and HR with the payroll, salary or tax module on
+// (dash.html:5312 HR_SECTIONS payroll; gates in ./access.ts). The subtitle lists only the parts this
+// person's modules switch on. No + action (a payroll run is monthly, not a daily "start something"),
+// no Home card and no Inbox queue: nothing in payroll waits on anyone or messages anyone.
+
+import { Banknote } from 'lucide-react-native';
 
 import type { Access, CreateAction, HomeCard, WorkspaceRow } from '@/features/plugin-types';
+import { payrollGates } from '@/features/payroll/access';
+
+export const PAYROLL_TOUR_ID = 'more.payroll.hub';
 
 export function workspaceRows(access: Access): WorkspaceRow[] {
+  const g = payrollGates(access.hr, access.user);
+  if (!g.any) return [];
+  const parts = [g.runs ? 'monthly runs' : null, g.salaries ? 'salaries' : null, g.statutory ? 'statutory' : null].filter(Boolean) as string[];
+  const text = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0] ?? '';
+  return [
+    {
+      key: 'payroll.hub',
+      section: 'people',
+      label: 'Payroll',
+      subtitle: text.charAt(0).toUpperCase() + text.slice(1),
+      href: '/admin/payroll',
+      icon: Banknote,
+      module: 'pay',
+      order: 30,
+      tourId: PAYROLL_TOUR_ID,
+    },
+  ];
+}
+
+export function createActions(_access: Access): CreateAction[] {
   return [];
 }
 
-export function createActions(access: Access): CreateAction[] {
-  return [];
-}
-
-export function homeCards(access: Access): HomeCard[] {
+export function homeCards(_access: Access): HomeCard[] {
   return [];
 }

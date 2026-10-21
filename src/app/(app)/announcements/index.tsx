@@ -1,7 +1,7 @@
 // News (what the More tile and Home's section call announcements) — the web's feed for viewers
 // (AnnouncementsPage, dash.html ~L19390): published, not expired, for my branch, newest first;
 // pop-ups excluded; birthday / work-anniversary cards only while HR has them switched on. Creating and
-// managing announcements stays on the website.
+// managing announcements happens in the News studio (src/app/(app)/admin/news, newsroom domain).
 //
 // Payno layout (docs/REFERENCE-COMPONENTS.md §3): NavHeader "News"; "Celebrations" — the birthday and
 // work-anniversary posts as one AvatarTiles row (features/more/news-row CelebrationTiles); "Latest" —
@@ -9,10 +9,13 @@
 // attachment; NewsHero); "Earlier" — the rest as ActivityRows in one frosted card (picture or type
 // icon, title, two muted lines, when it was posted). Each group keeps the feed's newest-first order. A
 // virtualised list, so only the rows on screen fetch their pictures.
+//
+// People who can post news (features/newsroom/access canUseNewsStudio, the web's Create Mode) get a
+// round "News studio" button in the header, the way into posting, editing and deleting posts.
 
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
-import { Megaphone } from 'lucide-react-native';
+import { Megaphone, PenLine } from 'lucide-react-native';
 import { useState } from 'react';
 import { RefreshControl, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +25,7 @@ import { useMyTenant } from '@/api/me';
 import { useSession } from '@/auth/session';
 import { useNow } from '@/features/attendance/use-now';
 import { canSeeAnnouncements } from '@/features/more/menu';
+import { canUseNewsStudio } from '@/features/newsroom/access';
 import { CelebrationTiles, NewsHero, NewsHeroSkeleton, NewsRow } from '@/features/more/news-row';
 import { themedStyles } from '@/theme/themed';
 import { palette, space } from '@/theme/tokens';
@@ -72,10 +76,12 @@ export default function AnnouncementsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const now = useNow();
-  const role = useSession((s) => s.user?.role);
+  const user = useSession((s) => s.user);
+  const role = user?.role;
   const tenant = useMyTenant();
   const ann = useVisibleAnnouncements();
   const allowed = canSeeAnnouncements(role, tenant.data);
+  const studio = canUseNewsStudio(user, tenant.data);
   const feed = Array.isArray(ann.feed) ? ann.feed.filter((a) => a && a.id != null) : [];
   const items = itemsOf(feed);
   const [refreshing, setRefreshing] = useState(false);
@@ -103,7 +109,14 @@ export default function AnnouncementsScreen() {
   };
 
   return (
-    <Screen scroll={false} header={<NavHeader title="News" />}>
+    <Screen
+      scroll={false}
+      header={
+        <NavHeader
+          title="News"
+          actions={studio ? [{ key: 'studio', icon: PenLine, label: 'News studio', onPress: () => router.push('/admin/news') }] : []}
+        />
+      }>
       {!allowed ? (
         <EmptyState
           icon={<Megaphone color={palette.textMuted} strokeWidth={1.8} />}

@@ -1,24 +1,55 @@
-// Newsroom domain (wave 2) — nav.ts. What this domain adds to More, the + sheet and Home.
-// Stub created by the integrator in Wave 0 and already wired into the shared screens through
-// features/domains.ts, so filling it in needs no shared edit. Owner: the newsroom agent (docs/port/PLAN.md
-// §2.1; spec docs/port/hr-people.md). Scope: News studio (post, schedule, pop-up, TV priority, celebrations) and office TVs. Routes: src/app/(app)/admin/news/**.
-// API and rules: docs/port/EXTENSION-POINTS.md.
-//   workspaceRows(access)  rows in More › Workspace (section: work, people, money, it, company,
-//                          platform, reception, or links for a plain link under the app grid)
-//   createActions(access)  round actions in the + sheet, after the built-in 8
-//   homeCards(access)      Home cards (placement: hero, top, needs, end)
-// Pure: read `access` only (access.web(id) is the website's sidebar test), return [] without the gate.
+// Newsroom domain (wave 2) — what it adds to More, the + sheet and Home.
+//   More › Workspace   "News studio" (Company) for people who can post news (canUseNewsStudio:
+//                      the Announcements page + isAnnouncementCreator); "Office TVs" (IT & office) for
+//                      Super Admin, CEO and COO (Config › TV Displays on the website).
+//   + sheet            "Post news" for the same people as the studio.
+//   Home               nothing (the News section and banner already show the posts).
+// Pure: reads `access` only.
 
+import { Megaphone, PenLine, Tv } from 'lucide-react-native';
+
+import { canSeeOfficeTvs, canUseNewsStudio } from '@/features/newsroom/access';
 import type { Access, CreateAction, HomeCard, WorkspaceRow } from '@/features/plugin-types';
 
 export function workspaceRows(access: Access): WorkspaceRow[] {
-  return [];
+  const u = access.user;
+  const t = access.tenant;
+  if (!u) return [];
+  const rows: WorkspaceRow[] = [];
+  if (canUseNewsStudio(u, t)) {
+    rows.push({
+      key: 'newsroom.studio',
+      section: 'company',
+      label: 'News studio',
+      subtitle: 'Post news, pop-ups and schedule them',
+      href: '/admin/news',
+      icon: Megaphone,
+      module: 'news',
+      order: 60,
+      tourId: 'more.newsroom.studio',
+    });
+  }
+  if (canSeeOfficeTvs(u, t)) {
+    rows.push({
+      key: 'newsroom.tvs',
+      section: 'it',
+      label: 'Office TVs',
+      subtitle: 'Pair TVs and show posts on them',
+      href: '/admin/news/tvs',
+      icon: Tv,
+      module: 'news',
+      order: 70,
+      tourId: 'more.newsroom.tvs',
+    });
+  }
+  return rows;
 }
 
 export function createActions(access: Access): CreateAction[] {
-  return [];
+  if (!canUseNewsStudio(access.user, access.tenant)) return [];
+  return [{ key: 'newsroom.post', label: 'Post news', href: '/admin/news/compose', icon: PenLine, module: 'news', hint: 'Opens a new post for everyone', order: 60 }];
 }
 
-export function homeCards(access: Access): HomeCard[] {
+export function homeCards(_access: Access): HomeCard[] {
   return [];
 }

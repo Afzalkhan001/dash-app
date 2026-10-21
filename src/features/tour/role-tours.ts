@@ -265,9 +265,9 @@ const STAFF_INTRO: Record<StaffTourId, string> = {
   it_admin: 'Here’s where your team’s requests and your IT tickets are. It takes about a minute.',
   accounts: 'Here’s where to sign off petty cash and find your own work. It takes about a minute.',
   app_manager: 'Here’s where to clock in, apply for leave and keep an eye on tasks and bounties. It takes about a minute.',
-  visitor_manager: 'Here’s who is at reception, how to let visitors in and where the visitor log is. It takes about a minute.',
+  visitor_manager: 'Here’s who is at reception, how to let visitors in and how to start the kiosk. It takes about a minute.',
   display: 'This is the office display account. News shows on the reception TV, not in this app.',
-  platform: 'Company setup, wallets and features are on the DASH website. Here’s what’s on your phone.',
+  platform: 'Here’s where every company on DASH is, with its wallet and features. It takes about a minute.',
 };
 
 function staffSteps(id: StaffTourId, ctx: StaffTourCtx): TourStep[] {
@@ -384,9 +384,8 @@ function staffSteps(id: StaffTourId, ctx: StaffTourCtx): TourStep[] {
           },
         ),
         s.inbox('Your Inbox', 'Visitors waiting at reception show here. Tap one to let them in.'),
-        s.tile('support', 'more.support', 'Help & support', 'Your help requests, the office Wi-Fi and staff contacts are here.'),
-        s.team('See who you report to and find any colleague.'),
-        step(`${id}.appearance`, 'more.appearance', 'Light or dark', 'Choose how DASH looks on this phone.', { screen: SCREENS.more }),
+        // The desk's own steps follow (features/desk/tour): In the building on Home, then the Visitor
+        // desk, Kiosk mode and the check-in link in More.
         s.replay(),
       ];
     }
@@ -404,9 +403,9 @@ function staffSteps(id: StaffTourId, ctx: StaffTourCtx): TourStep[] {
     case 'platform':
       return [
         s.avatar('Your profile', 'Tap your photo to see your details.'),
-        s.inbox('Your Inbox', 'Anything that needs you will show up here.'),
-        step(`${id}.more`, 'tabs.more', 'Everything else', 'The people directory and your settings are in More.'),
-        step(`${id}.people`, 'more.people', 'Find people', 'Search the people directory.', { screen: SCREENS.more, when: () => hasTile(ctx, 'people') }),
+        // Companies on DASH on Home, then Companies, Company wallets and Company features in More come
+        // from the platform's own steps (features/platform/tour).
+        step(`${id}.more`, 'tabs.more', 'Everything else', 'Companies, wallets, features and your settings are in More.'),
         step(`${id}.lock`, 'more.appLock', 'App lock', 'Ask for your fingerprint or face each time DASH opens.', {
           screen: SCREENS.more,
           when: () => ctx.lockAvailable,
@@ -445,15 +444,25 @@ function withDemoStep(steps: TourStep[], id: string, target: string, screen: Hre
  * (targets 'home.*': a desk hero, Team today, the company glance) always run.
  */
 const DOMAIN_STEP_PRIORITY = [
+  'platform.companies',
+  'platform.wallets',
+  'platform.features',
   'company.settings',
   'accounts.desk',
   'accounts.vendors',
   'work.tasks',
   'desk.board',
+  'desk.kiosk',
   'desk.qr',
   'servicedesk.raise',
   'servicedesk.desk',
+  'itdesk.assets',
+  'teamboard.board',
+  'bountyadmin.hub',
+  'newsroom.studio',
   'hrtime.setup',
+  'payroll.hub',
+  'hiring.desk',
   'people.roster',
   'company.users',
   'company.audit',

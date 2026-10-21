@@ -1,14 +1,27 @@
-// Platform domain (wave 3) — tour.ts. This domain’s first-sign-in tour steps.
-// Stub created by the integrator in Wave 0 and already wired into the shared screens through
-// features/domains.ts, so filling it in needs no shared edit. Owner: the platform agent (docs/port/PLAN.md
-// §2.1; spec docs/port/leadership-admin.md). Scope: Master Admin: companies, company wallets, company features. Routes: src/app/(app)/admin/platform/**.
-// API and rules: docs/port/EXTENSION-POINTS.md.
-//   tourSteps(ctx)  TourStep[] appended before the demo step and "See this again". Build them with
-//                   features/tour/step tourStep(), gate each with `when` (ctx.tourId, ctx.role,
-//                   ctx.workspaceRows, ctx.createKeys, ctx.homeCards).
+// Platform domain (wave 3) — first-sign-in tour steps for the platform owner (docs/TOUR.md copy rules:
+// ≤ 4-word titles, ≤ 2 short sentences naming the control as it reads). Appended before the demo step.
 
 import type { DomainTourCtx, TourStep } from '@/features/plugin-types';
+import { tourStep } from '@/features/tour/step';
 
 export function tourSteps(ctx: DomainTourCtx): TourStep[] {
-  return [];
+  const rows = ctx.workspaceRows;
+  return [
+    tourStep('platform.hero', 'home.platform.hero', 'Companies on DASH', 'How many companies use DASH and how many people they have. Tap the arrow for the list.', {
+      screen: '/',
+      when: () => ctx.homeCards.includes('platform.hero'),
+    }),
+    tourStep('platform.companies', 'more.platform.companies', 'Your companies', 'Open a company to edit its details, or register a new one.', {
+      screen: '/more',
+      when: () => rows.includes('platform.companies'),
+    }),
+    tourStep('platform.wallets', 'more.platform.wallets', 'Company wallets', 'Add bounty coins to a company, or take back coins nobody has used.', {
+      screen: '/more',
+      when: () => rows.includes('platform.wallets'),
+    }),
+    tourStep('platform.features', 'more.platform.features', 'Company features', 'Switch a feature or HR on or off for everyone at one company.', {
+      screen: '/more',
+      when: () => rows.includes('platform.features'),
+    }),
+  ];
 }

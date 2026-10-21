@@ -1,14 +1,28 @@
-// Itdesk domain (wave 2) — tour.ts. This domain’s first-sign-in tour steps.
-// Stub created by the integrator in Wave 0 and already wired into the shared screens through
-// features/domains.ts, so filling it in needs no shared edit. Owner: the itdesk agent (docs/port/PLAN.md
-// §2.1; spec docs/port/it-admin.md). Scope: Assets, rooms, locations, booking purposes, Support Centre admin. Routes: src/app/(app)/admin/it-desk/**.
-// API and rules: docs/port/EXTENSION-POINTS.md.
-//   tourSteps(ctx)  TourStep[] appended before the demo step and "See this again". Build them with
-//                   features/tour/step tourStep(), gate each with `when` (ctx.tourId, ctx.role,
-//                   ctx.workspaceRows, ctx.createKeys, ctx.homeCards).
+// IT desk — first-sign-in tour steps (docs/TOUR.md copy rules: ≤ 4-word title, ≤ 2 short sentences
+// naming the control as it reads). Each points at its More › IT & office row and runs only when the
+// person has that row.
 
 import type { DomainTourCtx, TourStep } from '@/features/plugin-types';
+import { isSupportItAdmin } from '@/features/itdesk/access';
+import { tourStep } from '@/features/tour/step';
 
 export function tourSteps(ctx: DomainTourCtx): TourStep[] {
-  return [];
+  return [
+    tourStep('itdesk.assets', 'more.itdesk.assets', 'Company equipment', 'Every asset, who has it and when warranties end. Assign, take back or add one here.', {
+      screen: '/more',
+      when: () => ctx.workspaceRows.includes('itdesk.assets'),
+    }),
+    tourStep('itdesk.rooms', 'more.itdesk.rooms', 'Rooms and locations', 'Open or close rooms and shoot locations, cancel a room booking and set booking purposes.', {
+      screen: '/more',
+      when: () => ctx.workspaceRows.includes('itdesk.rooms'),
+    }),
+    tourStep('itdesk.support', 'more.itdesk.support', 'Support centre',
+      isSupportItAdmin(ctx.role)
+        ? 'Keep branch Wi-Fi and office contacts up to date. Everyone sees them in Help & support.'
+        : 'Choose the office items people can request and the complaint types they can pick.',
+      {
+      screen: '/more',
+      when: () => ctx.workspaceRows.includes('itdesk.support'),
+    }),
+  ];
 }
