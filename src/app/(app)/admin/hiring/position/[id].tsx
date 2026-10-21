@@ -22,6 +22,7 @@ import {
   CAREERS_URL,
   citiesOf,
   coins,
+  employmentTypeLabel,
   factsLine,
   filledCount,
   isOpen,
@@ -30,6 +31,7 @@ import {
   referralStatusLabel,
   referralStatusTone,
 } from '@/features/hiring/model';
+import { StatusRow } from '@/features/hiring/ui';
 import { useHiring } from '@/features/hiring/use-hiring';
 import { dateLabel, stampLabel } from '@/lib/dates';
 import { themedStyles } from '@/theme/themed';
@@ -38,7 +40,6 @@ import {
   ActionBar,
   ActionRow,
   ActivityList,
-  ActivityRow,
   Banner,
   Button,
   Card,
@@ -123,7 +124,7 @@ export default function PositionScreen() {
 
   const details = filled([
     { key: 'hm', label: 'Hiring manager', value: job.hiringManagerName },
-    { key: 'type', label: 'Employment type', value: job.employmentType },
+    { key: 'type', label: 'Employment type', value: employmentTypeLabel(job.employmentType) || null },
     { key: 'exp', label: 'Experience', value: job.experienceRequired },
     { key: 'pkg', label: 'Package', value: job.package },
     { key: 'where', label: 'Location', value: citiesOf(job.location).join(', ') },
@@ -142,8 +143,8 @@ export default function PositionScreen() {
         <Button title="Close position" variant="danger" icon={<Lock />} onPress={() => setSheet('close')} />
       ) : (
         <ActionRow context="bar">
-          <Button title="Reopen" icon={<LockOpen />} loading={busy && !sheet} onPress={() => void run('reopen')} />
           <Button title="Delete" variant="danger" icon={<Trash2 />} onPress={() => setSheet('delete')} />
+          <Button title="Reopen" icon={<LockOpen />} loading={busy && !sheet} onPress={() => void run('reopen')} />
         </ActionRow>
       )}
     </ActionBar>
@@ -184,7 +185,7 @@ export default function PositionScreen() {
         {refs.length ? (
           <ActivityList key="refs" title={`Referred candidates (${refs.length})`}>
             {refs.map((r) => (
-              <ActivityRow
+              <StatusRow
                 key={r.id}
                 person={{ name: r.candidateName }}
                 title={r.candidateName}

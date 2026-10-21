@@ -9,18 +9,19 @@
 // with a plain button. Nobody is messaged.
 
 import { useLocalSearchParams } from 'expo-router';
-import { FileDown, Pencil, Plus, Trash2 } from 'lucide-react-native';
+import { Banknote, FileDown, Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { type Adjustment, adminPayslipPath, type PayLine, type PayrollItem, usePayrollRun, usePayrollRunActions } from '@/api/payroll';
 import { Stepper, ToggleRow } from '@/features/hrtime/ui';
 import { isDraft, isSelf } from '@/features/payroll/access';
-import { daysLine, errorText, fmtDays, GateFallback, moneyTyping, monthName, noun, rupeesOf, sumLines, usePayrollGate, usePayView } from '@/features/payroll/ui';
+import { daysLine, errorText, fmtDays, GateFallback, heroDecimals, moneyTyping, monthName, noun, rupeesOf, sumLines, usePayrollGate, usePayView } from '@/features/payroll/ui';
 import { downloadAuthed, shareFile } from '@/lib/files';
 import { themedStyles } from '@/theme/themed';
 import { palette, radius, space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   ActionRow,
   Banner,
   Button,
@@ -33,13 +34,16 @@ import {
   Sheet,
   SkeletonList,
   SummaryCard,
+  SummaryHero,
   type SummaryItem,
   Text,
   toast,
+  useLayout,
 } from '@/ui';
 
 export default function PayrollLineScreen() {
   const { id, itemId } = useLocalSearchParams<{ id: string; itemId: string }>();
+  const { compact } = useLayout();
   const { pending, allowed, access } = usePayrollGate('runs');
   const { money, eye } = usePayView();
   const q = usePayrollRun(id, allowed);
@@ -87,37 +91,41 @@ export default function PayrollLineScreen() {
 
   return (
     <Screen header={header} onRefresh={() => q.refetch()}>
+      <SummaryHero
+        icon={Banknote}
+        module="pay"
+        label={`Net pay · ${monthName(run.month)}${draft ? ' · draft' : ''}`}
+        value={item.net}
+        currency="₹"
+        decimals={heroDecimals(item.net, compact)}
+        hideable
+        hidden={money.hidden}
+        onHiddenChange={(h) => (h !== money.hidden ? eye.onPress() : undefined)}
+        sub={daysLine(item)}
+      />
       <SummaryCard
-        title={`${monthName(run.month)}${draft ? ' · draft' : ''}`}
         rows={[
           { label: 'Team', value: item.department || 'No team' },
           { label: 'Structure', value: item.structure_name || '—' },
-          { label: 'Days', value: daysLine(item) },
-          { label: 'Gross pay', value: money.inr(item.gross) },
-          { label: 'Reimbursements', value: item.reimbursement_total ? money.inr(item.reimbursement_total) : 'None' },
-          { label: 'Deductions', value: money.inr(item.total_deductions) },
         ]}
-        total={{ label: 'Net pay', value: money.inr(item.net) }}
       />
       {item.warnings.map((w, i) => (
         <Banner key={i} tone={/negative/i.test(w) ? 'danger' : 'warning'} title={/negative/i.test(w) ? 'Net pay is negative' : 'Check this line'} message={w} />
       ))}
 
       <SummaryCard title="Earnings" rows={rows(item.earnings)} total={{ label: 'Gross pay', value: money.inr(item.gross) }} />
-      {item.reimbursements.length ? <SummaryCard title="Reimbursements" rows={rows(item.reimbursements)} total={{ label: 'Paid with salary', value: money.inr(item.reimbursement_total) }} /> : null}
+      {item.reimbursements.length ? <SummaryCard title="Paid back with salary" rows={rows(item.reimbursements)} total={{ label: 'Total', value: money.inr(item.reimbursement_total) }} /> : null}
       <SummaryCard
         title="Deductions"
-        rows={item.deductions.length ? rows(item.deductions) : [{ label: 'None', value: '—' }]}
-        total={{ label: 'Total deductions', value: money.inr(item.total_deductions) }}
+        rows={item.deductions.length ? rows(item.deductions) : [{ label: 'None this month', value: '—' }]}
+        total={{ label: 'Total', value: money.inr(item.total_deductions) }}
       />
-      {item.employer.length ? (
-        <SummaryCard title="Paid by the company" rows={rows(item.employer)} total={{ label: 'Employer contributions', value: money.inr(sumLines(item.employer)) }} />
-      ) : null}
+      {item.employer.length ? <SummaryCard title="Paid by the company" rows={rows(item.employer)} total={{ label: 'Total', value: money.inr(sumLines(item.employer)) }} /> : null}
 
-      <View style={styles.actions}>
-        {draft && !self ? <Button title="Edit line" variant="accent" icon={<Pencil size={18} color={palette.text} />} onPress={() => setEditing(true)} /> : null}
-        <Button title={draft ? 'Payslip PDF (draft)' : 'Payslip PDF'} variant="ghost" icon={<FileDown size={18} color={palette.text} />} loading={pdfBusy} onPress={() => void pdf()} />
-      </View>
+      <ActionRow context="screen">
+        <Button title={draft ? 'Payslip (draft)' : 'Payslip PDF'} variant="accent" icon={<FileDown />} loading={pdfBusy} onPress={() => void pdf()} />
+        {draft && !self ? <Button title="Edit line" icon={<Pencil />} onPress={() => setEditing(true)} /> : null}
+      </ActionRow>
       {draft && self ? (
         <Text variant="caption" muted align="center">
           You can’t change your own pay line. Ask another HR admin.
@@ -196,7 +204,7 @@ function EditLineSheet({ visible, runId, item, onClose }: { visible: boolean; ru
         <Stepper label="Unpaid days" value={lop} onChange={setLop} min={0} max={item.days_in_month} unit={noun(lop, 'day')} hint="Set by HR — replaces the calculated number" />
       ) : null}
 
-      <Text variant="labelStrong" muted>
+      <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
         Adjustments
       </Text>
       <Text variant="caption" muted>
@@ -237,7 +245,7 @@ function EditLineSheet({ visible, runId, item, onClose }: { visible: boolean; ru
       <Button
         title="Add adjustment"
         variant="ghost"
-        icon={<Plus size={18} color={palette.text} />}
+        icon={<Plus />}
         disabled={adj.length >= 20}
         onPress={() => setAdj((list) => [...list, { label: '', type: 'earning', amount: '', taxable: true }])}
       />
@@ -246,7 +254,6 @@ function EditLineSheet({ visible, runId, item, onClose }: { visible: boolean; ru
 }
 
 const styles = themedStyles(() => ({
-  actions: { gap: space.sm },
   adj: { gap: space.sm, padding: space.md, borderRadius: radius.lg, backgroundColor: palette.surfaceSunken },
   adjHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   flex: { flex: 1 },

@@ -104,6 +104,30 @@ export const TV_REMOTE: { command: Exclude<TvCommand, 'SHOW_ANNOUNCEMENT'>; labe
   { command: 'RETURN_TO_PLAYLIST', label: 'Back to playlist', hint: 'Stops what was sent and returns to the playlist' },
 ];
 
+const TV_LOG_LABEL: Record<string, string> = {
+  sync: 'Synced',
+  command: 'Command sent',
+  online: 'Came online',
+  offline: 'Went offline',
+  boot: 'App started',
+  error: 'Something went wrong',
+  claim: 'Paired',
+  claimed: 'Paired',
+  unpair: 'Unpaired',
+  unpaired: 'Unpaired',
+};
+
+/** A TV log line in plain words: the event ("sync" → "Synced") and its detail (a command's own label). */
+export function tvLogLine(event: string | null | undefined, message?: string | null): { label: string; detail: string | null } {
+  const key = String(event || '').trim().toLowerCase();
+  const raw = key.replace(/[_-]+/g, ' ');
+  const label = TV_LOG_LABEL[key] ?? (raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : 'Event');
+  const msg = (message ?? '').trim();
+  if (!msg) return { label, detail: null };
+  const cmd = msg.toUpperCase() === 'SHOW_ANNOUNCEMENT' ? 'Show a post' : TV_REMOTE.find((r) => r.command === msg.toUpperCase())?.label;
+  return { label, detail: cmd ?? msg };
+}
+
 export const tvOnline = (d: TvDevice) => d.status === 'online';
 
 export function playlistName(d: TvDevice, playlists: TvPlaylist[]) {

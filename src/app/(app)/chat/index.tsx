@@ -90,7 +90,12 @@ export default function ChatListScreen() {
         ) : list.isError && !list.data ? (
           <ErrorState message={list.error?.message ?? ''} onRetry={() => void list.refetch()} />
         ) : q ? (
-          <EmptyState title="No chats match that" action={<Button title="Clear search" variant="accent" size="md" onPress={() => setQ('')} />} />
+          <EmptyState
+            icon={<Search color={palette.textMuted} />}
+            title="No chats match that"
+            message="Search looks at chat names and the people in them."
+            action={<Button title="Clear search" variant="accent" size="md" onPress={() => setQ('')} />}
+          />
         ) : (
           <EmptyState
             icon={<MessageCircle color={palette.textMuted} />}

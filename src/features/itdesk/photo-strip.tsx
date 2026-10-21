@@ -9,7 +9,7 @@ import { ActivityIndicator, Image, Pressable, ScrollView, View } from 'react-nat
 import { MAX_PHOTOS, PhotoError, pickFacilityPhoto } from '@/features/itdesk/photos';
 import { themedStyles } from '@/theme/themed';
 import { palette, radius, space } from '@/theme/tokens';
-import { Text, toast } from '@/ui';
+import { hitSlopFor, Text, toast } from '@/ui';
 
 const SIZE = 96;
 
@@ -41,7 +41,7 @@ export function PhotoStrip({ photos, onChange, loading }: { photos: string[]; on
                 onPress={() => onChange(photos.filter((_, j) => j !== i))}
                 accessibilityRole="button"
                 accessibilityLabel={`Remove photo ${i + 1}`}
-                hitSlop={10}
+                hitSlop={hitSlopFor(24)}
                 style={styles.remove}>
                 <X size={14} color={palette.onAccent} strokeWidth={2.4} />
               </Pressable>
@@ -58,7 +58,7 @@ export function PhotoStrip({ photos, onChange, loading }: { photos: string[]; on
         ) : null}
       </ScrollView>
       <Text variant="caption" muted>
-        {photos.length}/{MAX_PHOTOS} photos · shrunk to 900 px before saving
+        {photos.length ? `${photos.length} of ${MAX_PHOTOS} photos` : `Up to ${MAX_PHOTOS} photos`}
       </Text>
     </View>
   );

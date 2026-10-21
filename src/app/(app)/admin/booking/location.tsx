@@ -23,6 +23,7 @@ import { dateLabel, durationLabel, hmLabel, istParts } from '@/lib/dates';
 import { useAccess } from '@/lib/use-access';
 import { palette, space } from '@/theme/tokens';
 import {
+  AccountRow,
   ActionBar,
   ActivityList,
   ActivityRow,
@@ -33,10 +34,7 @@ import {
   EmptyState,
   ErrorState,
   FieldPair,
-  ListCard,
-  ListRow,
   MenuSheet,
-  ModuleBadge,
   NavHeader,
   PillSelector,
   Row,
@@ -166,26 +164,26 @@ export default function BookLocationScreen() {
     return (
       <>
         <Screen header={<NavHeader title="Book a location" />} onRefresh={() => locations.refetch()}>
+          <DayStrip value={date} onChange={setDate} today={today} days={8} maxDays={MAX_DAYS} />
           {cities.length ? (
             <Row>
               <PillSelector icon={MapPin} label={city || 'All areas'} onPress={() => setCityOpen(true)} accessibilityLabel={`Area: ${city || 'all'}`} />
             </Row>
           ) : null}
-          <DayStrip value={date} onChange={setDate} today={today} days={8} maxDays={MAX_DAYS} />
           {locations.isError && !locations.data ? (
             <ErrorState message={locations.error?.message || 'Couldn’t load the locations.'} onRetry={() => void locations.refetch()} />
           ) : !locations.data ? (
             <SkeletonList rows={3} />
           ) : shown.length ? (
-            <ListCard title="Locations">
+            <ActivityList title="Locations">
               {shown.map((l) => (
-                <ListRow
+                <ActivityRow
                   key={l.id}
-                  size="lg"
-                  left={<ModuleBadge module="tasks" icon={MapPin} />}
+                  module="tasks"
+                  icon={MapPin}
                   title={l.name || l.id}
-                  subtitle={[l.address || cityOfLocation(l), l.approvalRequired ? `Needs approval${l.approverName ? ` by ${l.approverName}` : ''}` : ''].filter(Boolean).join(' · ')}
-                  subtitleLines={2}
+                  subtitle={l.address || cityOfLocation(l) || undefined}
+                  note={l.approvalRequired ? `Needs approval${l.approverName ? ` by ${l.approverName}` : ''}` : undefined}
                   chevron
                   onPress={() => {
                     setLoc(l);
@@ -193,7 +191,7 @@ export default function BookLocationScreen() {
                   }}
                 />
               ))}
-            </ListCard>
+            </ActivityList>
           ) : (
             <EmptyState icon={<MapPin color={palette.textMuted} />} title="No locations here" message="IT Admin adds shooting locations in the IT desk." />
           )}
@@ -237,23 +235,25 @@ export default function BookLocationScreen() {
   return (
     <>
       <Screen
-        header={<NavHeader title={loc.name || 'Location'} />}
+        header={<NavHeader title="Book a location" />}
         onRefresh={() => Promise.all([slotRows.refetch(), feed.refetch()])}
         footer={
           <ActionBar note={timeErr || (start && end && !project ? 'Pick a project code.' : length ? `${hmLabel(start)} – ${hmLabel(end)} · ${length}` : 'Pick a start and end time.')}>
             <Button title="Review booking" icon={<ArrowRight />} disabled={!ready} onPress={() => setConfirm(true)} />
           </ActionBar>
         }>
-        <Button
-          title="Change location"
-          variant="text"
-          size="sm"
+        <AccountRow
+          icon={MapPin}
+          module="tasks"
+          title={loc.name || 'Location'}
+          sub={loc.address || cityOfLocation(loc) || 'Shooting location'}
+          actionLabel="Change"
           onPress={() => {
             setLoc(null);
             setStart('');
             setEnd('');
           }}
-          style={styles.change}
+          accessibilityLabel={`${loc.name || 'Location'}. Change location`}
         />
         {needsApproval ? (
           <Banner tone="info" icon={Hourglass} title={`Needs approval${loc.approverName ? ` by ${loc.approverName}` : ''}`} message="The time is kept for you while they decide." />
@@ -359,6 +359,5 @@ export default function BookLocationScreen() {
 }
 
 const styles = themedStyles(() => ({
-  change: { alignSelf: 'flex-start' },
   form: { gap: space.md },
 }));

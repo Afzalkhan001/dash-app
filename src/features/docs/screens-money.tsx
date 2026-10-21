@@ -16,7 +16,7 @@ import { letterheadOf } from '@/lib/pdf';
 import { useAccess } from '@/lib/use-access';
 import { PillField, SelectField } from '@/ui';
 
-// ── Petty cash statement ─────────────────────────────────────────────────────
+// ── Petty cash expense report ─────────────────────────────────────────────────────
 export function PettyStatementPdfScreen({ batchId, requestId }: { batchId?: string; requestId?: string }) {
   const access = useAccess();
   const today = useTodayIst();
@@ -36,23 +36,22 @@ export function PettyStatementPdfScreen({ batchId, requestId }: { batchId?: stri
   const listLoading = !batchId && !requestId && overview.isPending;
   return (
     <DocScreen
-      title="Statement of expenses"
+      title="Expense report PDF"
       icon={ReceiptText}
       module="pettyCash"
-      heroLabel={st ? st.employee?.name || 'Statement' : 'Petty cash bills'}
+      heroLabel="Petty cash bills"
       value={st ? total : undefined}
       currency="₹"
-      unit="in bills"
-      sub={st ? plural(st.statements?.length ?? 0, 'project code') : undefined}
+      sub={st ? [st.employee?.name, plural(st.statements?.length ?? 0, 'project code')].filter(Boolean).join(' · ') : undefined}
       loading={listLoading || ((!!chosen || !!requestId) && q.isPending)}
-      error={q.isError && !q.data ? q.error?.message || 'Couldn’t load the statement.' : null}
+      error={q.isError && !q.data ? q.error?.message || 'Couldn’t load the expense report.' : null}
       onRetry={() => void q.refetch()}
       onRefresh={() => Promise.all([q.refetch(), overview.refetch()])}
-      empty={!chosen && !requestId && !listLoading ?{ title: 'No bills submitted yet', message: 'Statements appear here once you submit petty cash bills.' } : null}
+      empty={!chosen && !requestId && !listLoading ?{ title: 'No bills sent yet', message: 'Your expense report appears here once you send petty cash bills.' } : null}
       controls={
         !batchId && !requestId && batches.length > 1 ? (
           <SelectField
-            label="Submission"
+            label="Bills sent"
             value={chosen}
             options={batches.map((s) => ({ value: s.batchId!, label: [pdfDate(s.createdAt), s.kekaCode || s.projectName, inr(s.amount)].filter(Boolean).join(' · ') }))}
             onChange={setPick}
@@ -114,10 +113,11 @@ export function VendorSummaryPdfScreen({ id }: { id?: string }) {
       title="Vendor summary"
       icon={Store}
       module="vendor"
-      heroLabel={v ? v.business.legalEntityName : 'Vendor'}
       value={v ? (v.documents ?? []).filter((d) => !d.superseded).length : undefined}
       unit="documents on file"
-      sub={v?.vendorCode ? `Vendor ID ${v.vendorCode}` : undefined}
+      // The picker below already names the vendor and its ID.
+      heroLabel={v && (id || (list.data?.length ?? 0) <= 1) ? v.business.legalEntityName : 'Vendor record'}
+      sub={v?.vendorCode && (id || (list.data?.length ?? 0) <= 1) ? `Vendor ID ${v.vendorCode}` : undefined}
       loading={(!id && list.isPending) || (!!chosen && q.isPending)}
       error={q.isError && !q.data ? q.error?.message || 'Couldn’t load the vendor.' : null}
       onRetry={() => void q.refetch()}

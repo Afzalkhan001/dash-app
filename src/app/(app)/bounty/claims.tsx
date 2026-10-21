@@ -11,9 +11,9 @@ import { ListChecks } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { useBountyClaimReminders, useBountyTasks } from '@/api/bounty';
+import { type BountyClaimReminder, useBountyClaimReminders, useBountyTasks } from '@/api/bounty';
 import { useTodayIst } from '@/features/attendance/use-now';
-import { BountyClaimMetricRow, BountyClaimReminderCard, BountyTaskListSkeleton } from '@/features/bounty/components';
+import { BountyClaimMetricRow, BountyClaimReminderCard, BountyCoinsHeroSkeleton, BountyTaskListSkeleton } from '@/features/bounty/components';
 import { BountyGate } from '@/features/bounty/gate';
 import { useBountyLabels } from '@/features/bounty/hooks';
 import { asArray, boardTasks, claimIsActive, claimReward, myClaimOf, myClaimTasks, num } from '@/features/bounty/logic';
@@ -43,6 +43,7 @@ function MyTasks() {
   const userId = user?.id;
   const [picked, setFilter] = useState<Filter>('all');
 
+  const reminders = asArray<BountyClaimReminder>(remindQ.data).filter((t) => !!t && !!t.id);
   const mine = myClaimTasks(boardTasks(tasksQ.data), userId);
   const active = mine.filter((t) => claimIsActive(myClaimOf(t, userId)));
   const done = mine.filter((t) => !claimIsActive(myClaimOf(t, userId)));
@@ -81,8 +82,12 @@ function MyTasks() {
           info={active.length ? { label: 'Still going', value: plural(active.length, 'task') } : undefined}
           sub={`${plural(mine.length, 'task')} joined`}
         />
+      ) : tasksQ.isLoading ? (
+        // The hero's own placeholder, so the list doesn't jump down when the figures land.
+        <BountyCoinsHeroSkeleton />
       ) : null}
-      <BountyClaimReminderCard items={asArray(remindQ.data)} />
+      {/* Only mounted when it shows: an empty Screen child would still take a gap. */}
+      {reminders.length ? <BountyClaimReminderCard items={reminders} /> : null}
       {tasksQ.isLoading ? (
         <BountyTaskListSkeleton count={3} />
       ) : tasksQ.error && !Array.isArray(tasksQ.data) ? (

@@ -9,8 +9,8 @@ import { useTodayIst } from '@/features/attendance/use-now';
 import { asVisits, dateLabel } from '@/features/visitors/format';
 import { HistoryList } from '@/features/visitors/history-list';
 import { istDateOf } from '@/lib/dates';
-import { palette } from '@/theme/tokens';
-import { EmptyState, ErrorState, NavHeader, Screen, SkeletonList, SummaryHero } from '@/ui';
+import { palette, radius } from '@/theme/tokens';
+import { EmptyState, ErrorState, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero } from '@/ui';
 
 export default function PastVisitorsScreen() {
   const visits = useMyVisitors();
@@ -32,6 +32,9 @@ export default function PastVisitorsScreen() {
           info={history.length !== thisMonth ? { label: 'All visits', value: String(history.length) } : undefined}
           sub={last ? `Last visit ${dateLabel(last.createdAt, today)}` : undefined}
         />
+      ) : !visits.data && !visits.isError ? (
+        // The hero's placeholder in the hero's slot, so the list doesn't jump when the data lands.
+        <Skeleton height={196} radius={radius.xxl} />
       ) : null}
       {visits.data ? (
         history.length ? (

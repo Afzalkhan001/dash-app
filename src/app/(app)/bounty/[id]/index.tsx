@@ -45,6 +45,7 @@ import { MySubmissionSheet } from '@/features/bounty/submission-sheet';
 import { istParts } from '@/lib/dates';
 import { moduleTone, palette, radius, space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   ActionBar,
   ActivityList,
   ActivityRow,
@@ -205,29 +206,29 @@ export default function BountyTaskScreen() {
           {status ? <StatusPill label={status.label} tone={status.tone} style={styles.pill} /> : null}
         </SummaryHero>
 
-        {/* Where this person stands (at most one notice) */}
-        <ClaimStatus
-          mine={mine}
-          timeLeft={timeLeft}
-          canSubmitNew={canSubmitNew}
-          expired={expired}
-          cancelled={!!task.cancelledAt}
-          full={task.status === 'closed'}
-          isOwnTask={isOwnTask}
-          canClaim={canClaim}
-          isCreator={isCreator}
-          role={user?.role}
-          reviewer={reviewer}
-          reward={reward}
-          onViewSubmission={() => setShowSub(true)}
-        />
+        {/* Where this person stands: at most one notice, called as a function so "no notice" leaves no empty Screen child (and gap). */}
+        {claimNotice({
+          mine,
+          timeLeft,
+          canSubmitNew,
+          expired,
+          cancelled: !!task.cancelledAt,
+          full: task.status === 'closed',
+          isOwnTask,
+          canClaim,
+          isCreator,
+          role: user?.role,
+          reviewer,
+          reward,
+          onViewSubmission: () => setShowSub(true),
+        })}
 
         <Card tone="frostStrong" style={{ gap: space.sm }}>
           <Text variant="heading" accessibilityRole="header">
             {task.title || 'Untitled task'}
           </Text>
           <View style={{ gap: space.xxs }}>
-            <Text variant="labelStrong" muted>
+            <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
               What to do
             </Text>
             <Text variant="body" selectable>
@@ -321,7 +322,7 @@ export default function BountyTaskScreen() {
   );
 }
 
-function ClaimStatus(p: {
+function claimNotice(p: {
   mine?: ReturnType<typeof myClaimOf>;
   timeLeft: string | null;
   canSubmitNew: boolean;

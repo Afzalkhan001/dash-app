@@ -88,7 +88,7 @@ export function TasksTab({ board }: { board: Board }) {
 
   return (
     <View style={styles.gap}>
-      <StatGrid columns={4}>
+      <StatGrid columns={2}>
         <StatTile variant="light" label="Total" value={all.length} module="tasks" />
         <StatTile variant="light" label="In progress" value={all.filter((t) => t.status === 'in_progress').length} module="tasks" />
         <StatTile variant="light" label="Overdue" value={overdue} valueColor={overdue ? palette.dangerInk : undefined} />

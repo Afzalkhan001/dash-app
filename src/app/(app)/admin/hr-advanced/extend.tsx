@@ -20,9 +20,10 @@ import { extendBooking, fetchBookings, fetchHolds } from '@/features/hradvanced/
 import { extendError, latestEnd, minHm, type TeamShoot, teamShootsToday } from '@/features/hradvanced/extend-model';
 import { errorText, GateFallback } from '@/features/hradvanced/ui';
 import { Stepper } from '@/features/hrtime/ui';
-import { hmLabel } from '@/lib/dates';
+import { durationLabel, hmLabel } from '@/lib/dates';
 import { useAccess } from '@/lib/use-access';
-import { ActivityList, ActivityRow, Banner, Button, ConfirmSheet, NavHeader, Screen, Sheet, SummaryCard, toast } from '@/ui';
+import type { StatusTone } from '@/theme/tokens';
+import { ActivityList, Avatar, Banner, Button, ConfirmSheet, ListRow, NavHeader, Screen, Sheet, StatusPill, SummaryCard, toast } from '@/ui';
 
 export default function ExtendShootScreen() {
   const access = useAccess();
@@ -55,22 +56,29 @@ export default function ExtendShootScreen() {
           const l = latestEnd(list, b, types);
           const cur = toMin(effEnd(b)) ?? 0;
           const room = l.limit - cur;
+          // Only "free" is a colour (green: it can be extended); the rest are facts, not failures.
+          const st: { label: string; tone: StatusTone } = b.actualEndTime
+            ? { label: 'Finished early', tone: 'neutral' }
+            : room >= 15
+              ? { label: `Free till ${hmLabel(minHm(l.limit))}`, tone: 'done' }
+              : { label: l.next ? 'Booked right after' : 'Day is over', tone: 'neutral' };
           return (
-            <ActivityRow
+            // A ListRow, so the status pill sits under the text (DESIGN §0C): beside it, the pill and
+            // the category squeezed the name onto two lines and cut the time short.
+            <ListRow
               key={b.id}
-              person={{ name: person.name }}
+              size="lg"
+              titleWeight="medium"
+              left={<Avatar name={person.name} size={40} ring={false} />}
               title={person.name}
-              subtitle={`${hmLabel(b.startTime)} – ${hmLabel(effEnd(b))} · ${b.project || b.kekaCode || 'Booking'}`}
-              meta={profTypeLabel(types, b.profType)}
-              status={
-                b.actualEndTime
-                  ? { label: 'Finished early', tone: 'failed' }
-                  : room >= 15
-                    ? { label: `Free till ${hmLabel(minHm(l.limit))}`, tone: 'done' }
-                    : { label: l.next ? 'Booked right after' : 'Day is over', tone: 'failed' }
-              }
+              subtitle={`${hmLabel(b.startTime)} – ${hmLabel(effEnd(b))} · ${profTypeLabel(types, b.profType)}`}
+              meta={b.project || b.kekaCode || 'Booking'}
+              numberOfLines={2}
+              subtitleLines={2}
+              below={<StatusPill label={st.label} tone={st.tone} />}
               chevron
               onPress={() => setOpenId(b.id)}
+              accessibilityLabel={[person.name, `${hmLabel(b.startTime)} to ${hmLabel(effEnd(b))}`, profTypeLabel(types, b.profType), b.project || b.kekaCode, st.label].filter(Boolean).join(', ')}
               accessibilityHint="Choose a later end time"
             />
           );
@@ -172,7 +180,7 @@ function ExtendSheet({ shoot, list, onClose, onDone }: { shoot: TeamShoot; list:
             { label: 'Category', value: profTypeLabel(types, b.profType) },
             { label: 'Booked by', value: b.requestedBy || '—' },
             { label: 'Next booking today', value: l.next ? `${hmLabel(l.next.startTime)} for ${l.next.requestedBy || 'someone'}` : 'None' },
-            ...(l.gap ? [{ label: 'Gap kept after a booking', value: `${l.gap} min` }] : []),
+            ...(l.gap ? [{ label: 'Gap kept after a booking', value: durationLabel(l.gap) }] : []),
           ]}
         />
       </Sheet>
@@ -182,7 +190,7 @@ function ExtendSheet({ shoot, list, onClose, onDone }: { shoot: TeamShoot; list:
         title="Extend this shoot?"
         subtitle={b.project || b.kekaCode || undefined}
         from={{ title: hmLabel(effEnd(b)), subtitle: 'Ends now', icon: Clock, module: 'tasks' }}
-        to={{ title: hmLabel(minHm(newEnd)), subtitle: `+${extra} min`, icon: Timer, module: 'tasks' }}
+        to={{ title: hmLabel(minHm(newEnd)), subtitle: `+${durationLabel(extra)}`, icon: Timer, module: 'tasks' }}
         confirmLabel="Swipe to extend"
         onConfirm={() => void submit()}
         loading={saving}

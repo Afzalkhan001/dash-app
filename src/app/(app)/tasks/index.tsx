@@ -254,70 +254,68 @@ export default function MyTasksScreen() {
         />
       ) : null}
 
-      {!teamView ? (
-        <>
-          {/* Codes someone is waiting for me to read out (also on Home's "Needs you"), only while one is live. */}
-          {codes.list.length ? <PendingOtpsCard codes={codes} /> : null}
+      {/* Each piece below is its own Screen child (not one fragment), so the Screen's gap and staggered
+          entrance apply between the code card, the hero and every group.
+          Codes someone is waiting for me to read out (also on Home's "Needs you"), only while one is live. */}
+      {!teamView && codes.list.length ? <PendingOtpsCard codes={codes} /> : null}
 
-          {hero}
-          {tasksQ.isLoading && !hasData ? (
-            <View style={styles.loading}>
-              <Skeleton height={176} radius={radius.xxl} />
-              <SkeletonList rows={4} avatar />
-            </View>
-          ) : null}
-          {tasksQ.isError && !hasData ? <ErrorState message={tasksQ.error?.message ?? ''} onRetry={() => tasksQ.refetch()} /> : null}
-          {hasData && !rows.length ? (
-            <EmptyState icon={<ListChecks color={palette.textMuted} />} title="No tasks yet" message="Work assigned to you shows up here." />
-          ) : null}
-
-          {hasData && query && found.length ? (
-            <ActivityList title="Results" overline={found.length === 1 ? '1 task' : `${found.length} tasks`}>
-              {found.map((r: TaskRow) => (
-                <TaskActivityRow key={r.id} row={r} today={today} showStatus onOpen={() => open(r.id)} />
-              ))}
-            </ActivityList>
-          ) : null}
-          {hasData && query && !found.length ? (
-            <EmptyState
-              icon={<SearchX color={palette.textMuted} />}
-              title="No tasks found"
-              message={`Nothing matches “${query}”.`}
-              action={<Button title="Clear search" variant="accent" size="md" onPress={() => setQ('')} />}
-            />
-          ) : null}
-
-          {hasData && !query
-            ? groups.map((g) => {
-                const shown = g.rows.slice(0, limits[g.key]);
-                const left = g.rows.length - shown.length;
-                const showMore =
-                  left > 0 ? <Button title={`Show more (${left})`} variant="text" size="md" onPress={() => more(g.key)} style={styles.more} /> : null;
-                if (AS_METRICS[g.key]) {
-                  return (
-                    <View key={g.key} style={styles.metricGroup}>
-                      <SectionHeader title={g.title} overline={left > 0 ? `${g.rows.length} ${tasksWord(g.rows.length)}` : undefined} />
-                      {shown.map((r: TaskRow) => (
-                        <TaskMetricRow key={r.id} row={r} today={today} onOpen={() => open(r.id)} onMore={() => showMenu(r)} />
-                      ))}
-                      {showMore}
-                    </View>
-                  );
-                }
-                return (
-                  <View key={g.key}>
-                    <ActivityList title={g.title} overline={left > 0 ? `${g.rows.length} ${tasksWord(g.rows.length)}` : undefined}>
-                      {shown.map((r: TaskRow) => (
-                        <TaskActivityRow key={r.id} row={r} today={today} onOpen={() => open(r.id)} />
-                      ))}
-                    </ActivityList>
-                    {showMore}
-                  </View>
-                );
-              })
-            : null}
-        </>
+      {teamView ? null : hero}
+      {!teamView && tasksQ.isLoading && !hasData ? (
+        <View style={styles.loading}>
+          <Skeleton height={176} radius={radius.xxl} />
+          <SkeletonList rows={4} avatar />
+        </View>
       ) : null}
+      {!teamView && tasksQ.isError && !hasData ? <ErrorState message={tasksQ.error?.message ?? ''} onRetry={() => tasksQ.refetch()} /> : null}
+      {!teamView && hasData && !rows.length ? (
+        <EmptyState icon={<ListChecks color={palette.textMuted} />} title="No tasks yet" message="Work assigned to you shows up here." />
+      ) : null}
+
+      {!teamView && hasData && query && found.length ? (
+        <ActivityList title="Results" overline={found.length === 1 ? '1 task' : `${found.length} tasks`}>
+          {found.map((r: TaskRow) => (
+            <TaskActivityRow key={r.id} row={r} today={today} showStatus onOpen={() => open(r.id)} />
+          ))}
+        </ActivityList>
+      ) : null}
+      {!teamView && hasData && query && !found.length ? (
+        <EmptyState
+          icon={<SearchX color={palette.textMuted} />}
+          title="No tasks found"
+          message={`Nothing matches “${query}”.`}
+          action={<Button title="Clear search" variant="accent" size="md" onPress={() => setQ('')} />}
+        />
+      ) : null}
+
+      {!teamView && hasData && !query
+        ? groups.map((g) => {
+            const shown = g.rows.slice(0, limits[g.key]);
+            const left = g.rows.length - shown.length;
+            const showMore =
+              left > 0 ? <Button title={`Show more (${left})`} variant="text" size="md" onPress={() => more(g.key)} style={styles.more} /> : null;
+            if (AS_METRICS[g.key]) {
+              return (
+                <View key={g.key} style={styles.metricGroup}>
+                  <SectionHeader title={g.title} overline={left > 0 ? `${g.rows.length} ${tasksWord(g.rows.length)}` : undefined} />
+                  {shown.map((r: TaskRow) => (
+                    <TaskMetricRow key={r.id} row={r} today={today} onOpen={() => open(r.id)} onMore={() => showMenu(r)} />
+                  ))}
+                  {showMore}
+                </View>
+              );
+            }
+            return (
+              <View key={g.key}>
+                <ActivityList title={g.title} overline={left > 0 ? `${g.rows.length} ${tasksWord(g.rows.length)}` : undefined}>
+                  {shown.map((r: TaskRow) => (
+                    <TaskActivityRow key={r.id} row={r} today={today} onOpen={() => open(r.id)} />
+                  ))}
+                </ActivityList>
+                {showMore}
+              </View>
+            );
+          })
+        : null}
 
       {flow.ui}
       <MenuSheet

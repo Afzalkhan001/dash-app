@@ -119,7 +119,8 @@ export default function FySummaryScreen() {
         items={years.map((y) => ({
           key: String(y),
           label: fyLabel(y),
-          hint: [y === currentFy ? 'This year' : null, y === fy ? 'Showing now' : null].filter(Boolean).join(' · ') || undefined,
+          hint: y === currentFy ? 'This year' : undefined,
+          selected: y === fy,
           icon: CalendarDays,
           onPress: () => setPicked(String(y)),
         }))}

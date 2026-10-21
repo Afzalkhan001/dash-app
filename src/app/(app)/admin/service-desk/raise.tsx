@@ -49,7 +49,6 @@ import {
   SummaryCard,
   type SummaryItem,
   TextField,
-  useLayout,
 } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
@@ -87,7 +86,6 @@ export default function RaiseForSomeoneScreen() {
   const me = access.user;
   const allowed = !!me && canRaiseForSomeone(me.role, access.web('tasks'));
   const today = useTodayIst();
-  const { gap } = useLayout();
 
   const users = usePickablePeople({ enabled: allowed, keep: ['email', 'mobile', 'phone', 'dept', 'deptName'] });
   const wl = useWhitelist(allowed);
@@ -256,8 +254,8 @@ export default function RaiseForSomeoneScreen() {
         {notSignedUp ? <Banner tone="warning" title="Not signed up yet" message="It shows in their help requests once they sign in." /> : null}
       </View>
 
-      <View style={{ gap }}>
-        <SectionHeader title="Details" />
+      <View style={styles.block}>
+        <SectionHeader title="About the request" />
         {kind === 'ticket' ? (
           <View style={styles.fields}>
             <PillField icon={PenLine} label="Subject *" value={f.subject} onChangeText={(v) => set({ subject: v })} placeholder="What needs fixing?" />

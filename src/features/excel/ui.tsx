@@ -103,7 +103,7 @@ export function TemplateCard({ template, note }: { template: Template; note?: st
   );
 }
 
-export function PickCard({ fileName, onPick, onSample, busy, sampleLabel = 'Use the demo sample sheet' }: { fileName?: string; onPick: () => void; onSample?: () => void; busy?: boolean; sampleLabel?: string }) {
+export function PickCard({ fileName, onPick, onSample, busy, sampleLabel = 'Use a sample sheet' }: { fileName?: string; onPick: () => void; onSample?: () => void; busy?: boolean; sampleLabel?: string }) {
   const demo = isDemoSession();
   return (
     <Card style={styles.gap}>
@@ -120,7 +120,8 @@ export function PickCard({ fileName, onPick, onSample, busy, sampleLabel = 'Use 
           Pick it from Files, Drive, WhatsApp downloads or email attachments. Nothing is saved until you confirm.
         </Text>
       )}
-      <Button title={fileName ? 'Choose another file' : 'Choose a file'} icon={<FileUp />} loading={busy} onPress={onPick} />
+      {/* Once a file is in, the sticky save is the one primary (A1); choosing again drops to a quiet button. */}
+      <Button title={fileName ? 'Choose another file' : 'Choose a file'} variant={fileName ? 'ghost' : 'primary'} size={fileName ? 'md' : 'lg'} icon={<FileUp />} loading={busy} onPress={onPick} />
       {demo && onSample ? <Button title={sampleLabel} variant="ghost" size="md" icon={<Sparkles />} disabled={busy} onPress={onSample} /> : null}
     </Card>
   );

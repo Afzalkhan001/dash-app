@@ -13,7 +13,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Bell, ChevronLeft } from 'lucide-react-native';
-import { Children, isValidElement, type ReactNode, useRef, useState } from 'react';
+import { Children, Fragment, isValidElement, type ReactNode, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -140,11 +140,13 @@ export function Screen({
     body = animate ? <Reveal style={padded}>{children}</Reveal> : <View style={padded}>{children}</View>;
   } else {
     // Children.toArray keys each child by its original position, so a section that appears later
-    // (data loaded) never re-keys — and re-animates — the sections around it.
+    // (data loaded) never re-keys — and re-animates — the sections around it. Fragments are flattened
+    // (each of their children is its own section with the screen's gap), and a child that renders
+    // nothing collapses its gap (Reveal collapseGap), so neither case breaks the rhythm.
     const items = animate
-      ? Children.toArray(children).map((child, i) => (
-          <Reveal key={isValidElement(child) && child.key != null ? child.key : i} index={i}>
-            {child}
+      ? screenChildren(children).map(({ key, node }, i) => (
+          <Reveal key={key} index={i} collapseGap={gap}>
+            {node}
           </Reveal>
         ))
       : children;
@@ -202,6 +204,20 @@ export function Screen({
       )}
     </View>
   );
+}
+
+/** Screen's direct children, with fragments flattened (recursively); keys stay stable by position. */
+function screenChildren(children: ReactNode, prefix = ''): { key: string; node: ReactNode }[] {
+  const out: { key: string; node: ReactNode }[] = [];
+  Children.toArray(children).forEach((child, i) => {
+    const key = `${prefix}${isValidElement(child) && child.key != null ? child.key : i}`;
+    if (isValidElement(child) && child.type === Fragment) {
+      out.push(...screenChildren((child.props as { children?: ReactNode }).children, `${key}/`));
+    } else {
+      out.push({ key, node: child });
+    }
+  });
+  return out;
 }
 
 /** Tab-root header: muted overline over a one-line title; at most 2 IconButtons (40) on the right. */

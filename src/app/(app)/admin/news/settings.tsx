@@ -139,7 +139,7 @@ export default function NewsSettingsScreen() {
       </LabelledSection>
 
       <LabelledSection title="HR WhatsApp">
-        <Card style={{ gap: space.sm }}>
+        <Card style={{ gap: space.md }}>
           <Text variant="caption" muted>
             Each day’s birthday and anniversary cards are sent to this WhatsApp number, so HR can share them with the team.
           </Text>

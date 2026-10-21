@@ -298,11 +298,10 @@ export default function ApplicationScreen() {
             Never shown to the candidate.
           </Text>
           {canForward ? (
-            <View style={styles.inline}>
-              <View style={styles.fill}>
-                <TextField value={newNote} onChangeText={setNewNote} placeholder="Add a note for the team" accessibilityLabel="New internal note" multiline maxLength={1000} />
-              </View>
-              <Button title="Add" variant="ghost" size="sm" icon={<NotebookPen />} loading={busy === 'note'} disabled={!newNote.trim()} onPress={() => void addNote()} />
+            // The note box takes the full width; its button sits under it, so neither is squeezed.
+            <View style={styles.noteForm}>
+              <TextField value={newNote} onChangeText={setNewNote} placeholder="Add a note for the team" accessibilityLabel="New internal note" multiline maxLength={1000} />
+              <Button title="Add note" variant="accent" size="md" icon={<NotebookPen />} loading={busy === 'note'} disabled={!newNote.trim()} onPress={() => void addNote()} style={styles.noteButton} />
             </View>
           ) : null}
           {a.internalNotes.length ? (
@@ -388,6 +387,8 @@ export default function ApplicationScreen() {
 const styles = themedStyles(() => ({
   card: { gap: space.sm },
   inline: { flexDirection: 'row', alignItems: 'flex-end', gap: space.xs },
+  noteForm: { gap: space.sm },
+  noteButton: { alignSelf: 'flex-end' },
   fill: { flex: 1, minWidth: 0, gap: 2 },
   note: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm, paddingVertical: space.xxs },
 }));

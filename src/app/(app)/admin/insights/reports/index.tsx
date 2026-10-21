@@ -20,7 +20,7 @@ import { type DateRange, monthLabelOf, presetRange, rangeLabel, shortDay } from 
 import { InsightsGate, useInsightsAccess } from '@/features/insights/gate';
 import { HeatStrip } from '@/features/insights/heat-strip';
 import { RangeSheet } from '@/features/insights/range-sheet';
-import { buildReport, exportRows, fmtHrs, pct, type ReportType } from '@/features/insights/reports';
+import { buildReport, exportRows, hoursText, pct, type ReportType } from '@/features/insights/reports';
 import { shareCsv } from '@/lib/csv';
 import { addMonthsYm } from '@/lib/ist';
 import { plural } from '@/lib/format';
@@ -138,7 +138,7 @@ function ReportsScreen() {
     }
   }
 
-  const searchHint = type === 'keka' ? 'Search Keka code or project' : type === 'project' ? 'Search project' : 'Search name';
+  const searchHint = type === 'keka' ? 'Search project code or project' : type === 'project' ? 'Search project' : 'Search name';
   const rangeOptions = (['today', 'week', 'month', 'lastMonth'] as const).map((k) => {
     const r = presetRange(k, today);
     return { key: k, label: rangeLabel(r, today), from: r.from, to: r.to };
@@ -213,8 +213,7 @@ function ReportsScreen() {
                 module="tasks"
                 label={String(r.project.name ?? '—')}
                 sub={[r.project.kekaCode, plural(r.tasks.length, 'task')].filter(Boolean).join(' · ')}
-                value={fmtHrs(r.hours)}
-                unit="h"
+                value={hoursText(r.hours)}
                 status={{ label: `${pct(r.tasks)} done`, tone: r.tasks.every((t) => t.status === 'completed') ? 'done' : 'neutral' }}
               />
             ))}
@@ -237,15 +236,14 @@ function ReportsScreen() {
                 module="timesheets"
                 label={g.code}
                 sub={`${g.project} · ${plural(g.tasks.length, 'task')}`}
-                value={fmtHrs(g.hours)}
-                unit="h"
+                value={hoursText(g.hours)}
                 status={{ label: `${pct(g.tasks)} done`, tone: g.tasks.every((t) => t.status === 'completed') ? 'done' : 'neutral' }}
               />
             ))}
             <More shown={Math.min(PAGE, report.kekaRows.length)} total={report.kekaRows.length} />
           </View>
         ) : (
-          <EmptyState icon={<Hash color={palette.textMuted} strokeWidth={1.8} />} title="No data for this period" message={search ? 'No Keka code matches that search.' : 'No hours were logged against a Keka code in these dates.'} />
+          <EmptyState icon={<Hash color={palette.textMuted} strokeWidth={1.8} />} title="No data for this period" message={search ? 'No project code matches that search.' : 'No hours were logged against a project code in these dates.'} />
         )
       ) : report.gridRows.length ? (
         <View style={{ gap: space.sm }}>
@@ -253,13 +251,13 @@ function ReportsScreen() {
             Each square is one day of {monthLabelOf(gridMonth)}. Darker means more hours. Tap a person for their days.
           </Text>
           {report.gridRows.slice(0, PAGE).map((g) => (
-            <Card key={g.user.id} onPress={() => setDayFor(g.user.id)} accessibilityLabel={`${g.user.name}, ${g.total ? `${fmtHrs(g.total)} hours` : 'no hours'} in ${monthLabelOf(gridMonth)}`}>
+            <Card key={g.user.id} onPress={() => setDayFor(g.user.id)} accessibilityLabel={`${g.user.name}, ${g.total ? hoursText(g.total) : 'no hours'} in ${monthLabelOf(gridMonth)}`}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.xs }}>
                 <Text variant="bodyStrong" color={palette.ink} numberOfLines={1} style={{ flex: 1 }}>
                   {g.user.name}
                 </Text>
                 <Text variant="bodyStrong" color={g.total ? palette.ink : palette.textMuted} tabular>
-                  {g.total ? `${fmtHrs(g.total)} h` : '—'}
+                  {g.total ? hoursText(g.total) : '—'}
                 </Text>
               </View>
               <HeatStrip values={g.cells} weekend={report.gridDays.map((d) => d.weekend)} label={`${report.gridDays.filter((_, i) => (g.cells[i] ?? 0) > 0).length} days with hours`} />
@@ -287,9 +285,10 @@ function ReportsScreen() {
 
 function Totals({ hours, tasks, third }: { hours: number; tasks: number; third: { value: number; caption: string } }) {
   return (
-    <Card>
+    // The hours are the hero ("35h 48m" is too wide to share a row on a phone); the counts sit under it.
+    <Card style={{ gap: space.md }}>
+      <Numeral value={hoursText(hours)} caption="Hours worked" />
       <NumeralRow>
-        <Numeral value={fmtHrs(hours)} unit={hours ? 'h' : undefined} size="md" caption="Hours worked" />
         <Numeral value={tasks} size="md" caption={tasks === 1 ? 'Task' : 'Tasks'} />
         <Numeral value={third.value} size="md" caption={third.caption} />
       </NumeralRow>
@@ -329,8 +328,7 @@ function PeopleView({ report, onOpen, searching }: { report: NonNullable<ReturnT
           module="people"
           label={r.user.name}
           sub={r.tasks.length ? plural(r.tasks.length, 'task') : 'No hours in these dates'}
-          value={fmtHrs(r.hours)}
-          unit={r.hours ? 'h' : undefined}
+          value={hoursText(r.hours)}
           onPress={() => onOpen(r.user.id)}
           hint="Opens their tasks"
         />
@@ -344,11 +342,11 @@ function MonthSheet({ report, userId, today, onClose }: { report: ReturnType<typ
   const row = report?.gridRows.find((g) => g.user.id === userId) ?? null;
   const days = row && report ? report.gridDays.map((d, i) => ({ ...d, hours: row.cells[i] ?? 0 })).filter((d) => d.hours > 0) : [];
   return (
-    <Sheet visible={!!row} onClose={onClose} title={row?.user.name ?? ''} subtitle={row ? `${row.total ? `${fmtHrs(row.total)} h` : 'No hours'} · ${plural(days.length, 'day')}` : undefined}>
+    <Sheet visible={!!row} onClose={onClose} title={row?.user.name ?? ''} subtitle={row ? `${row.total ? hoursText(row.total) : 'No hours'} · ${plural(days.length, 'day')}` : undefined}>
       {days.length ? (
         <ActivityList>
           {days.map((d) => (
-            <ActivityRow key={d.date} module="timesheets" icon={Clock3} title={shortDay(d.date, today)} subtitle={d.weekend ? 'Weekend' : undefined} value={`${fmtHrs(d.hours)} h`} />
+            <ActivityRow key={d.date} module="timesheets" icon={Clock3} title={shortDay(d.date, today)} subtitle={d.weekend ? 'Weekend' : undefined} value={hoursText(d.hours)} />
           ))}
         </ActivityList>
       ) : (

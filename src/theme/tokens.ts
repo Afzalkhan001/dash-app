@@ -86,8 +86,10 @@ export const lightPalette = {
   warning: '#F2A516',
   warningSoft: '#FDF1D9',
   warningInk: '#8A5700', // text 6.0:1 on white
-  info: '#C33B02',
-  infoSoft: '#FDEDE5',
+  // Info / in progress is a calm blue (the leave family), never the brand: a vermilion "In progress"
+  // pill or notice read as an error next to the crimson "Rejected".
+  info: '#1F5FB5', // icon, dot (text 6.4:1 on white)
+  infoSoft: '#E6EFFB',
 
   overlay: 'rgba(28,18,12,0.42)',
 } as const;
@@ -266,7 +268,8 @@ export const lightStatusTone: Record<StatusTone, { fg: string; dot: string; bg: 
   pending: { fg: '#8A5700', dot: '#F2A516', bg: 'rgba(255,255,255,0.75)', border: '#FADBA2' },
   done: { fg: '#157A3F', dot: '#25A15A', bg: 'rgba(255,255,255,0.75)', border: '#B3DEC5' },
   failed: { fg: '#A50E1F', dot: '#EE4146', bg: 'rgba(255,255,255,0.75)', border: '#F9BCBE' },
-  info: { fg: '#C33B02', dot: '#C33B02', bg: 'rgba(255,255,255,0.75)', border: '#EDC4B3' },
+  // In progress / open / live: calm blue, so it never reads as the brand or an alert.
+  info: { fg: '#1F5FB5', dot: '#2B6CC8', bg: 'rgba(255,255,255,0.75)', border: '#BCD3F2' },
   neutral: { fg: '#6B625B', dot: '#8C8178', bg: 'rgba(255,255,255,0.75)', border: '#E9E3DD' },
 };
 

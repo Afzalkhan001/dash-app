@@ -32,6 +32,7 @@ import { firstName } from '@/lib/format';
 import { radius, space } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
 import {
+  FIELD_LABEL_INSET,
   AccountRow,
   ActionBar,
   Avatar,
@@ -238,7 +239,7 @@ function TaskForm({ editId }: { editId: string | null }) {
       <Card style={styles.fields}>
         <TextField label="Title" value={title} onChangeText={setTitle} placeholder="What needs doing" maxLength={160} error={tried && !title.trim() ? 'Add a title' : null} />
         <View style={styles.part}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Assign to
           </Text>
           {person ? (

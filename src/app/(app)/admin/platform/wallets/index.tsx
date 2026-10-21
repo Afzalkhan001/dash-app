@@ -85,7 +85,7 @@ export default function CompanyWalletsScreen() {
     <Screen header={<NavHeader title="Company wallets" />} onRefresh={() => Promise.all([tenantsQ.refetch(), walletQ.refetch(), creditsQ.refetch()])}>
       {tenantsQ.data ? (
         tenants.length ? (
-          <>
+          <View style={{ gap }}>
             <View style={{ alignItems: 'flex-start' }}>
               <CompanyPicker tenants={tenants} value={cid} onChange={setChosen} />
             </View>
@@ -140,7 +140,7 @@ export default function CompanyWalletsScreen() {
                 </ActivityList>
               )}
             </View>
-          </>
+          </View>
         ) : (
           <EmptyState icon={<Building2 />} title="No companies yet" message="Register a company first, in Companies." />
         )

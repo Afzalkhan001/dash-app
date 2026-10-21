@@ -6,7 +6,6 @@
 
 import { BarChart3 } from 'lucide-react-native';
 import { useState } from 'react';
-import { View } from 'react-native';
 
 import { useCompanyWallet, useLedger } from '@/api/bountyadmin';
 import { useTodayIst } from '@/features/attendance/use-now';
@@ -14,6 +13,7 @@ import { coins, deadlineLabel } from '@/features/bounty/logic';
 import { AdminGate, useBountyAdmin } from '@/features/bountyadmin/gate';
 import { ledgerSummary } from '@/features/bountyadmin/logic';
 import { plural } from '@/lib/format';
+import { themedStyles } from '@/theme/themed';
 import { radius, space } from '@/theme/tokens';
 import { Button, Card, DateField, ErrorState, FieldPair, NavHeader, Screen, Skeleton, SummaryCard, SummaryHero } from '@/ui';
 
@@ -40,15 +40,29 @@ function Summary() {
 
   return (
     <Screen header={<NavHeader title={TITLE} />} onRefresh={() => Promise.all([q.refetch(), companyQ.refetch()])}>
-      <View style={{ gap: space.sm }}>
+      {q.isLoading ? (
+        <Skeleton height={180} radius={radius.xxl} />
+      ) : q.error && !q.data ? null : (
+        <SummaryHero
+          icon={BarChart3}
+          module="bounty"
+          label="Paid to people"
+          value={s.rewards + s.referralPaid}
+          unit="coins"
+          info={{ label: 'Used for vouchers', value: `${coins(s.redeemed)} coins` }}
+          sub={range}
+        />
+      )}
+      {/* The period: a card of two date fields under the hero (the hero's sub-line names it). */}
+      <Card style={styles.dates}>
         <FieldPair>
           <DateField label="From" value={from || null} onChange={setFrom} maximumDate={to || today} />
           <DateField label="To" value={to || null} onChange={setTo} minimumDate={from || undefined} maximumDate={today} />
         </FieldPair>
         {from || to ? (
           <Button
-            title="All time"
-            variant="ghost"
+            title="Show all time"
+            variant="text"
             size="sm"
             onPress={() => {
               setFrom('');
@@ -56,26 +70,17 @@ function Summary() {
             }}
           />
         ) : null}
-      </View>
+      </Card>
       {q.isLoading ? (
-        <Skeleton height={180} radius={radius.xxl} />
+        <Skeleton height={220} radius={radius.xxl} />
       ) : q.error && !q.data ? (
         <Card>
           <ErrorState message={q.error.message} onRetry={() => void q.refetch()} />
         </Card>
       ) : (
         <>
-          <SummaryHero
-            icon={BarChart3}
-            module="bounty"
-            label="Paid to people"
-            value={s.rewards + s.referralPaid}
-            unit="coins"
-            info={{ label: 'Used for vouchers', value: `${coins(s.redeemed)} coins` }}
-            sub={range}
-          />
           <SummaryCard
-            title="Paid to people"
+            title="How it was paid"
             rows={[
               { key: 'b', label: 'Task rewards', value: `${coins(s.rewards)} coins`, hint: plural(s.rewardCount, 'task') },
               { key: 'r', label: 'Referral bonuses', value: `${coins(s.referralPaid)} coins`, hint: plural(s.referralCount, 'bonus', 'bonuses') },
@@ -107,3 +112,7 @@ function Summary() {
     </Screen>
   );
 }
+
+const styles = themedStyles(() => ({
+  dates: { gap: space.xs },
+}));

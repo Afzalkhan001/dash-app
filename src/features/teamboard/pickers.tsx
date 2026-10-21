@@ -1,4 +1,6 @@
-// Two small sheets the Team board reuses:
+// Two small sheets and one form control the Team board reuses:
+//   FormChoice      a Segmented inside a form card, or wrapped chips when the track would cut a label
+//                   ("Medi…" at 320 dp) or would scroll options out of the card (Status).
 //   ChoiceSheet     one choice from a list (department, project, type, priority, status filters) — a
 //                   ListCard of rows with a tick on the current one; any length (a MenuSheet caps at 7).
 //   MultiPersonSheet  several people from the department (Add managers, a new team's members): search,
@@ -12,7 +14,25 @@ import { View } from 'react-native';
 import type { PickPerson } from '@/features/shared/person-picker';
 import { palette, space } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
-import { Avatar, Banner, Button, Chip, EmptyState, ListCard, ListRow, Sheet, Text, TextField } from '@/ui';
+import { Avatar, Banner, Button, Chip, ChipRow, EmptyState, ListCard, ListRow, type Segment, Segmented, Sheet, Text, TextField, useLayout } from '@/ui';
+
+/**
+ * One choice in a form card (priority, status). The kit's Segmented only turns into chips for more than
+ * four options or a long label, and then as a sideways-scrolling row that a card clips; a form shows
+ * every option, so on a compact phone (or with a long label) the options wrap as chips instead.
+ */
+export function FormChoice<K extends string>({ options, value, onChange }: { options: Segment<K>[]; value: K; onChange: (k: K) => void }) {
+  const l = useLayout();
+  const fits = !l.compact && options.length <= 4 && options.every((o) => o.label.length <= 10);
+  if (fits) return <Segmented options={options} value={value} onChange={onChange} />;
+  return (
+    <ChipRow bleed="none" wrap>
+      {options.map((o) => (
+        <Chip key={o.key} label={o.label} selected={o.key === value} onPress={() => o.key !== value && onChange(o.key)} />
+      ))}
+    </ChipRow>
+  );
+}
 
 export type Choice<V extends string> = {
   value: V;

@@ -33,6 +33,7 @@ import type { PickedFile } from '@/lib/files';
 import { inr } from '@/lib/format';
 import { space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   ActionBar,
   AmountEntry,
   amountValue,
@@ -189,7 +190,7 @@ export default function NewExpenseClaim() {
         </PressableScale>
 
         <View style={{ gap: space.xs }}>
-          <Text variant="labelStrong" muted numberOfLines={1}>
+          <Text variant="labelStrong" muted numberOfLines={1} style={FIELD_LABEL_INSET}>
             Spent on
           </Text>
           <SelectTiles

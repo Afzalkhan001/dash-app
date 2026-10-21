@@ -16,7 +16,7 @@ import { useState } from 'react';
 
 import { type LopSource, type PayrollRun, usePayrollRunActions, usePayrollRuns, usePayrollSettings } from '@/api/payroll';
 import { useTodayIst } from '@/features/attendance/use-now';
-import { errorText, GateFallback, monthName, noun, recentMonths, runStatus, usePayrollGate, usePayView } from '@/features/payroll/ui';
+import { errorText, GateFallback, heroDecimals, monthName, noun, recentMonths, runStatus, usePayrollGate, usePayView } from '@/features/payroll/ui';
 import { dateLabel } from '@/lib/dates';
 import {
   AccountRow,
@@ -29,6 +29,7 @@ import {
   SelectField,
   SelectTiles,
   Sheet,
+  Skeleton,
   SummaryHero,
   Text,
   toast,
@@ -45,7 +46,7 @@ export default function PayrollHub() {
   const today = useTodayIst();
   const { gates, pending, allowed } = usePayrollGate('any');
   const { money, eye } = usePayView();
-  // At 320 dp (or large text) the long month name and the paise don't fit beside the figures.
+  // At 320 dp (or large text) the long month name doesn't fit beside the figures.
   const { compact } = useLayout();
   const runs = usePayrollRuns(gates.runs);
   const settings = usePayrollSettings(gates.runs);
@@ -73,7 +74,7 @@ export default function PayrollHub() {
               label={`${monthName(latest.month)} · ${runStatus(latest).label}`}
               value={latest.totals?.net ?? 0}
               currency="₹"
-              decimals={compact ? 0 : 2}
+              decimals={heroDecimals(latest.totals?.net ?? 0, compact)}
               hideable
               hidden={money.hidden}
               onHiddenChange={(h) => (h !== money.hidden ? eye.onPress() : undefined)}
@@ -91,11 +92,7 @@ export default function PayrollHub() {
               icon={Banknote}
               module="pay"
               label="Payroll"
-              figure={
-                <Text variant="title">
-                  {runs.isPending ? 'Loading…' : 'No payroll runs yet'}
-                </Text>
-              }
+              figure={runs.isPending ? <Skeleton height={44} width="70%" /> : <Text variant="title">No payroll runs yet</Text>}
               sub="Set salaries first, then calculate a month. You can check every line before locking."
               action={{ title: 'Run payroll', onPress: () => setRunOpen(true), disabled: runs.isPending }}
             />
@@ -117,17 +114,22 @@ export default function PayrollHub() {
             {list.map((r) => {
               const st = runStatus(r);
               const t = r.totals;
+              // The pill already says Draft / Locked; the line says when (or who started a draft).
               const who =
-                r.status === 'locked' && r.locked_at
-                  ? `Locked ${dateLabel(r.locked_at, today)}${r.locked_by_name ? ` by ${r.locked_by_name}` : ''}`
-                  : `Draft · started by ${r.created_by_name || 'HR'}`;
+                r.status === 'locked'
+                  ? r.locked_at
+                    ? `locked ${dateLabel(r.locked_at, today)}`
+                    : null
+                  : `started by ${r.created_by_name || 'HR'}`;
               return (
                 <ActivityRow
                   key={r.id}
                   module="pay"
                   icon={r.status === 'locked' ? Landmark : Calculator}
                   title={monthName(r.month, compact)}
-                  subtitle={[t ? `${t.employees} ${noun(t.employees, 'person', 'people')}` : null, who].filter(Boolean).join(' · ')}
+                  // At 320 dp the right column leaves room for one short fact: when it was locked.
+                  subtitle={[t && !(compact && who) ? `${t.employees} ${noun(t.employees, 'person', 'people')}` : null, who].filter(Boolean).join(' · ')}
+                  subtitleLines={2}
                   value={t ? money.inr(t.net, { decimals: false }) : '—'}
                   status={st}
                   chevron
@@ -162,7 +164,7 @@ export default function PayrollHub() {
               module="pay"
               icon={Layers}
               title="Salary structures"
-              subtitle="How a CTC splits into Basic, HRA and the rest · try a CTC"
+              subtitle="How an annual salary (CTC) splits into Basic, HRA and the rest"
               chevron
               onPress={() => router.push('/admin/payroll/structures')}
             />
@@ -233,7 +235,7 @@ function RunSheet({ visible, onClose, thisMonth, taken, onCreated }: { visible: 
             <Banner
               tone="danger"
               title="Couldn’t run payroll"
-              message={/statutory/i.test(error) ? `${error} Fill them in under More › Payroll setup › Statutory and TDS.` : error}
+              message={/statutory/i.test(error) ? `${error} Fill them in under Payroll › Statutory and TDS.` : error}
             />
           ) : null}
           <Button title={month ? `Calculate ${monthName(month)}` : 'Every recent month has a run'} onPress={() => void go()} loading={create.isPending} disabled={!month} />

@@ -47,7 +47,7 @@ export default function AttendanceSheetScreen() {
   const asked = days.filter((d) => !d.future).map((d) => d.ymd);
   const month = useMonthTeamAttendance(asked, allowed);
 
-  const header = <NavHeader title="Attendance month" subtitle={monthYear(ym)} actions={allowed ? actions : undefined} />;
+  const header = <NavHeader title="Attendance" subtitle={monthYear(ym)} actions={allowed ? actions : undefined} />;
   if (!allowed) return <GridGateFallback pending={pending} header={header} />;
 
   const everyone = (Array.isArray(everyoneQ.data) ? everyoneQ.data : []).map((p) => ({ id: p.id, name: p.name, department: p.department }));

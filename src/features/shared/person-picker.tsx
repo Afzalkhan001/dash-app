@@ -27,7 +27,7 @@ import { useLeaveDays, usePersonPhoto } from '@/api/people';
 import { useSession } from '@/auth/session';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { palette, space } from '@/theme/tokens';
-import { Avatar, type AvatarTileItem, AvatarTiles, ListCard, ListRow, Sheet, StatusPill, Text, TextField } from '@/ui';
+import { FIELD_LABEL_INSET, Avatar, type AvatarTileItem, AvatarTiles, ListCard, ListRow, Sheet, StatusPill, Text, TextField } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 
@@ -225,7 +225,7 @@ export function PersonPicker({
       />
       {!needle && tiles.length ? (
         <View style={styles.recent}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Recent
           </Text>
           <AvatarTiles items={tiles} bleed="none" accessibilityLabel="Recent picks" />

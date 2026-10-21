@@ -7,18 +7,26 @@
 //   GET /reimbursements/accounts-all (the "Claims" tab: paid back against a receipt, not petty cash)
 // Gate: pettyCashAccountsInBillApprovals (accounts, super_admin) on accounts-bill-review. Rejected bills
 // are never counted. Nobody is messaged.
+// A row opens its sheet: the figures, each bill with its receipt (GET …/receipt, the web's
+// PettyCashReceiptLink) and the request's History (the web's PettyCashHistoryModal); a claim opens
+// its bill (ReceiptButton) and history (ReimbursementHistoryModal).
 
-import { BookOpenCheck, Search } from 'lucide-react-native';
+import { BookOpenCheck, ReceiptText, Search } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { useAccountsPetty, useAccountsReimbursements, useAllSubmissions } from '@/api/accounts';
 import type { Reimbursement } from '@/api/reimbursements';
 import { useTodayIst } from '@/features/attendance/use-now';
+import { HistoryTimeline } from '@/features/petty-cash/components';
+import { historyEvents, pettyCashRef } from '@/features/petty-cash/logic';
+import { useReceiptViewer } from '@/features/petty-cash/receipt';
+import { reimbursementEvents } from '@/features/reimbursements/format';
+import { ReceiptButton } from '@/features/reimbursements/receipt-viewer';
+import { Timeline } from '@/features/reimbursements/timeline';
 import { GridView } from '@/features/grids/data-grid';
 import { GridGateFallback, gridCsvColumns, RowSheet, ShareCsvButton, useGridGate, useZoom } from '@/features/grids/grid-ui';
 import {
-  billLines,
   buildLedger,
   claimColumns,
   type DatePreset,
@@ -32,10 +40,10 @@ import {
   rupees,
   submissionsAsBills,
 } from '@/features/grids/model';
-import { istDateOf } from '@/lib/dates';
+import { dateLabel, istDateOf } from '@/lib/dates';
 import { themedStyles } from '@/theme/themed';
 import { moduleTone, palette, space } from '@/theme/tokens';
-import { Banner, Button, Chip, ChipRow, DateField, EmptyState, ErrorState, NavHeader, PillField, Screen, Segmented, SkeletonList, StatGrid, StatTile, SummaryCard, Text } from '@/ui';
+import { ActivityList, ActivityRow, Banner, Button, Card, Chip, ChipRow, DateField, EmptyState, ErrorState, NavHeader, PillField, Screen, SectionHeader, Segmented, SkeletonList, StatGrid, StatTile, SummaryCard, Text } from '@/ui';
 
 type Tab = 'open' | 'done' | 'claims';
 const PRESETS: { key: DatePreset; label: string }[] = [
@@ -61,6 +69,7 @@ export default function PettyLedgerScreen() {
   const [to, setTo] = useState('');
   const [open, setOpen] = useState<LedgerRow | null>(null);
   const [openClaim, setOpenClaim] = useState<Reimbursement | null>(null);
+  const receipts = useReceiptViewer();
   const header = <NavHeader title="Petty cash ledger" actions={allowed ? actions : undefined} />;
   if (!allowed) return <GridGateFallback pending={pending} header={header} />;
 
@@ -81,12 +90,20 @@ export default function PettyLedgerScreen() {
   const error = petty.error ?? subs.error;
   const claimTotal = claimRows.reduce((s, m) => s + (Number(m.amount) || 0), 0);
 
+  const filtered = !!(needle || preset);
+  const clearFilters = () => {
+    setQuery('');
+    setPreset('');
+    setFrom('');
+    setTo('');
+  };
+
   const top = (
     <>
       <StatGrid columns={2}>
         <StatTile variant="light" label="Money given" value={rupees(t.raised)} caption={`${all.length} ${all.length === 1 ? 'request' : 'requests'}`} module="pettyCash" />
         <StatTile variant="light" label="Bills in" value={rupees(t.submitted)} caption="Approved and waiting review" valueColor={palette.successInk} />
-        <StatTile variant="light" label="Bills to come" value={rupees(t.outstanding)} caption="Still to be covered" valueColor={palette.warningInk} />
+        <StatTile variant="light" label="Bills to come" value={rupees(t.outstanding)} caption="Still to be covered" valueColor={t.outstanding > 0 ? palette.warningInk : undefined} />
         <StatTile variant="light" label="Covered" value={doneRows.length} caption="Fully covered by bills" />
       </StatGrid>
       <Segmented
@@ -98,34 +115,20 @@ export default function PettyLedgerScreen() {
         value={tab}
         onChange={setTab}
       />
-      <PillField icon={Search} value={query} onChangeText={setQuery} placeholder="Search name, request, project code" accessibilityLabel="Search the ledger" autoCorrect={false} />
+      <PillField icon={Search} value={query} onChangeText={setQuery} placeholder="Search by name or code" accessibilityLabel="Search the ledger" autoCorrect={false} />
       <ChipRow>
         {PRESETS.map((p) => (
           <Chip key={p.key || 'all'} label={p.label} selected={p.key === preset} onPress={() => setPreset(p.key)} />
         ))}
       </ChipRow>
       {preset === 'custom' ? (
+        // Date fields always stack (DESIGN §7.14): a date needs ~186 dp, more than half a phone.
         <View style={styles.range}>
-          <View style={styles.flex}>
-            <DateField label="From" value={from} onChange={setFrom} maximumDate={to || today} />
-          </View>
-          <View style={styles.flex}>
-            <DateField label="To" value={to} onChange={setTo} minimumDate={from || undefined} maximumDate={today} />
-          </View>
+          <DateField label="From" value={from} onChange={setFrom} maximumDate={to || today} />
+          <DateField label="To" value={to} onChange={setTo} minimumDate={from || undefined} maximumDate={today} />
         </View>
       ) : null}
-      {needle || preset ? (
-        <Button
-          title="Clear filters"
-          variant="text"
-          onPress={() => {
-            setQuery('');
-            setPreset('');
-            setFrom('');
-            setTo('');
-          }}
-        />
-      ) : null}
+      {filtered ? <Button title="Clear filters" variant="text" onPress={clearFilters} /> : null}
       <Text variant="caption" muted>
         {tab === 'claims'
           ? `Expense claims paid back and confirmed received: ${rupees(claimTotal)}. They are repaid against a receipt, so they are not in the figures above.`
@@ -135,13 +138,25 @@ export default function PettyLedgerScreen() {
     </>
   );
 
-  const emptyNode = (what: string) =>
+  // An empty tab says why and offers the next step: clear the filters, or look at the other tab.
+  const emptyNode = (title: string, what: string, next?: { label: string; onPress: () => void } | null) =>
     loading ? (
       <SkeletonList rows={6} tone="surface" />
     ) : error ? (
       <ErrorState message={error.message} onRetry={() => void petty.refetch()} />
     ) : (
-      <EmptyState icon={<BookOpenCheck color={moduleTone.pettyCash.fg} strokeWidth={1.8} />} title={needle || preset ? 'Nothing matches' : 'Nothing here yet'} message={needle || preset ? 'Try another search or date range.' : what} />
+      <EmptyState
+        icon={<BookOpenCheck color={moduleTone.pettyCash.fg} strokeWidth={1.8} />}
+        title={filtered ? 'Nothing matches' : title}
+        message={filtered ? 'Try another search or date range.' : what}
+        action={
+          filtered ? (
+            <Button title="Clear filters" variant="accent" size="md" onPress={clearFilters} />
+          ) : next ? (
+            <Button title={next.label} variant="accent" size="md" onPress={next.onPress} />
+          ) : undefined
+        }
+      />
     );
 
   const refresh = () => Promise.all([petty.refetch(), subs.refetch(), claims.refetch()]);
@@ -167,7 +182,7 @@ export default function PettyLedgerScreen() {
             ) : claims.error && !claims.data ? (
               <ErrorState message={claims.error.message} onRetry={() => void claims.refetch()} />
             ) : (
-              emptyNode('No expense claim has been confirmed as received yet.')
+              emptyNode('No claims yet', 'No expense claim has been confirmed as received yet.')
             )
           }
           bottom={<ShareCsvButton fileName={`claims-received-${today}`} rows={claimRows} columns={gridCsvColumns(cc.first, cc.columns)} />}
@@ -203,25 +218,76 @@ export default function PettyLedgerScreen() {
                 }
               : null
           }
-          empty={emptyNode(tab === 'done' ? 'No request has been fully covered by bills yet.' : 'Nothing outstanding: no request is waiting on bills.')}
+          empty={
+            tab === 'done'
+              ? emptyNode('Nothing covered yet', 'No request has been fully covered by bills yet.', openRows.length ? { label: 'Show still open', onPress: () => setTab('open') } : null)
+              : emptyNode('Nothing outstanding', 'Every request is covered by its bills.', doneRows.length ? { label: 'Show covered', onPress: () => setTab('done') } : null)
+          }
           bottom={<ShareCsvButton fileName={`petty-cash-ledger-${tab === 'done' ? 'covered' : 'open'}-${today}`} rows={rows} columns={gridCsvColumns(lc.first, lc.columns)} />}
         />
       )}
       <RowSheet row={open} title={open?.r.employeeName ?? ''} subtitle={open?.r.projectName || open?.r.kekaCode} columns={lc.columns} onClose={() => setOpen(null)}>
         {open ? (
-          <SummaryCard
-            title={`Bills (${open.bills.length})`}
-            rows={open.bills.length ? billLines(open, today) : [{ key: 'none', label: 'No bills yet', value: 'Nothing submitted against this request' }]}
-          />
+          <>
+            {open.bills.length ? (
+              <ActivityList title={`Bills (${open.bills.length})`}>
+                {open.bills.map((b) => {
+                  const busy = receipts.busyId === b.id;
+                  const st =
+                    b.status === 'rejected'
+                      ? { label: 'Not counted', tone: 'failed' as const }
+                      : b.status === 'pending'
+                        ? { label: 'Waiting review', tone: 'pending' as const }
+                        : { label: 'Counted', tone: 'done' as const };
+                  const why = b.status === 'rejected' && 'rejectionReason' in b && b.rejectionReason ? `Rejected: ${b.rejectionReason}` : null;
+                  return (
+                    <ActivityRow
+                      key={b.id}
+                      module="pettyCash"
+                      icon={ReceiptText}
+                      title={b.description || 'Bill'}
+                      subtitle={[`Bill no. ${pettyCashRef('bill', b)}`, b.createdAt ? dateLabel(b.createdAt, today) : null, why].filter(Boolean).join(' · ')}
+                      note={b.hasFile ? (busy ? 'Opening receipt…' : 'View receipt') : null}
+                      value={rupees(b.amount)}
+                      status={st}
+                      chevron={!!b.hasFile}
+                      onPress={b.hasFile ? () => void receipts.open(b.submission ? 'submission' : 'bill', b.id) : undefined}
+                    />
+                  );
+                })}
+              </ActivityList>
+            ) : (
+              <SummaryCard title="Bills (0)" rows={[{ key: 'none', label: 'No bills yet', value: 'Nothing submitted against this request' }]} />
+            )}
+            <View style={styles.gap}>
+              <SectionHeader title="History" />
+              <Card tone="frostStrong">
+                <HistoryTimeline events={historyEvents(open.r, today)} today={today} />
+              </Card>
+            </View>
+            {receipts.sheet}
+          </>
         ) : null}
       </RowSheet>
-      <RowSheet row={openClaim} title={openClaim?.employee_name ?? ''} subtitle={openClaim?.project_name || openClaim?.keka_code} columns={cc.columns} onClose={() => setOpenClaim(null)} />
+      <RowSheet row={openClaim} title={openClaim?.employee_name ?? ''} subtitle={openClaim?.project_name || openClaim?.keka_code} columns={cc.columns} onClose={() => setOpenClaim(null)}>
+        {openClaim ? (
+          <>
+            <ReceiptButton id={openClaim.id} variant="row" />
+            <View style={styles.gap}>
+              <SectionHeader title="History" />
+              <Card tone="frostStrong">
+                <Timeline events={reimbursementEvents(openClaim, false, today)} today={today} />
+              </Card>
+            </View>
+          </>
+        ) : null}
+      </RowSheet>
     </Screen>
   );
 }
 
 const styles = themedStyles(() => ({
   bleed: { paddingHorizontal: 0 },
-  range: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  flex: { flexGrow: 1, flexBasis: 140 },
+  gap: { gap: space.sm },
+  range: { gap: space.md },
 }));

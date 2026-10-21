@@ -17,7 +17,8 @@ import { useSupportWrites } from '@/api/itdesk';
 import { type ConfigItem, type StaffEntry, type TempStaffEntry, useSupportConfig, useSupportStaff, useSupportTempStaff, useSupportWifi, type WifiEntry } from '@/api/support';
 import { useNow } from '@/features/attendance/use-now';
 import { canManageSupport, isSupportItAdmin, isSupportListAdmin } from '@/features/itdesk/access';
-import { ToggleRow } from '@/features/itdesk/ui';
+import { StatusRow, ToggleRow } from '@/features/itdesk/ui';
+import { phoneLabel } from '@/features/visitors/format';
 import { plural } from '@/lib/format';
 import { useAccess } from '@/lib/use-access';
 import { themedStyles } from '@/theme/themed';
@@ -46,6 +47,7 @@ import {
   Text,
   TextField,
   toast,
+  useLayout,
 } from '@/ui';
 
 type Tab = 'wifi' | 'staff' | 'temp' | 'lists';
@@ -76,6 +78,7 @@ export default function SupportCentreScreen() {
   const config = useSupportConfig(allowed && lists && tab === 'lists');
   const w = useSupportWrites();
   const now = useNow();
+  const { compact } = useLayout();
 
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
@@ -116,7 +119,18 @@ export default function SupportCentreScreen() {
     <Screen
       header={<NavHeader title="Support centre" actions={tab === 'lists' ? [] : [{ key: 'add', icon: Plus, label: addLabel, onPress: () => setAdding(tab) }]} />}
       onRefresh={() => (tab === 'wifi' ? wifi.refetch() : tab === 'staff' ? staff.refetch() : tab === 'temp' ? temp.refetch() : config.refetch())}>
-      {tabs.length > 1 ? <Segmented<Tab> options={tabs} value={tab} onChange={setTab} /> : null}
+      {/* Four tabs (Super Admin) cut "Temp s…" in a segmented control on a narrow phone; chips scroll instead. */}
+      {tabs.length > 1 ? (
+        compact && tabs.length > 3 ? (
+          <ChipRow>
+            {tabs.map((t) => (
+              <Chip key={t.key} label={t.label} selected={tab === t.key} onPress={() => setTab(t.key)} />
+            ))}
+          </ChipRow>
+        ) : (
+          <Segmented<Tab> options={tabs} value={tab} onChange={setTab} />
+        )
+      ) : null}
 
       {tab === 'wifi' ? (
         loadingOr(wifi) ??
@@ -155,13 +169,14 @@ export default function SupportCentreScreen() {
             {[...(staff.data ?? [])]
               .sort((a, b) => a.branch.localeCompare(b.branch) || a.designation.localeCompare(b.designation))
               .map((s) => (
-                <ActivityRow
+                <StatusRow
                   key={s.id}
                   person={{ name: s.name }}
                   title={s.name}
                   subtitle={[s.designation, s.branch].filter(Boolean).join(' · ')}
-                  note={s.mobile || undefined}
-                  status={s.active === false ? { label: 'Hidden', tone: 'neutral' } : { label: 'Shown', tone: 'done' }}
+                  note={s.mobile ? phoneLabel(s.mobile) : undefined}
+                  // Shown is the usual state; only a hidden contact carries a pill.
+                  status={s.active === false ? { label: 'Hidden', tone: 'neutral' } : null}
                   chevron
                   onPress={() => setEditStaff(s)}
                 />
@@ -183,13 +198,14 @@ export default function SupportCentreScreen() {
               {(temp.data ?? []).map((s) => {
                 const left = daysLeft(s);
                 return (
-                  <ActivityRow
+                  <StatusRow
                     key={s.id}
                     person={{ name: s.name }}
                     title={s.name}
                     subtitle={[s.designation, s.branch].filter(Boolean).join(' · ')}
-                    note={s.mobile || undefined}
-                    status={left == null ? undefined : { label: left === 0 ? 'Ends today' : `${plural(left, 'day')} left`, tone: left <= 1 ? 'pending' : 'info' }}
+                    note={s.mobile ? phoneLabel(s.mobile) : undefined}
+                    // Amber only when they are about to drop off; otherwise a calm grey count.
+                    status={left == null ? undefined : { label: left === 0 ? 'Ends today' : `${plural(left, 'day')} left`, tone: left <= 1 ? 'pending' : 'neutral' }}
                     chevron
                     onPress={() => setTempMenu(s)}
                   />
@@ -344,9 +360,22 @@ function ListManager({
       <Text variant="caption" muted>
         {hint}
       </Text>
-      <Card style={styles.group}>
-        <TextField label="Add one" value={label} onChangeText={setLabel} placeholder={placeholder} maxLength={60} returnKeyType="done" onSubmitEditing={() => void add()} />
-        <Button title="Add" variant="accent" size="md" icon={<Plus />} loading={busy} disabled={!label.trim()} onPress={() => void add()} />
+      {/* The add button sits in the field (a full-width disabled button under it was most of the card). */}
+      <Card>
+        <TextField
+          label="Add one"
+          value={label}
+          onChangeText={setLabel}
+          placeholder={placeholder}
+          maxLength={60}
+          returnKeyType="done"
+          onSubmitEditing={() => void add()}
+          right={
+            <IconButton accessibilityLabel={label.trim() ? `Add ${label.trim()}` : 'Add'} size={32} tone={label.trim() ? 'muted' : 'surface'} disabled={!label.trim() || busy} onPress={() => void add()}>
+              <Plus size={18} color={label.trim() ? palette.primaryText : palette.textMuted} />
+            </IconButton>
+          }
+        />
       </Card>
       {items.length ? (
         <ListCard separatorInset={16}>
@@ -450,7 +479,7 @@ function StaffSheet({ entry, onClose, onDelete }: { entry: StaffEntry | null; on
         <TextField label="Role" value={f.designation} onChangeText={(v) => setF((x) => ({ ...x, designation: v }))} placeholder="e.g. Front desk, Driver" />
         <TextField label="Branch" value={f.branch} onChangeText={(v) => setF((x) => ({ ...x, branch: v }))} placeholder="e.g. Jubilee Hills HQ" />
         <TextField label="Mobile" value={f.mobile} onChangeText={(v) => setF((x) => ({ ...x, mobile: v }))} placeholder="+91 …" keyboardType="phone-pad" />
-        {entry ? <ToggleRow title="Show in the directory" subtitle="Off hides them without deleting." value={active} onChange={setActive} /> : null}
+        {entry ? <ToggleRow bleed title="Show in the directory" subtitle="Off hides them without deleting." value={active} onChange={setActive} /> : null}
         {error ? <Banner tone="danger" title="Couldn’t save" message={error} /> : null}
       </View>
     </Sheet>

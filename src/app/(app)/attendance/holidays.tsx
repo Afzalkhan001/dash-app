@@ -93,7 +93,7 @@ export default function HolidaysScreen() {
     const n = daysBetween(today, h.date);
     // The 'Optional' pill marks the exception. On compact phones (and with large text) it goes under
     // the text: beside the 44 dp disc it would leave a long holiday name about 75 dp at 320 dp.
-    const pill = h.optional ? <StatusPill label="Optional" tone="info" /> : null;
+    const pill = h.optional ? <StatusPill label="Optional" tone="neutral" /> : null;
     return (
       <ListRow
         key={h.id ?? `${h.date}-${i}`}

@@ -51,7 +51,7 @@ export default function LeaveSetupScreen() {
   const [edit, setEdit] = useState<{ type: LeaveType | null; key: number } | null>(null);
   const [rulesKey, setRulesKey] = useState<number | null>(null);
   const header = (
-    <NavHeader title="Leave types and rules" actions={allowed ? [{ icon: Plus, label: 'New leave type', onPress: () => setEdit({ type: null, key: Date.now() }) }] : undefined} />
+    <NavHeader title="Leave types" actions={allowed ? [{ icon: Plus, label: 'New leave type', onPress: () => setEdit({ type: null, key: Date.now() }) }] : undefined} />
   );
   if (!allowed) return <GateFallback pending={pending} header={header} />;
 
@@ -205,7 +205,7 @@ function TypeSheet({ type, compOffTaken, onClose }: { type: LeaveType | null; co
           <>
             <Stepper label="Days a year" value={quota} onChange={setQuota} unit={noun(quota, 'day')} />
             <View style={styles.group}>
-              <Text variant="labelStrong" muted>
+              <Text variant="labelStrong" muted style={styles.fieldLabel}>
                 How the days build up
               </Text>
               <Segmented
@@ -314,6 +314,7 @@ function RulesSheet({ settings: s, onClose }: { settings: LeaveSettings; onClose
 }
 
 const styles = themedStyles(() => ({
+  fieldLabel: { paddingHorizontal: space.xxs },
   list: { gap: space.sm },
   group: { gap: space.xs },
   toggles: { paddingVertical: space.xs, paddingHorizontal: space.xs },

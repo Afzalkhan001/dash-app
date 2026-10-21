@@ -31,7 +31,8 @@ export function WaitingVisitRow({ visit }: { visit: Visit }) {
   );
 }
 
-export function DeskVisitRow({ visit, today, showDate, onPress }: { visit: Visit; today: string; showDate?: boolean; onPress: () => void }) {
+/** `showStatus={false}` where the section already says it (everyone under "Inside now" is approved). */
+export function DeskVisitRow({ visit, today, showDate, showStatus = true, onPress }: { visit: Visit; today: string; showDate?: boolean; showStatus?: boolean; onPress: () => void }) {
   const st = visitStatus(visit.status);
   const name = visitorName(visit);
   const inAt = clockOf(visit.createdAt);
@@ -45,7 +46,7 @@ export function DeskVisitRow({ visit, today, showDate, onPress }: { visit: Visit
       note={purpose || null}
       value={showDate ? dateLabel(visit.createdAt, today) : inAt}
       meta={showDate ? inAt : outAt ? `until ${outAt}` : null}
-      status={st}
+      status={showStatus ? st : null}
       subtitleLines={1}
       onPress={onPress}
       accessibilityLabel={[name, `to meet ${hostName(visit)}`, st.label, showDate ? dateLabel(visit.createdAt, today) : '', `arrived ${inAt}`, outAt ? `left ${outAt}` : ''].filter(Boolean).join(', ')}

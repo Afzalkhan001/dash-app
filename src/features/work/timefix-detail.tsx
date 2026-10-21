@@ -148,14 +148,7 @@ export function TimeFixDetail({ id }: InboxDetailProps) {
         <SummaryHero icon={Timer} module="timesheets" label="Asked for" value={asked} decimals={Number.isInteger(asked) ? 0 : 2} unit="h" sub={str(fix.taskTitle) || undefined} />
         <WhoCards from={requesterItem(who, sentLine(str(fix.createdAt) || null, now))} to={deciderItem({ mine: true, me: me?.name, role: 'Reviewer' })} />
         {fix.reason ? <NoteCard label="Reason" text={str(fix.reason)} /> : null}
-        <DetailsCard
-          status={outcome.done ? (outcome.done.decision === 'approve' ? { label: 'Approved', tone: 'done' } : { label: 'Rejected', tone: 'failed' }) : { label: 'Waiting for you', tone: 'pending' }}
-          fields={[
-            { label: 'Task', value: str(fix.taskTitle) },
-            { label: 'Day', value: fix.taskDate ? shortDay(str(fix.taskDate), today) : '' },
-            { label: 'Project', value: str(fix.project) },
-          ]}
-        />
+        {/* The input the decision uses sits right under the reason; the task title is the hero's line. */}
         {!outcome.done ? (
           <Card tone="frostStrong">
             <TextField
@@ -169,6 +162,13 @@ export function TimeFixDetail({ id }: InboxDetailProps) {
             />
           </Card>
         ) : null}
+        <DetailsCard
+          status={outcome.done ? (outcome.done.decision === 'approve' ? { label: 'Approved', tone: 'done' } : { label: 'Rejected', tone: 'failed' }) : { label: 'Waiting for you', tone: 'pending' }}
+          fields={[
+            { label: 'Day', value: fix.taskDate ? shortDay(str(fix.taskDate), today) : '' },
+            { label: 'Project', value: str(fix.project) },
+          ]}
+        />
       </DecisionScreen>
       <RejectSheet
         visible={rejecting}

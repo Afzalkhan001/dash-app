@@ -21,6 +21,7 @@ import type { TimeCorrection } from '@/api/work';
 import { resolveDeptIds, STAFF_MGR_ROLES, STAFF_ROLES, type ScopeDept, userInDepts } from '@/features/work/access';
 import type { ReportScope } from '@/features/insights/access';
 import { daysInMonthYm, weekdayShort } from '@/features/insights/format';
+import { durationLabel } from '@/lib/dates';
 
 export type ReportType = 'employee' | 'project' | 'keka' | 'grid';
 
@@ -75,6 +76,15 @@ export function fmtHrs(h: number) {
   const hh = Math.floor(sec / 3600);
   const mm = Math.floor((sec % 3600) / 60);
   return `${hh}:${String(mm).padStart(2, '0')}`;
+}
+
+/** Hours on screen in the app's one duration format (DESIGN §0C): "35h 48m", "8h", "50m"; '—' under a
+ *  minute. fmtHrs's "H:MM" stays for the shared CSV only, so it matches the website's export. */
+export function hoursText(h: number) {
+  const sec = Math.round((h || 0) * 3600);
+  if (sec < 60) return '—';
+  const m = Math.floor(sec / 60);
+  return m % 60 === 0 ? `${m / 60}h` : durationLabel(m);
 }
 
 /** pct (23680): share of tasks marked completed, '—' for none. */

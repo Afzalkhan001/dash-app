@@ -135,7 +135,14 @@ function Clients() {
       header={<NavHeader title="Clients" actions={[{ icon: Plus, label: 'Add a client', onPress: () => openForm(null) }]} />}
       onRefresh={() => q0.refetch()}>
       {q0.data ? (
-        <SummaryHero icon={UsersRound} module="tasks" label="Your clients" value={mine.length} sub={mine.length ? 'Only you see the clients you add.' : undefined} />
+        <SummaryHero
+          icon={UsersRound}
+          module="tasks"
+          label="Your clients"
+          value={mine.length}
+          unit={mine.length === 1 ? 'client' : 'clients'}
+          sub={mine.length ? 'Only you see the clients you add.' : undefined}
+        />
       ) : null}
       {mine.length > 6 ? (
         <PillField icon={Search} value={q} onChangeText={setQ} placeholder="Search clients" accessibilityLabel="Search clients" autoCorrect={false} returnKeyType="search" />
@@ -158,14 +165,17 @@ function Clients() {
         <View style={styles.list}>
           <ListCard tone="surface">
             {shown.map((c) => {
-              const sub = [c.channelName, phoneDisplay(c.phone), c.email].filter(Boolean).join(' · ');
+              // Channel and number on one line, the email on its own (an email never breaks well mid-line).
+              const sub = [c.channelName, phoneDisplay(c.phone)].filter(Boolean).join(' · ');
+              const all = [sub, c.email].filter(Boolean).join(', ');
               return (
                 <ListRow
                   key={c.id}
                   size="lg"
                   left={<Avatar name={c.name} size={40} ring={false} />}
                   title={c.name}
-                  subtitle={sub || undefined}
+                  subtitle={sub || c.email || undefined}
+                  meta={sub && c.email ? c.email : undefined}
                   subtitleLines={2}
                   onPress={() => {
                     setMenuId(c.id);
@@ -174,7 +184,7 @@ function Clients() {
                   // A plain ••• hint, not a second button: the whole row opens the same menu, and a
                   // button inside the row's button is invalid HTML on web (React warns).
                   right={<MoreHorizontal size={20} color={palette.text} />}
-                  accessibilityLabel={`${c.name}${sub ? `, ${sub}` : ''}`}
+                  accessibilityLabel={`${c.name}${all ? `, ${all}` : ''}`}
                   accessibilityHint="Shows call, email and edit"
                 />
               );

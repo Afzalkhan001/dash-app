@@ -188,7 +188,7 @@ export function ServiceDeskExport({ def }: { def: ExportDef }) {
     <ExportShell
       def={def}
       ready={ready && !desk.tickets.isPending}
-      intro="The tickets and requests you see on the Service desk: reference, category, subject, who raised it, department, Keka code, date, status and who it is assigned to."
+      intro="The tickets and requests you see on the Service desk: reference, category, subject, who raised it, department, project code, date, status and who it is assigned to."
       count={visible.length}
       countNoun={['request', 'requests']}
       disabled={!visible.length ? 'Nothing matches.' : false}

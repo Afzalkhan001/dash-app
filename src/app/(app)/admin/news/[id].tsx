@@ -6,7 +6,6 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Megaphone, Pencil, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { View } from 'react-native';
 
 import { useAnnouncements } from '@/api/announcements';
 import { useDeletePost } from '@/api/newsroom';
@@ -19,6 +18,7 @@ import { postIcon } from '@/features/newsroom/icons';
 import { dateLabel, stampLabel } from '@/lib/dates';
 import { palette, space } from '@/theme/tokens';
 import {
+  ActionBar,
   ActionRow,
   Button,
   Card,
@@ -85,19 +85,23 @@ export default function NewsPostScreen() {
 
   return (
     <Screen
-      header={
-        <NavHeader
-          title={popup ? 'Pop-up' : 'Post'}
-          subtitle={st.label}
-          actions={canManage ? [{ key: 'edit', icon: Pencil, label: 'Edit post', onPress: () => router.push(`/admin/news/compose?id=${encodeURIComponent(a.id)}`) }] : []}
-        />
+      header={<NavHeader title={popup ? 'Pop-up' : 'Post'} />}
+      footer={
+        canManage ? (
+          <ActionBar>
+            <ActionRow context="bar">
+              <Button variant="danger" title="Delete" icon={<Trash2 />} onPress={() => setConfirm(true)} />
+              <Button title="Edit" icon={<Pencil />} onPress={() => router.push(`/admin/news/compose?id=${encodeURIComponent(a.id)}`)} />
+            </ActionRow>
+          </ActionBar>
+        ) : undefined
       }
       onRefresh={() => q.refetch()}>
       {a.hasMedia && (popup || a.type === 'image') ? <AnnouncementImage ann={a} /> : null}
 
       <Card>
         <Text variant="title" numberOfLines={4}>
-          {a.title || '(untitled)'}
+          {a.title || 'Untitled post'}
         </Text>
         {a.body ? (
           <Text variant="body" muted style={{ marginTop: space.xs }}>
@@ -124,14 +128,7 @@ export default function NewsPostScreen() {
         ]}
       />
 
-      {canManage ? (
-        <View style={{ paddingTop: space.xs }}>
-          <ActionRow context="screen">
-            <Button variant="danger" title="Delete" icon={<Trash2 />} onPress={() => setConfirm(true)} />
-            <Button title="Edit" icon={<Pencil />} onPress={() => router.push(`/admin/news/compose?id=${encodeURIComponent(a.id)}`)} />
-          </ActionRow>
-        </View>
-      ) : (
+      {canManage ? null : (
         <Text variant="caption" muted align="center">
           Only {a.createdBy || 'the person who posted it'} or a Super Admin can change this post.
         </Text>
@@ -141,7 +138,7 @@ export default function NewsPostScreen() {
         visible={confirm}
         onClose={() => setConfirm(false)}
         title="Delete this post?"
-        from={{ title: a.title || '(untitled)', subtitle: st.label, icon: postIcon(a), module: 'news' }}
+        from={{ title: a.title || 'Untitled post', subtitle: st.label, icon: postIcon(a), module: 'news' }}
         to={{ title: 'Deleted', subtitle: 'For everyone', icon: Trash2, module: 'security' }}
         confirmLabel="Swipe to delete"
         loading={del.isPending}

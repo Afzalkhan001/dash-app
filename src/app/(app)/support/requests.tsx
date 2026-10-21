@@ -1,17 +1,16 @@
 // My help requests: everything I raised in Help & support, newest first, in one frosted ActivityList.
-// A Lendora PillSelector ("All ⌄") beside the list title picks the filter — All · Open · Closed ·
+// A Lendora PillSelector ("All ⌄") beside the list title (with the count over it) picks the filter — All · Open · Closed ·
 // Rejected (the web's History filters), each with its count — from a menu sheet. A row opens the request.
 
 import { useRouter } from 'expo-router';
-import { CircleCheck, CircleDot, CircleX, LifeBuoy, ListFilter, Rows3 } from 'lucide-react-native';
+import { CircleCheck, CircleDot, CircleX, LifeBuoy, ListFilter, Plus, Rows3 } from 'lucide-react-native';
 import { useState } from 'react';
-import { View } from 'react-native';
 
 import { useMyTickets } from '@/api/support';
 import { isClosedStatus, isOpenStatus } from '@/features/support/format';
 import { asTickets, SupportRequestRow } from '@/features/support/request-row';
 import { palette } from '@/theme/tokens';
-import { ActivityList, Button, EmptyState, ErrorState, MenuSheet, NavHeader, PillSelector, Screen, SectionHeader, SkeletonList } from '@/ui';
+import { ActivityList, Button, EmptyState, ErrorState, MenuSheet, NavHeader, PillSelector, Screen } from '@/ui';
 
 type Filter = 'all' | 'open' | 'closed' | 'rejected';
 
@@ -44,39 +43,42 @@ export default function SupportRequestsScreen() {
 
   return (
     <Screen header={<NavHeader title="My help requests" />} onRefresh={() => tickets.refetch()}>
+      {/* One ActivityList (title, filter pill, rows) like every other list screen. A filter with no
+          matches keeps the header and pill on screen, so it can be changed back. */}
       {list.length ? (
-        <SectionHeader
-          title={current.title}
+        <ActivityList
+          title="Requests"
           overline={shown.length === 1 ? '1 request' : `${shown.length} requests`}
           right={
             <PillSelector
               icon={ListFilter}
               label={current.label}
               onPress={() => setPicking(true)}
-              accessibilityLabel={`Filter: ${current.label}`}
+              accessibilityLabel={`Filter: ${current.title}`}
               accessibilityHint="Opens the filters"
             />
           }
+          empty={
+            filter !== 'all' ? (
+              <EmptyState title={EMPTY[filter]} action={<Button title="Show all" variant="accent" size="md" onPress={() => setFilter('all')} />} />
+            ) : undefined
+          }>
+          {shown.map((t, i) => (
+            <SupportRequestRow key={t.id ?? i} t={t} onPress={() => router.push(`/support/${encodeURIComponent(t.id)}`)} />
+          ))}
+        </ActivityList>
+      ) : tickets.isLoading ? (
+        <ActivityList title="Requests" loading loadingRows={5} />
+      ) : tickets.isError && !tickets.data ? (
+        <ErrorState message={tickets.error?.message ?? ''} onRetry={() => void tickets.refetch()} />
+      ) : (
+        <EmptyState
+          icon={<LifeBuoy color={palette.textMuted} />}
+          title="No requests yet"
+          message="Ask IT for help, request equipment or raise a complaint."
+          action={<Button title="Raise a request" variant="accent" size="md" icon={<Plus />} onPress={() => router.replace('/support/new')} />}
         />
-      ) : null}
-
-      <View>
-        {shown.length ? (
-          <ActivityList>
-            {shown.map((t, i) => (
-              <SupportRequestRow key={t.id ?? i} t={t} onPress={() => router.push(`/support/${encodeURIComponent(t.id)}`)} />
-            ))}
-          </ActivityList>
-        ) : tickets.isLoading ? (
-          <SkeletonList rows={5} avatar />
-        ) : tickets.isError && !tickets.data ? (
-          <ErrorState message={tickets.error?.message ?? ''} onRetry={() => void tickets.refetch()} />
-        ) : filter !== 'all' ? (
-          <EmptyState title={EMPTY[filter]} action={<Button title="Show all" variant="accent" size="md" onPress={() => setFilter('all')} />} />
-        ) : (
-          <EmptyState icon={<LifeBuoy color={palette.textMuted} />} title="No requests yet" />
-        )}
-      </View>
+      )}
 
       <MenuSheet
         visible={picking}
@@ -86,7 +88,7 @@ export default function SupportRequestsScreen() {
           key: f.key,
           label: `${f.label} (${countOf(f.key)})`,
           icon: f.icon,
-          hint: f.key === filter ? 'Showing now' : undefined,
+          selected: f.key === filter,
           onPress: () => setFilter(f.key),
         }))}
       />

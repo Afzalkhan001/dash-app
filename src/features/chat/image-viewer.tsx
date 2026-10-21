@@ -48,5 +48,5 @@ const styles = themedStyles(() => ({
   image: { flex: 1 },
   top: { position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, paddingBottom: space.sm },
   titleCol: { flex: 1, minWidth: 0, alignItems: 'center' },
-  round: { width: 44, height: 44, borderRadius: radius.pill, backgroundColor: palette.frostOnDark, alignItems: 'center', justifyContent: 'center' },
+  round: { width: 48, height: 48, borderRadius: radius.pill, backgroundColor: palette.frostOnDark, alignItems: 'center', justifyContent: 'center' },
 }));

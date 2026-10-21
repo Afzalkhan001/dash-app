@@ -7,7 +7,7 @@ import { tourStep } from '@/features/tour/step';
 export function tourSteps(ctx: DomainTourCtx): TourStep[] {
   const rows = ctx.workspaceRows;
   return [
-    tourStep('insights.reports', 'more.insights.reports', 'Hours reports', 'See hours by person, project or Keka code, and share them as a CSV.', {
+    tourStep('insights.reports', 'more.insights.reports', 'Hours reports', 'See hours by person, project or project code, and share them as a CSV.', {
       screen: '/more',
       when: () => rows.includes('insights.reports'),
     }),

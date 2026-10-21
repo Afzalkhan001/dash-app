@@ -236,7 +236,8 @@ export function AccountsItemScreen({ type, id }: { type: ItemType | ItemType[]; 
   };
 
   // ── Facts ──
-  const fields: SummaryItem[] = [{ key: 'status', label: 'Status', value: STAGE_META[it.stage].label, status: STAGE_META[it.stage].tone }];
+  // The stage is the hero's label (and the notice under it), so Details doesn't repeat it.
+  const fields: SummaryItem[] = [];
   const add = (label: string, value?: string | null, extra: Partial<SummaryItem> = {}) => {
     if (value) fields.push({ key: label, label, value, ...extra });
   };
@@ -367,7 +368,7 @@ export function AccountsItemScreen({ type, id }: { type: ItemType | ItemType[]; 
         <WhoCards from={from} to={toItem} />
         {notice}
         {note ? <NoteCard label={it.type === 'bill' ? 'What the bill is for' : it.type === 'pcbill' ? 'What it was for' : 'Note'} text={note} /> : null}
-        <SummaryCard title="Details" rows={fields} />
+        {fields.length ? <SummaryCard title="Details" rows={fields} /> : null}
         {heads.length ? <SummaryCard title="What it’s for" rows={heads} /> : null}
         {receipt}
         {payRows.length ? <SummaryCard title="Payment" rows={payRows} /> : null}

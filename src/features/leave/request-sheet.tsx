@@ -15,7 +15,7 @@ import { requestAmount, requestWhen } from '@/features/leave/request-row';
 import { canCancel, HALF_LABEL, rangeLabel, requestDays, requestTitle, stampLabel, statusMeta } from '@/features/leave/rules';
 import { useCancelLeave } from '@/features/leave/use-leave-actions';
 import { space } from '@/theme/tokens';
-import { Banner, Button, EventTimeline, Sheet, SummaryCard, type SummaryItem, Text, type TimelineEvent, toast } from '@/ui';
+import { FIELD_LABEL_INSET, Banner, Button, EventTimeline, Sheet, SummaryCard, type SummaryItem, Text, type TimelineEvent, toast } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 
@@ -121,7 +121,7 @@ export function LeaveRequestSheet({
       <SummaryCard rows={requestFacts(r, today, { dates: false, applied: false })} total={requestTotal(r)} />
 
       <View style={styles.block}>
-        <Text variant="labelStrong" muted accessibilityRole="header">
+        <Text variant="labelStrong" muted accessibilityRole="header" style={FIELD_LABEL_INSET}>
           History
         </Text>
         <EventTimeline events={historyOf(r, today)} />

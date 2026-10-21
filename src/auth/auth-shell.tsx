@@ -53,7 +53,7 @@ const FIELD_HEAD = 36;
 /** Usable height (window minus status and navigation bars) under which large text drops the icon circle. */
 const SHORT_USABLE = 600;
 /** Code screens: under this usable height the keypad leaves little room, so the head tightens up. */
-const KEYPAD_ROOMY = 800;
+const KEYPAD_ROOMY = 860;
 /** The step icon's frosted circle. */
 const MARK = 64;
 /** The keypad wash's soft top edge: as tall as the room allows, between these two. */
@@ -227,12 +227,16 @@ export function AuthShell({
   // The keypad is a code screen's keyboard, so the same rule applies to it: on a short phone, where
   // the bottom of the form (the main button, the resend line, or a button an error Banner pushed
   // down) would sit behind the keypad, scroll down just enough to show it — never past the top of
-  // the form, so the code boxes stay in view. Only ever scrolls down.
+  // the form, so the code boxes stay in view, and never with a `top` slot (the round back button stays
+  // whole at the top — on the web preview, with no status bar inset, a 24 dp scroll used to clip it;
+  // the tightened head above leaves the room instead). Only ever scrolls down.
+  const hasTop = top != null;
   useEffect(() => {
     if (!showKeypad || viewport <= 0 || formTop < 0) return;
-    const y = Math.round(Math.min(formTop - space.xs, formTop + formH + space.md - viewport));
+    const want = Math.round(Math.min(formTop - space.xs, formTop + formH + space.md - viewport));
+    const y = hasTop ? 0 : want;
     if (y > offsetRef.current + 1) scrollRef.current?.scrollTo({ y, animated: true });
-  }, [showKeypad, viewport, formTop, formH]);
+  }, [showKeypad, viewport, formTop, formH, hasTop]);
 
   // A code screen types on its own keypad: put away the keyboard the previous screen left up (its field
   // keeps focus across the push), so key presses can't land in that field and the keypad shows at once.

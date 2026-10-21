@@ -47,7 +47,7 @@ export default function AssetsImport() {
     subtitle: [a.assetType || a.category, a.assignedTo || (a.assignedToEmpNo ? `#${a.assignedToEmpNo}` : 'Not assigned')].join(' · '),
     issues,
     skipped: left.has(key),
-    status: a.status === 'assigned' ? { label: 'Assigned', tone: 'info' } : { label: 'In store', tone: 'done' },
+    status: a.status === 'assigned' ? { label: 'Assigned', tone: 'neutral' } : { label: 'In store', tone: 'done' },
     fields: [
       { label: 'Asset ID', value: a.assetId },
       { label: 'Description', value: a.description },

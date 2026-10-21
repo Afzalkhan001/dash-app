@@ -79,13 +79,19 @@ export default function HrByDepartmentScreen() {
       ) : d && !d.tenant.enabled ? (
         <EmptyState icon={<Building2 color={palette.textMuted} />} title="HR isn’t on for your company" message="Ask the DASH platform owner to switch it on." />
       ) : d ? (
-        <>
-          <Text variant="body" muted>
-            Departments that are off see no HR features at all. Your company has: {granted.map((m) => lowerFirst(hrModuleLabel(m.id, m.label))).join(', ') || 'nothing yet'}.
-          </Text>
+        // A View, not a fragment: Screen spaces its direct children only.
+        <View style={{ gap }}>
+          <View style={{ gap: space.xxs }}>
+            <Text variant="body" muted>
+              Departments that are off see no HR features at all.
+            </Text>
+            <Text variant="caption" muted>
+              Your company has {granted.map((m) => lowerFirst(hrModuleLabel(m.id, m.label))).join(', ') || 'no HR features yet'}.
+            </Text>
+          </View>
           {d.departments.length > 6 ? <PillField icon={Search} placeholder="Search departments" value={q} onChangeText={setQ} /> : null}
           <View style={{ gap: gap - 8 }}>
-            <SectionHeader title={plural(list.length, 'department')} overline="Tap a department for its features" />
+            <SectionHeader title={plural(list.length, 'department')} />
             {list.length ? (
               <ListCard>
                 {list.map((x) => (
@@ -103,7 +109,7 @@ export default function HrByDepartmentScreen() {
               <EmptyState title={needle ? 'No department matches' : 'No departments yet'} />
             )}
           </View>
-        </>
+        </View>
       ) : null}
 
       <Sheet visible={!!dept} onClose={() => setOpen(null)} title={dept?.name ?? ''} subtitle="HR features for this department">

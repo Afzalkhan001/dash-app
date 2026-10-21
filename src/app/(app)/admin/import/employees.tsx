@@ -62,7 +62,7 @@ export default function EmployeesImport() {
     title: r.name,
     subtitle: [r.employeeNumber || 'No ID', r.deptName || 'No department'].join(' · '),
     issues: r.match ? [{ level: 'info', text: `Already on the roster as ${r.match.name || 'this person'} (matched by ${r.match.by === 'email' ? 'email' : 'employee ID'}${r.match.source === 'whitelist' ? ', not signed up yet' : ''}). Filled cells update them.` }, ...r.issues] : r.issues,
-    status: r.action === 'skip' ? undefined : r.match ? { label: 'Update', tone: 'info' } : { label: 'New', tone: 'done' },
+    status: r.action === 'skip' ? undefined : r.match ? { label: 'Update', tone: 'neutral' } : { label: 'New', tone: 'done' },
     skipped: r.action === 'skip',
     fields: [
       { label: 'Employee ID', value: r.employeeNumber },
@@ -84,7 +84,7 @@ export default function EmployeesImport() {
     title: r.matchedName || r.name || r.empNo,
     subtitle: `${r.empNo} · ${plural(Object.keys(r.patch).length, 'change')}`,
     issues: r.issues,
-    status: hasError(r.issues) ? undefined : { label: 'Update', tone: 'info' },
+    status: hasError(r.issues) ? undefined : { label: 'Update', tone: 'neutral' },
     fields: [{ label: 'Employee ID', value: r.empNo }, ...Object.entries(r.patch).map(([k, v]) => ({ label: updFieldLabel(k), value: v }))],
   }));
 

@@ -17,6 +17,7 @@ import { type AwaitPeriod, inPeriod } from '@/features/booking/model';
 import { useProfTypes } from '@/features/booking/ui';
 import { dateLabel } from '@/lib/dates';
 import { useAccess } from '@/lib/use-access';
+import { themedStyles } from '@/theme/themed';
 import { palette, radius } from '@/theme/tokens';
 import { ActivityList, Button, DateField, EmptyState, ErrorState, MenuSheet, NavHeader, PillSelector, Row, Screen, Segmented, Skeleton, SkeletonList, SummaryHero } from '@/ui';
 
@@ -102,13 +103,13 @@ export default function BookingRequestsScreen() {
         ) : rows.length ? (
           <ActivityList>
             {rows.slice(0, limit).map((x) => (
-              <RequestRow key={x.id} b={x} today={today} types={types} onPress={() => open(x.id)} />
+              <RequestRow key={x.id} b={x} today={today} types={types} hideStatus={tab === 'pending'} onPress={() => open(x.id)} />
             ))}
           </ActivityList>
         ) : (
           <EmptyState icon={<CalendarCheck2 color={palette.textMuted} strokeWidth={1.8} />} title="Nothing here" message={EMPTY[tab]} />
         )}
-        {rows.length > limit ? <Button title="Show more" variant="text" onPress={() => setLimit((n) => n + PAGE)} style={{ alignSelf: 'center' }} /> : null}
+        {rows.length > limit ? <Button title={`Show more (${rows.length - limit})`} variant="text" size="md" onPress={() => setLimit((n) => n + PAGE)} style={styles.more} /> : null}
       </Screen>
       <MenuSheet
         visible={periodOpen}
@@ -127,3 +128,7 @@ export default function BookingRequestsScreen() {
     </>
   );
 }
+
+const styles = themedStyles(() => ({
+  more: { alignSelf: 'center' },
+}));

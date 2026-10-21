@@ -1,63 +1,17 @@
 // Small pieces the platform screens share: a switch row, and the company picker (a PillSelector that
 // opens a sheet of every company).
 
-import type { LucideIcon } from 'lucide-react-native';
 import { Building2, Check } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, Switch, View } from 'react-native';
 
 import { companyName, companyStatus } from '@/api/platform';
 import type { Tenant } from '@/api/me';
-import { themedStyles } from '@/theme/themed';
-import { type ModuleKey, palette, radius } from '@/theme/tokens';
-import { Avatar, isDarkScheme, ListCard, ListRow, ModuleBadge, PillSelector, Sheet } from '@/ui';
+import { palette } from '@/theme/tokens';
+import { Avatar, ListCard, ListRow, ModuleBadge, PillSelector, Sheet } from '@/ui';
 
-/** One switch as a list row: the whole row is the switch for touch and screen readers (the Switch inside is display only). */
-export function ToggleRow({
-  title,
-  subtitle,
-  value,
-  onChange,
-  disabled,
-  busy,
-  icon,
-  module,
-}: {
-  title: string;
-  subtitle?: string;
-  value: boolean;
-  onChange: (next: boolean) => void;
-  disabled?: boolean;
-  busy?: boolean;
-  icon?: LucideIcon;
-  module?: ModuleKey;
-}) {
-  const offTrack = isDarkScheme() ? palette.hairline : palette.surfaceSunken;
-  const off = !!disabled || !!busy;
-  return (
-    <Pressable
-      onPress={() => onChange(!value)}
-      disabled={off}
-      accessibilityRole="switch"
-      accessibilityLabel={title}
-      accessibilityHint={subtitle}
-      accessibilityState={{ checked: value, disabled: off, busy: !!busy }}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed, disabled && styles.dim]}>
-      <ListRow
-        left={icon && module ? <ModuleBadge module={module} icon={icon} /> : undefined}
-        title={title}
-        subtitle={subtitle}
-        numberOfLines={2}
-        subtitleLines={3}
-        right={
-          <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Switch value={value} disabled={off} trackColor={{ false: offTrack, true: palette.accentDeep }} thumbColor={palette.onAccent} ios_backgroundColor={offTrack} />
-          </View>
-        }
-      />
-    </Pressable>
-  );
-}
+/** One switch as a list row: the kit's SwitchRow (kept under this name for the platform screens). */
+export { SwitchRow as ToggleRow } from '@/ui';
+
 
 /**
  * "Company ⌄": a pill with the chosen company that opens a sheet listing every company. `allLabel` adds
@@ -115,9 +69,3 @@ export function CompanyPicker({
     </>
   );
 }
-
-const styles = themedStyles(() => ({
-  row: { borderRadius: radius.md },
-  pressed: { backgroundColor: palette.pressedTint },
-  dim: { opacity: 0.55 },
-}));

@@ -40,6 +40,7 @@ import { ROLE_LABEL } from '@/lib/access';
 import { plural } from '@/lib/format';
 import { palette, space } from '@/theme/tokens';
 import {
+  ActionRow,
   ActivityList,
   ActivityRow,
   Banner,
@@ -227,9 +228,11 @@ export default function ActivityAuditScreen() {
         icon={History}
         module="security"
         label={personId ? 'Their activity' : 'Activity'}
+        loading={!s && summary.isPending}
         value={s?.totalActivities ?? 0}
+        figure={s ? undefined : <Text variant="display" muted>—</Text>}
         info={s ? { label: `${s.activitiesToday} today`, value: plural(s.activeUsers, 'person', 'people') + ' active' } : undefined}
-        sub={s ? undefined : 'Loading…'}>
+        sub={s ? undefined : 'The counts couldn’t be loaded. Pull down to try again.'}>
         {s ? (
           <Button
             variant="text"
@@ -342,14 +345,22 @@ export default function ActivityAuditScreen() {
     const r = item.row;
     return (
       <GroupedRow tone="surface" hairline first={item.first} last={item.last}>
+        {/* The description is the point of the row, so the action pill sits under it (not beside it,
+            where it squeezed the text) and the time takes the right column (under the text too on a
+            narrow phone — ActivityRow decides). */}
         <ActivityRow
           person={{ name: r.actorName || '?' }}
           title={r.actorName || 'Someone'}
+          titleLines={1}
           subtitle={r.description || actionLabel(r.action)}
-          note={r.status === 'failed' ? 'Failed' : timeOf(r.createdAt)}
+          subtitleLines={3}
+          note={r.status === 'failed' ? 'Failed' : undefined}
+          value={timeOf(r.createdAt)}
           status={{ label: actionLabel(r.action), tone: actionTone(r.action) }}
+          statusPlacement="below"
           onPress={can.detail ? () => setDetail(r) : undefined}
           chevron={can.detail}
+          accessibilityLabel={[r.actorName || 'Someone', r.description || actionLabel(r.action), actionLabel(r.action), r.status === 'failed' ? 'Failed' : '', timeOf(r.createdAt)].filter(Boolean).join(', ')}
         />
       </GroupedRow>
     );
@@ -402,7 +413,7 @@ export default function ActivityAuditScreen() {
         visible={datesOpen}
         onClose={() => setDatesOpen(false)}
         title="Show activity from"
-        items={PRESETS.map((p) => ({ key: p.key, label: p.label, icon: CalendarRange, hint: p.key === preset ? 'Showing now' : undefined, onPress: () => choosePreset(p.key) }))}
+        items={PRESETS.map((p) => ({ key: p.key, label: p.label, icon: CalendarRange, selected: p.key === preset, onPress: () => choosePreset(p.key) }))}
       />
 
       <Sheet
@@ -429,17 +440,16 @@ export default function ActivityAuditScreen() {
         onClose={() => setFiltersOpen(false)}
         title="Filters"
         footer={
-          <Row style={{ gap: space.sm }}>
-            <Button variant="ghost" title="Clear" style={{ flex: 1 }} onPress={() => setDraft(NO_EXTRA)} />
+          <ActionRow context="sheet">
+            <Button variant="accent" title="Clear" onPress={() => setDraft(NO_EXTRA)} />
             <Button
               title="Show"
-              style={{ flex: 1 }}
               onPress={() => {
                 setExtra(draft);
                 setFiltersOpen(false);
               }}
             />
-          </Row>
+          </ActionRow>
         }>
         <SelectField label="Action" value={draft.action} options={actionOptions} onChange={(v) => setDraft((d) => ({ ...d, action: v }))} />
         <SelectField label="Department" value={draft.dept} options={deptOptions} onChange={(v) => setDraft((d) => ({ ...d, dept: v }))} />

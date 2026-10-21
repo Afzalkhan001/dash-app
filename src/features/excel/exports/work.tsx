@@ -28,7 +28,7 @@ import { ListCard, ListRow, Sheet, Text, TextField } from '@/ui';
 const TYPES: { key: ReportType | 'all'; label: string; sheet: string }[] = [
   { key: 'employee', label: 'People', sheet: 'People' },
   { key: 'project', label: 'Projects', sheet: 'Projects' },
-  { key: 'keka', label: 'Keka codes', sheet: 'Keka codes' },
+  { key: 'keka', label: 'Project codes', sheet: 'Keka codes' },
   { key: 'grid', label: 'Month grid', sheet: 'Month grid' },
   { key: 'all', label: 'All four', sheet: '' },
 ];
@@ -122,10 +122,10 @@ export function KekaExport({ def }: { def: ExportDef }) {
     <ExportShell
       def={def}
       ready={ready && !loading}
-      intro="For one Keka code: who worked on it (days, hours, tasks) with each task line, the shoot locations booked against it, and the IT tickets and admin requests raised on it."
+      intro="For one project code: who worked on it (days, hours, tasks) with each task line, the shoot locations booked against it, and the IT tickets and admin requests raised on it."
       count={rep ? rep.counts.tasks + rep.counts.bookings + rep.counts.tickets + rep.counts.admin : null}
       countNoun={['record', 'records']}
-      disabled={!chosen ? 'Choose a Keka code first.' : !range.from || !range.to ? 'Choose the dates.' : false}
+      disabled={!chosen ? 'Choose a project code first.' : !range.from || !range.to ? 'Choose the dates.' : false}
       build={() => {
         if (!chosen || !rep) return null;
         return {
@@ -139,9 +139,9 @@ export function KekaExport({ def }: { def: ExportDef }) {
           ],
         };
       }}>
-      <PickedRow icon={Hash} title={chosen?.kekaCode || chosen?.name} sub={chosen ? chosen.name : null} placeholder="Choose a Keka code" onChange={() => setPicking(true)} />
+      <PickedRow icon={Hash} title={chosen?.kekaCode || chosen?.name} sub={chosen ? chosen.name : null} placeholder="Choose a project code" onChange={() => setPicking(true)} />
       <RangeCard value={range} onChange={setRange} today={today} presets={['month', 'last', '30', 'fy']} />
-      <Sheet visible={picking} onClose={() => setPicking(false)} title="Keka code" subtitle={all ? 'Every project code' : 'The codes you own'}>
+      <Sheet visible={picking} onClose={() => setPicking(false)} title="Project code" subtitle={all ? 'Every project code' : 'The codes you own'}>
         <View style={styles.gap}>
           <TextField placeholder="Search code or project" value={q} onChangeText={setQ} left={<Search size={18} />} autoCorrect={false} />
           {matches.length ? (

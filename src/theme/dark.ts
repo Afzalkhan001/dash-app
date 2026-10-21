@@ -99,8 +99,8 @@ export const darkPalette = {
   warning: '#F2A516',
   warningSoft: '#46360F',
   warningInk: '#F8C74E', // text 9.5:1 on surface, 7.4:1 on warningSoft
-  info: '#FF9064', // banner icon on infoSoft (brand text colour, so it reads on dark)
-  infoSoft: '#4E2A1B',
+  info: '#8BB8F5', // calm blue: banner icon on infoSoft, in-progress dots (7.6:1 on surface)
+  infoSoft: '#1E2C40',
 
   overlay: 'rgba(6,4,3,0.64)', // sheet scrim: deeper than light mode so the sheet edge still separates
 } as const satisfies Shape<typeof palette> & { primaryText: string };
@@ -168,6 +168,6 @@ export const darkStatusTone: Record<StatusTone, { fg: string; dot: string; bg: s
   pending: { fg: '#F8C74E', dot: '#F2A516', bg: '#3D2F12', border: '#6A5121' },
   done: { fg: '#6AD596', dot: '#2FA866', bg: '#173A27', border: '#2C6844' },
   failed: { fg: '#FC6C6A', dot: '#D43A40', bg: '#44201F', border: '#7A3433' },
-  info: { fg: '#FF9064', dot: '#FF9064', bg: '#43251A', border: '#6B3A22' },
+  info: { fg: '#8BB8F5', dot: '#6FA3EE', bg: '#1E2C40', border: '#34507A' },
   neutral: { fg: '#BCB0A5', dot: '#9E9288', bg: '#332C28', border: '#4A413B' },
 };

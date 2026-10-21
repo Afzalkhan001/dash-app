@@ -24,7 +24,7 @@ import { DigioVerifyCard } from '@/features/vendor/kyc';
 import type { RegContext, RegErrors, RegForm } from '@/features/vendor/register-form';
 import { CheckRow, ChoiceButtons, Field, type InfoRow, InfoRows } from '@/features/vendor/ui';
 import { font, palette, radius, space } from '@/theme/tokens';
-import { Banner, Button, Card, DateField, FieldMessage, SelectField, Sheet, StatusPill, Text } from '@/ui';
+import { FIELD_LABEL_INSET, Banner, Button, Card, DateField, FieldMessage, SelectField, Sheet, StatusPill, Text } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 export type StepProps = {
@@ -316,7 +316,7 @@ export function StepBusiness({
       <Field label="Brand name (optional)" value={f.brandName} onChangeText={set('brandName')} />
 
       <View style={{ gap: space.xs }}>
-        <Text variant="labelStrong" muted>
+        <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
           Registered address
           <Text variant="labelStrong" color={palette.dangerInk}>
             {' *'}

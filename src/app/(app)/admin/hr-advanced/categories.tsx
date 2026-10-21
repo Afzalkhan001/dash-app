@@ -101,8 +101,7 @@ function Editor({ header, tenantId, initial }: { header: React.ReactNode; tenant
         </ActionBar>
       }>
       <Text variant="body" muted>
-        The kinds of professional that can be booked, and the hours each is bookable within. The gap is buffer time left after a booking before the next can start — travel time for a shoot, for example. Switch a
-        category off to stop offering it without touching past bookings.
+        The kinds of professional people can book, and the hours each can be booked. Switch one off to stop offering it; past bookings stay.
       </Text>
       {rows.map((r, i) => {
         const id = idFor(r);
@@ -130,8 +129,8 @@ function Editor({ header, tenantId, initial }: { header: React.ReactNode; tenant
                   24-hour time, like 07:00 or 22:00.
                 </Text>
               ) : null}
-              <NumberField label="Gap after a booking" unit="minutes" value={r.gapMinutes} onChange={(v) => set(r.key, { gapMinutes: v.slice(0, 3) })} hint="0 to 480" />
-              <ToggleRow label="Offered" sub={r.active ? 'People can book this category' : 'Hidden from booking; past bookings stay'} value={r.active} onChange={(v) => set(r.key, { active: v })} />
+              <NumberField label="Gap after a booking" unit="minutes" value={r.gapMinutes} onChange={(v) => set(r.key, { gapMinutes: v.slice(0, 3) })} hint="Time kept free before the next booking, such as travel to a shoot. 0 to 480." />
+              <ToggleRow flush label="Offered" sub={r.active ? 'People can book this category' : 'Hidden from booking; past bookings stay'} value={r.active} onChange={(v) => set(r.key, { active: v })} />
             </View>
           </Card>
         );

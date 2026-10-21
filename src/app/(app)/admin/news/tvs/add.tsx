@@ -10,7 +10,9 @@ import { useState } from 'react';
 import { usePairTv, useTvPlaylists, useBranches } from '@/api/newsroom';
 import { TV_INACTIVITY } from '@/features/newsroom/format';
 import { useNewsroomAccess } from '@/features/newsroom/gate';
-import { ActionBar, Banner, Button, LabelledSection, NavHeader, OtpBoxes, Screen, SelectField, SuccessSheet, TextField } from '@/ui';
+import { themedStyles } from '@/theme/themed';
+import { space } from '@/theme/tokens';
+import { ActionBar, Banner, Button, Card, FieldMessage, LabelledSection, NavHeader, OtpBoxes, Screen, SelectField, SuccessSheet, TextField } from '@/ui';
 
 const ALL = '__all';
 
@@ -80,32 +82,41 @@ export default function AddTvScreen() {
           error={!!error}
           accessibilityLabel="Pairing code shown on the TV"
         />
+        <FieldMessage hint="Open the Dash TV app on the TV (or dash-tv-web.vercel.app in its browser). It shows a 6-digit code." />
       </LabelledSection>
       {error ? <Banner tone="danger" title="Not paired" message={error} /> : null}
 
-      <TextField label="Name" value={name} onChangeText={setName} placeholder="e.g. Reception TV" maxLength={80} />
-      <SelectField<string>
-        label="Branch"
-        value={location}
-        onChange={setLocation}
-        options={[{ value: ALL, label: 'All branches' }, ...(branches.data ?? []).map((b) => ({ value: b, label: b }))]}
-        hint="It shows posts for this branch and for all branches."
-      />
-      <SelectField<string>
-        label="Playlist"
-        value={playlistId}
-        onChange={setPlaylistId}
-        options={[
-          { value: ALL, label: 'All published posts' },
-          ...(playlists.data ?? []).filter((p) => p.status !== 'archived').map((p) => ({ value: p.id, label: p.name })),
-        ]}
-      />
-      <SelectField<string>
-        label="Back to the posts after no remote use for"
-        value={inactivity}
-        onChange={setInactivity}
-        options={TV_INACTIVITY}
-      />
+      <LabelledSection title="This TV">
+        <Card style={styles.fields}>
+          <TextField label="Name" value={name} onChangeText={setName} placeholder="e.g. Reception TV" maxLength={80} />
+          <SelectField<string>
+            label="Branch"
+            value={location}
+            onChange={setLocation}
+            options={[{ value: ALL, label: 'All branches' }, ...(branches.data ?? []).map((b) => ({ value: b, label: b }))]}
+            hint="It shows posts for this branch and for all branches."
+          />
+          <SelectField<string>
+            label="Playlist"
+            value={playlistId}
+            onChange={setPlaylistId}
+            options={[
+              { value: ALL, label: 'All published posts' },
+              ...(playlists.data ?? []).filter((p) => p.status !== 'archived').map((p) => ({ value: p.id, label: p.name })),
+            ]}
+          />
+          <SelectField<string>
+            label="Back to the posts after no remote use for"
+            value={inactivity}
+            onChange={setInactivity}
+            options={TV_INACTIVITY}
+          />
+        </Card>
+      </LabelledSection>
     </Screen>
   );
 }
+
+const styles = themedStyles(() => ({
+  fields: { gap: space.md },
+}));

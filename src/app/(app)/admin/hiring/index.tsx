@@ -36,8 +36,9 @@ import { useHiring } from '@/features/hiring/use-hiring';
 import { ago } from '@/features/inbox/format';
 import { dateLabel } from '@/lib/dates';
 import { themedStyles } from '@/theme/themed';
-import { palette, space } from '@/theme/tokens';
+import { palette, radius, space } from '@/theme/tokens';
 import {
+  Avatar,
   Button,
   Chip,
   ChipRow,
@@ -52,6 +53,7 @@ import {
   Screen,
   Segmented,
   Sheet,
+  Skeleton,
   SkeletonList,
   StatusPill,
   SummaryHero,
@@ -153,16 +155,21 @@ export default function HiringScreen() {
 
   const positions = (
     <View key="positions" style={styles.section}>
-      <SummaryHero
-        icon={BriefcaseBusiness}
-        module="people"
-        label="Open positions"
-        value={openCount}
-        unit={openCount === 1 ? 'position' : 'positions'}
-        sub={`You can give ${coins(available)} as referral bonuses`}
-        action={{ title: 'Post a job', icon: <Plus />, onPress: () => router.push('/admin/hiring/edit') }}
-      />
-      {h.jobs.isError && !h.jobs.data ? (
+      {h.jobs.isPending ? (
+        <Skeleton height={228} radius={radius.xxl} />
+      ) : (
+        <SummaryHero
+          icon={BriefcaseBusiness}
+          module="people"
+          label="Open positions"
+          value={openCount}
+          sub={wallet.isPending ? undefined : `You can give ${coins(available)} as referral bonuses`}
+          action={{ title: 'Post a job', icon: <Plus />, onPress: () => router.push('/admin/hiring/edit') }}
+        />
+      )}
+      {h.jobs.isPending ? (
+        <SkeletonList rows={4} avatar tone="surface" />
+      ) : h.jobs.isError && !h.jobs.data ? (
         <ErrorState message={h.jobs.error?.message ?? 'The job openings could not be loaded.'} onRetry={() => void h.jobs.refetch()} />
       ) : jobs.length ? (
         <ListCard tone="surface">
@@ -179,7 +186,11 @@ export default function HiringScreen() {
           })}
         </ListCard>
       ) : (
-        <EmptyState icon={<BriefcaseBusiness color={palette.textMuted} strokeWidth={1.8} />} title="No job openings yet" message="Post the first one. Everyone in the company can then refer people for it." />
+        <EmptyState
+          icon={<BriefcaseBusiness color={palette.textMuted} strokeWidth={1.8} />}
+          title="No job openings yet"
+          message="Post the first one with Post a job above. Everyone in the company can then refer people for it."
+        />
       )}
     </View>
   );
@@ -203,7 +214,9 @@ export default function HiringScreen() {
           You can see every referral and whether its résumé was opened. HR and the reviewers make the decisions.
         </Text>
       ) : null}
-      {h.refs.isError && !h.refs.data ? (
+      {h.refs.isPending ? (
+        <SkeletonList rows={4} avatar tone="surface" />
+      ) : h.refs.isError && !h.refs.data ? (
         <ErrorState message={h.refs.error?.message ?? 'The candidates could not be loaded.'} onRetry={() => void h.refs.refetch()} />
       ) : shownRefs.length ? (
         <ListCard tone="surface">
@@ -213,7 +226,9 @@ export default function HiringScreen() {
             return (
               <ListRow
                 key={r.id}
-                left={undefined}
+                size="lg"
+                titleWeight="medium"
+                left={<Avatar name={r.candidateName} size={40} ring={false} />}
                 title={r.candidateName}
                 subtitle={[r.jobOpeningTitle || job?.position, r.referredBy ? `by ${r.referredBy}` : ''].filter(Boolean).join(' · ')}
                 meta={
@@ -252,7 +267,7 @@ export default function HiringScreen() {
         icon={Search}
         value={q}
         onChangeText={setQ}
-        placeholder="Name, email, mobile or application ID"
+        placeholder="Name, email, phone or ID"
         accessibilityLabel="Search applications"
         autoCapitalize="none"
         autoCorrect={false}
@@ -281,6 +296,9 @@ export default function HiringScreen() {
           {appRows.map((a) => (
             <ListRow
               key={a.id}
+              size="lg"
+              titleWeight="medium"
+              left={<Avatar name={a.candidateName} size={40} ring={false} />}
               title={a.candidateName}
               subtitle={[a.jobTitle, a.appliedAt ? `Applied ${dateLabel(a.appliedAt, today)}` : ''].filter(Boolean).join(' · ')}
               meta={a.forwardedToName ? `Sent to ${a.forwardedToName}` : null}

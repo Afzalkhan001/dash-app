@@ -10,7 +10,8 @@ import { usePolicyAcks } from '@/api/hrtime';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { errorText, GateFallback, useHrTimeGate } from '@/features/hrtime/ui';
 import { dateLabel } from '@/lib/dates';
-import { ActivityList, Avatar, EmptyState, ErrorState, ListRow, NavHeader, RadialArc, Screen, Segmented, SkeletonList, StatusPill, SummaryHero } from '@/ui';
+import { moduleTone, radius } from '@/theme/tokens';
+import { ActivityList, Avatar, Card, EmptyState, ErrorState, ListRow, NavHeader, RadialArc, Screen, Segmented, Skeleton, SkeletonList, StatusPill, SummaryHero } from '@/ui';
 
 export default function PolicyAcksScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,56 +29,63 @@ export default function PolicyAcksScreen() {
 
   return (
     <Screen header={header} onRefresh={() => q.refetch()}>
-      {q.isPending ? (
-        <SkeletonList rows={6} avatar tone="surface" />
-      ) : q.error || !d ? (
-        <ErrorState message={errorText(q.error)} onRetry={() => void q.refetch()} />
-      ) : (
-        <>
-          <SummaryHero icon={Eye} module="policies" label={`Confirmed version ${d.version}`}>
-            <RadialArc
-              value={d.acknowledged}
-              total={d.total}
-              size={168}
-              caption="people"
-              legend={[
-                { label: 'Confirmed', value: d.acknowledged },
-                { label: 'Waiting', value: d.total - d.acknowledged },
-              ]}
-              accessibilityLabel={`${d.acknowledged} of ${d.total} people confirmed version ${d.version}`}
-            />
-          </SummaryHero>
-          <Segmented
-            options={[
-              { key: 'waiting', label: 'Waiting', badge: waiting.length || undefined },
-              { key: 'all', label: 'Everyone' },
+      {q.isPending ? <Skeleton height={300} radius={radius.xxl} /> : null}
+      {q.isPending ? <SkeletonList rows={6} avatar tone="surface" /> : null}
+      {!q.isPending && (q.error || !d) ? <ErrorState message={errorText(q.error)} onRetry={() => void q.refetch()} /> : null}
+      {d ? (
+        <SummaryHero icon={Eye} module="policies" label={`Confirmed version ${d.version}`}>
+          <RadialArc
+            value={d.acknowledged}
+            total={d.total}
+            size={168}
+            caption="people"
+            legend={[
+              { label: 'Confirmed', value: d.acknowledged },
+              { label: 'Waiting', value: d.total - d.acknowledged },
             ]}
-            value={tab}
-            onChange={(k) => setTab(k as 'waiting' | 'all')}
+            accessibilityLabel={`${d.acknowledged} of ${d.total} people confirmed version ${d.version}`}
           />
-          {shown.length ? (
-            <ActivityList>
-              {shown.map((p) => (
-                <ListRow
-                  key={p.id}
-                  size="lg"
-                  left={<Avatar name={p.name} />}
-                  title={p.name}
-                  subtitle={[p.department || 'No team', p.acked_at ? `confirmed ${dateLabel(p.acked_at, today)}` : null].filter(Boolean).join(' · ')}
-                  subtitleLines={2}
-                  below={p.acked_at ? undefined : <StatusPill label="Waiting" tone="pending" />}
-                />
-              ))}
-            </ActivityList>
+        </SummaryHero>
+      ) : null}
+      {d ? (
+        <Segmented
+          options={[
+            { key: 'waiting', label: 'Waiting', badge: waiting.length || undefined },
+            { key: 'all', label: 'Everyone' },
+          ]}
+          value={tab}
+          onChange={(k) => setTab(k as 'waiting' | 'all')}
+        />
+      ) : null}
+      {d && shown.length ? (
+        <ActivityList>
+          {shown.map((p) => (
+            <ListRow
+              key={p.id}
+              size="lg"
+              left={<Avatar name={p.name} />}
+              title={p.name}
+              subtitle={[p.department || 'No team', p.acked_at ? `confirmed ${dateLabel(p.acked_at, today)}` : null].filter(Boolean).join(' · ')}
+              subtitleLines={2}
+              // The Waiting tab already says it; the pill only tells people apart under Everyone.
+              below={p.acked_at || tab === 'waiting' ? undefined : <StatusPill label="Waiting" tone="pending" />}
+            />
+          ))}
+        </ActivityList>
+      ) : null}
+      {d && !shown.length ? (
+        <Card tone="surface">
+          {tab === 'waiting' && people.length ? (
+            <EmptyState icon={<Eye color={moduleTone.policies.fg} strokeWidth={1.8} />} title="Everyone has confirmed" message="Nobody is waiting on this version." />
           ) : (
-            tab === 'waiting' && people.length ? (
-            <EmptyState icon={<Eye strokeWidth={1.8} />} title="Everyone has confirmed" message="Nobody is waiting on this version." />
-          ) : (
-            <EmptyState icon={<Eye strokeWidth={1.8} />} title="Nobody to ask" message="No one in this policy’s teams yet." />
-          )
+            <EmptyState
+              icon={<Eye color={moduleTone.policies.fg} strokeWidth={1.8} />}
+              title="Nobody to ask"
+              message="No one is in this policy’s teams yet. Change who it’s for on the policy page."
+            />
           )}
-        </>
-      )}
+        </Card>
+      ) : null}
     </Screen>
   );
 }

@@ -5,7 +5,7 @@
 // coin distribution there while the coins are unused (POST /bounty_transactions/:id/reverse). The
 // share button sends the filtered rows as CSV (the website's Excel / PDF report stays on the web).
 
-import { Coins, Search, Share2, SlidersHorizontal, Undo2, UserRound } from 'lucide-react-native';
+import { Search, Share2, SlidersHorizontal, Undo2, UserRound } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
 
@@ -13,6 +13,7 @@ import { type LedgerFilters, type LedgerTxn, reverseTxn, useInvalidateBountyAdmi
 import { useTodayIst } from '@/features/attendance/use-now';
 import { coins, dateTimeLabel, num } from '@/features/bounty/logic';
 import { canCancelTxn } from '@/features/bountyadmin/access';
+import { ledgerIcon } from '@/features/bountyadmin/components';
 import { AdminGate, useBountyAdmin } from '@/features/bountyadmin/gate';
 import { LEDGER_TYPES, ledgerFrom, ledgerStatus, ledgerTypeLabel } from '@/features/bountyadmin/logic';
 import { PersonPicker, usePickablePeople } from '@/features/shared/person-picker';
@@ -137,7 +138,7 @@ function Ledger() {
           accessibilityLabel="Search the ledger"
         />
         {q.isLoading ? (
-          <SkeletonList rows={5} />
+          <SkeletonList rows={5} avatar tone="surface" />
         ) : q.error && !q.data ? (
           <Card>
             <ErrorState message={q.error.message} onRetry={() => void q.refetch()} />
@@ -151,11 +152,11 @@ function Ledger() {
                   <ActivityRow
                     key={t.id}
                     module="bounty"
-                    icon={Coins}
+                    icon={ledgerIcon(t.type)}
                     title={ledgerTypeLabel(t.type)}
                     subtitle={[[ledgerFrom(t), t.toWalletName].filter((x) => !!x && x !== '—').join(' → '), t.taskName].filter(Boolean).join(' · ')}
+                    note={dateTimeLabel(t.createdAt, today)}
                     value={sign(t)}
-                    meta={dateTimeLabel(t.createdAt, today)}
                     status={s.label === 'Done' ? null : s}
                     onPress={() => setOpen(t)}
                   />
@@ -166,7 +167,26 @@ function Ledger() {
           </>
         ) : (
           <Card>
-            <EmptyState icon={<Search color={palette.textMuted} />} title="No coin movements" message={active || needle ? 'Nothing matches these filters.' : undefined} />
+            <EmptyState
+              icon={<Search color={palette.textMuted} />}
+              title={active || needle ? 'Nothing matches' : 'No coin movements yet'}
+              message={active || needle ? 'Try another search or clear the filters.' : 'Top-ups, coins given and task rewards show up here.'}
+              action={
+                active || needle ? (
+                  <Button
+                    title="Clear filters"
+                    variant="accent"
+                    size="md"
+                    onPress={() => {
+                      setF({});
+                      setEmpName('');
+                      setSearch('');
+                      setLimit(PAGE);
+                    }}
+                  />
+                ) : undefined
+              }
+            />
           </Card>
         )}
       </Screen>

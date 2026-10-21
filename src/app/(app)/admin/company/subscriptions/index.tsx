@@ -23,7 +23,7 @@ import { PaymentFormSheet, SubscriptionFormSheet } from '@/features/company/subs
 import { shareCsv } from '@/lib/csv';
 import { dateLabel, monthYear } from '@/lib/dates';
 import { inr, plural } from '@/lib/format';
-import { palette, space } from '@/theme/tokens';
+import { palette, radius, space } from '@/theme/tokens';
 import {
   ActivityList,
   ActivityRow,
@@ -46,6 +46,7 @@ import {
   SectionHeader,
   Segmented,
   Sheet,
+  Skeleton,
   SkeletonList,
   StatGrid,
   StatTile,
@@ -158,7 +159,9 @@ export default function SubscriptionsScreen() {
       ) : subs.isError ? (
         <ErrorState message={subs.error?.message ?? ''} onRetry={() => void subs.refetch()} />
       ) : (
-        <>
+        // A View, not a fragment: Screen spaces its direct children only, so a fragment's pieces sat
+        // flush against each other.
+        <View style={{ gap }}>
           {renewing.length ? (
             <Banner
               tone={overdue.length ? 'danger' : 'warning'}
@@ -190,22 +193,28 @@ export default function SubscriptionsScreen() {
             value={tab}
             onChange={setTab}
           />
-          <Row style={{ gap: space.xs, flexWrap: 'wrap' }}>
+          <Row style={{ gap: space.xs, flexWrap: 'wrap', marginTop: -space.xs }}>
             <PillSelector icon={CalendarRange} label={rangeLabel(rangeKey, range, today)} onPress={() => setRangeMenu(true)} accessibilityLabel={`Spending dates: ${rangeLabel(rangeKey, range, today)}`} />
           </Row>
 
           {tab === 'overview' ? (
             <>
-              <SummaryHero
-                icon={CreditCard}
-                module="vendor"
-                label="Costs per month"
-                value={t?.monthlyInr ?? 0}
-                currency="₹"
-                decimals={0}
-                info={t ? { label: 'A year', value: money(t.yearlyInr) } : undefined}
-                sub="Active subscriptions only"
-              />
+              {t ? (
+                <SummaryHero
+                  icon={CreditCard}
+                  module="vendor"
+                  label="Costs per month"
+                  value={t.monthlyInr}
+                  currency="₹"
+                  decimals={0}
+                  info={{ label: 'A year', value: money(t.yearlyInr) }}
+                  sub="Active subscriptions only"
+                />
+              ) : summary.isError ? (
+                <ErrorState message={summary.error?.message ?? 'The totals could not be loaded.'} onRetry={() => void summary.refetch()} />
+              ) : (
+                <Skeleton height={236} radius={radius.xl} />
+              )}
               {t ? (
                 <StatGrid columns={2}>
                   <StatTile variant="light" label="Active" value={t.activeCount} caption={`${t.cancelledCount} cancelled`} />
@@ -225,12 +234,16 @@ export default function SubscriptionsScreen() {
                     valueColor={t.kekaMissingCount > 0 ? palette.dangerInk : undefined}
                   />
                 </StatGrid>
-              ) : (
-                <SkeletonList rows={2} />
+              ) : summary.isError ? null : (
+                <StatGrid columns={2}>
+                  {[0, 1, 2, 3].map((i) => (
+                    <Skeleton key={i} height={128} radius={radius.xl} />
+                  ))}
+                </StatGrid>
               )}
 
               {summary.data?.byDepartment.length ? (
-                <ActivityList title="By department" overline="What the standing subscriptions cost, and what was spent in these dates">
+                <ActivityList title="By department" overline="Standing costs, and spend in these dates">
                   {summary.data.byDepartment.map((d) => (
                     <ActivityRow
                       key={d.department}
@@ -330,7 +343,7 @@ export default function SubscriptionsScreen() {
               )}
             </View>
           )}
-        </>
+        </View>
       )}
 
       <MenuSheet
@@ -349,7 +362,7 @@ export default function SubscriptionsScreen() {
               setCustomOpen(true);
             },
           },
-        ].map((i) => ({ ...i, icon: CalendarRange, hint: i.key === rangeKey ? 'Showing now' : undefined }))}
+        ].map((i) => ({ ...i, icon: CalendarRange, selected: i.key === rangeKey }))}
       />
       <Sheet
         visible={customOpen}
@@ -376,7 +389,7 @@ export default function SubscriptionsScreen() {
         items={[{ key: '', label: 'Any team' }, ...departments.map((d) => ({ key: d, label: d }))].map((d) => ({
           key: d.key || 'any',
           label: d.label,
-          hint: d.key === dept ? 'Showing now' : undefined,
+          selected: d.key === dept,
           onPress: () => setDept(d.key),
         }))}
       />

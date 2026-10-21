@@ -60,7 +60,7 @@ export function ExportShell({
       header={<NavHeader title={def.title} />}
       footer={
         ready ? (
-          <ActionBar note={blocker}>
+          <ActionBar note={blocker ?? (count === 0 ? 'Nothing to list yet, so the file will only have the headings.' : null)}>
             <Button title="Download Excel" icon={<Download />} loading={busy} disabled={!!disabled} onPress={run} />
           </ActionBar>
         ) : undefined
@@ -132,7 +132,7 @@ export function ChoiceCard<K extends string>({ title, value, options, onChange }
 export function PickedRow({ title, sub, placeholder, onChange, icon = UserRound }: { title?: string | null; sub?: string | null; placeholder: string; onChange: () => void; icon?: typeof UserRound }) {
   return (
     <View>
-      <AccountRow icon={icon} module="people" title={title || placeholder} sub={sub || (title ? undefined : 'Tap Choose to pick')} actionLabel={title ? 'Change' : 'Choose'} onChange={onChange} onPress={onChange} />
+      <AccountRow icon={icon} module="people" title={title || placeholder} sub={sub || (title ? undefined : 'Nothing chosen yet')} actionLabel={title ? 'Change' : 'Choose'} onChange={onChange} onPress={onChange} />
     </View>
   );
 }

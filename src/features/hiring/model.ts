@@ -8,6 +8,11 @@ export const CAREERS_URL = 'https://tamadamedia.com/careers';
 
 /** JobOpeningCard's "Employment Type" options (:15944). */
 export const EMPLOYMENT_TYPES = ['Full Time', 'Part Time', 'Contract', 'Internship'] as const;
+/** The stored type ("Full Time", the website's value) in sentence case for the screen ("Full time"). */
+export const employmentTypeLabel = (v?: string | null) => {
+  const t = String(v ?? '').trim();
+  return t ? t.charAt(0) + t.slice(1).toLowerCase() : '';
+};
 
 /** The description's limit on the website (:15952). */
 export const DESCRIPTION_MAX = 2000;
@@ -126,7 +131,7 @@ export const whereLine = (j: Pick<JobOpening, 'location' | 'department'>) => [ci
 
 /** "2-4 years · 6-9 LPA · Full Time" — the facts line. */
 export const factsLine = (j: Pick<JobOpening, 'experienceRequired' | 'package' | 'employmentType'>) =>
-  [j.experienceRequired, j.package, j.employmentType].filter((s) => !!s && String(s).trim()).join(' · ');
+  [j.experienceRequired, j.package, employmentTypeLabel(j.employmentType)].filter((s) => !!s && String(s).trim()).join(' · ');
 
 /** Sum of my paid referral bonuses (ReferralHub "Total Coins Earned", :15310). */
 export const earnedFrom = (refs: Referral[] | undefined) => (refs ?? []).reduce((s, r) => s + (r.bonusPaid ? Number(r.bonusAmount) || 0 : 0), 0);

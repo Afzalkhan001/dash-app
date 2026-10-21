@@ -182,13 +182,13 @@ export default function ReferNewScreen() {
           <CardHeader title="Experience (optional)" />
           <FieldPair>
             <TextField label="Qualification" value={f.qualification} onChangeText={(v) => set('qualification', v)} placeholder="B.Tech, MBA…" />
-            <TextField label="Years" value={f.yearsExperience} onChangeText={(v) => set('yearsExperience', v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" error={tried ? errors.years : null} />
+            <TextField label="Years" value={f.yearsExperience} onChangeText={(v) => set('yearsExperience', v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" placeholder="e.g. 3" error={tried ? errors.years : null} />
           </FieldPair>
           <FieldPair>
             <TextField label="Current salary" value={f.currentSalary} onChangeText={(v) => set('currentSalary', v)} placeholder="e.g. 5.5 LPA" />
             <TextField label="Expected salary" value={f.expectedSalary} onChangeText={(v) => set('expectedSalary', v)} placeholder="e.g. 7 LPA" />
           </FieldPair>
-          <TextField label="Notice period" value={f.noticePeriod} onChangeText={(v) => set('noticePeriod', v)} placeholder="Immediate, 30 days, 2 months…" />
+          <TextField label="Notice period" value={f.noticePeriod} onChangeText={(v) => set('noticePeriod', v)} placeholder="e.g. 30 days" />
         </Card>
 
         <AccountRow

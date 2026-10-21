@@ -51,7 +51,7 @@ export default function PlaylistsScreen() {
                 left={<ModuleBadge module="news" icon={p.status === 'archived' ? ListVideo : Tv} />}
                 title={p.name || 'Untitled playlist'}
                 subtitle={`${plural(n, 'post')}${tvs.data ? ` · ${tvsOn ? `on ${plural(tvsOn, 'TV')}` : 'on no TV'}` : ''}`}
-                right={p.status === 'archived' ? <StatusPill label="Archived" tone="neutral" /> : undefined}
+                below={p.status === 'archived' ? <StatusPill label="Archived" tone="neutral" /> : undefined}
                 chevron
                 onPress={() => router.push(`/admin/advanced/playlists/${encodeURIComponent(p.id)}`)}
               />
@@ -59,7 +59,7 @@ export default function PlaylistsScreen() {
           })}
         </ListCard>
       )}
-      <Text variant="caption" muted align="center">
+      <Text variant="caption" muted>
         Pick a TV’s playlist in Office TVs.
       </Text>
     </Screen>

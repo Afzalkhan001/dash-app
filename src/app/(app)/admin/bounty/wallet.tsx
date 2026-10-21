@@ -13,7 +13,7 @@ import { useBountyWallet } from '@/api/bounty';
 import { returnCoinsToCompany, useInvalidateBountyAdmin, useLedger } from '@/api/bountyadmin';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { coins, dateTimeLabel, num } from '@/features/bounty/logic';
-import { CoinsField } from '@/features/bountyadmin/components';
+import { CoinsField, ledgerIcon } from '@/features/bountyadmin/components';
 import { AdminGate, useBountyAdmin } from '@/features/bountyadmin/gate';
 import { creatorAvailable, ledgerTypeLabel, referralAvailable } from '@/features/bountyadmin/logic';
 import { isJobOpeningCreator } from '@/lib/access';
@@ -105,7 +105,7 @@ function Funds() {
           />
         )}
         <SummaryCard
-          title="Bounty Coins"
+          title="Bounty coins"
           rows={[
             { key: 'got', label: 'Received from Super Admin', value: coins(w?.allocated) },
             { key: 'held', label: 'Held in open tasks', value: coins(w?.reserved) },
@@ -115,7 +115,7 @@ function Funds() {
         />
         {referral ? (
           <SummaryCard
-            title="Referral Coins"
+            title="Referral coins"
             rows={[
               ...(isJobOpeningCreator(user)
                 ? [
@@ -140,10 +140,10 @@ function Funds() {
               <ActivityRow
                 key={t.id}
                 module="bounty"
-                icon={credit ? Wallet : Building2}
+                icon={ledgerIcon(t.type)}
                 title={ledgerTypeLabel(t.type)}
-                subtitle={[t.taskName, t.reason].filter(Boolean).join(' · ') || dateTimeLabel(t.createdAt, today)}
-                meta={dateTimeLabel(t.createdAt, today)}
+                subtitle={[t.taskName, t.reason].filter(Boolean).join(' · ') || null}
+                note={dateTimeLabel(t.createdAt, today)}
                 value={credit ? `+${coins(t.amount)}` : debit ? `−${coins(t.amount)}` : coins(t.amount)}
                 status={t.reversedAt ? { label: 'Cancelled', tone: 'failed' } : null}
               />

@@ -32,7 +32,7 @@ import {
   sortBookingsNewestFirst,
   toMin,
 } from '@/features/booking/model';
-import { andList, DayStrip, HoldNotice, timeOptions, timeRange, useMe, useProfTypes } from '@/features/booking/ui';
+import { andList, DayStrip, HoldNotice, StackedRow, timeOptions, timeRange, useMe, useProfTypes } from '@/features/booking/ui';
 import { useSlotHold } from '@/features/booking/use-slot-hold';
 import { ProjectPicker } from '@/features/shared/project-picker';
 import { dateLabel, istParts } from '@/lib/dates';
@@ -228,7 +228,7 @@ export default function BookProScreen() {
   return (
     <>
       <Screen
-        header={<NavHeader title={pro.name} />}
+        header={<NavHeader title="Book a professional" />}
         footer={
           <ActionBar note={dateErr || timeErr || (tried && !ready ? 'Fill in the fields marked in red.' : null)}>
             <Button title="Review request" icon={<ArrowRight />} onPress={review} disabled={!!dateErr || !!timeErr} />
@@ -290,7 +290,7 @@ export default function BookProScreen() {
           {[...confirmed, ...waiting]
             .sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)))
             .map((b) => (
-              <ActivityRow
+              <StackedRow
                 key={b.id}
                 person={{ name: b.requestedBy || '' }}
                 title={timeRange(b)}

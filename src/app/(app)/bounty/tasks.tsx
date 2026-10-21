@@ -9,7 +9,7 @@ import { useState } from 'react';
 
 import { useBountyCapStatus, useBountyTasks } from '@/api/bounty';
 import { useTodayIst } from '@/features/attendance/use-now';
-import { BountyCapBanner, BountyTaskList, BountyTaskListSkeleton } from '@/features/bounty/components';
+import { BountyCapBanner, BountyCoinsHeroSkeleton, BountyTaskList, BountyTaskListSkeleton } from '@/features/bounty/components';
 import { BountyGate } from '@/features/bounty/gate';
 import { useBountyLabels } from '@/features/bounty/hooks';
 import { boardTasks, headlineReward, num, tasksToFind } from '@/features/bounty/logic';
@@ -58,8 +58,12 @@ function AllTasks() {
           unit="coins"
           info={{ label: canClaim ? 'Tasks you can join' : 'Open tasks', value: plural(open.length, 'task') }}
         />
+      ) : tasksQ.isLoading ? (
+        // The hero's own placeholder, so the list doesn't jump down when the figures land.
+        <BountyCoinsHeroSkeleton />
       ) : null}
-      <BountyCapBanner cap={capQ.data} />
+      {/* Only mounted when it shows: an empty Screen child would still take a gap. */}
+      {capped ? <BountyCapBanner cap={capQ.data} /> : null}
       {tasksQ.isLoading ? (
         <BountyTaskListSkeleton count={4} />
       ) : tasksQ.error && !loaded ? (

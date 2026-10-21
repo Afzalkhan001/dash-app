@@ -109,7 +109,7 @@ export function ledgerStatus(t: LedgerTxn): { label: string; tone: StatusTone } 
   if (t.type === 'BOUNTY_RESERVE') {
     if (t.status === 'cancelled' || t.status === 'released') return { label: 'Released', tone: 'neutral' };
     if (t.approvedAt || t.status === 'approved') return { label: 'Paid', tone: 'done' };
-    return { label: 'Waiting for approval', tone: 'pending' };
+    return { label: 'Waiting', tone: 'pending' };
   }
   const s = String(t.status || 'completed');
   return s === 'completed' ? { label: 'Done', tone: 'done' } : { label: titleCase(s), tone: 'neutral' };

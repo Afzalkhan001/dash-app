@@ -8,10 +8,11 @@ import { Gift, UserPlus } from 'lucide-react-native';
 import { useMyReferrals } from '@/api/hiring';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { coins, earnedFrom, referralStatusLabel, referralStatusTone } from '@/features/hiring/model';
+import { StatusRow } from '@/features/hiring/ui';
 import { useHiring } from '@/features/hiring/use-hiring';
 import { dateLabel } from '@/lib/dates';
 import { palette } from '@/theme/tokens';
-import { ActivityList, ActivityRow, Button, EmptyState, ErrorState, NavHeader, Screen, SkeletonList, Text } from '@/ui';
+import { ActivityList, Button, EmptyState, ErrorState, NavHeader, Screen, SkeletonList, Text } from '@/ui';
 
 export default function MyReferralsScreen() {
   const router = useRouter();
@@ -47,7 +48,7 @@ export default function MyReferralsScreen() {
       ) : rows.length ? (
         <ActivityList key="list" title={`${rows.length} ${rows.length === 1 ? 'referral' : 'referrals'}`}>
           {rows.map((r) => (
-            <ActivityRow
+            <StatusRow
               key={r.id}
               person={{ name: r.candidateName }}
               title={r.candidateName}

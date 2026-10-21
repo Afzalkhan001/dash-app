@@ -23,6 +23,8 @@ import { haversineM } from '@/features/attendance/format';
 import { getPosition } from '@/features/attendance/use-clock';
 import { palette } from '@/theme/tokens';
 import {
+  ActionBar,
+  ActionRow,
   Banner,
   Button,
   Card,
@@ -30,7 +32,7 @@ import {
   ChipRow,
   ConfirmSheet,
   ErrorState,
-  FieldPair,
+  KeyValueList,
   NavHeader,
   Screen,
   Skeleton,
@@ -49,7 +51,7 @@ const metres = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Ma
 
 export default function OfficeMapScreen() {
   const router = useRouter();
-  const { width } = useLayout();
+  const { width, gap } = useLayout();
   const { access, pending } = useGate();
   const allowed = canUseOfficeMap(access.hr, access.user);
   const q = useOffices(allowed);
@@ -131,13 +133,26 @@ export default function OfficeMapScreen() {
   const fences = offices.map((o) => ({ id: o.id, name: o.name, lat: o.lat, lng: o.lng, radius_m: o.radius_m, selected: o.id === selected }));
 
   return (
-    <Screen header={header} onRefresh={() => q.refetch()}>
+    <Screen
+      header={header}
+      onRefresh={() => q.refetch()}
+      footer={
+        draft ? (
+          <ActionBar>
+            <ActionRow context="bar">
+              <Button title="Cancel" variant="accent" onPress={() => choose(null)} />
+              <Button title={isNew ? 'Add office' : 'Save'} icon={<MapPin />} disabled={!changed} onPress={review} />
+            </ActionRow>
+          </ActionBar>
+        ) : undefined
+      }>
       {q.isError && !q.data ? (
         <ErrorState message={q.error?.message ?? 'The offices could not be loaded.'} onRetry={() => void q.refetch()} />
       ) : !q.data ? (
         <Skeleton height={mapHeight} radius={20} />
       ) : (
-        <>
+        // A View, not a fragment: Screen spaces its direct children only.
+        <View style={{ gap }}>
           <ChipRow>
             {offices.map((o) => (
               <Chip key={o.id} label={o.name} selected={selected === o.id} icon={<Building2 size={14} color={palette.textMuted} />} onPress={() => choose(selected === o.id ? null : o.id)} />
@@ -160,7 +175,7 @@ export default function OfficeMapScreen() {
           <Text variant="caption" muted>
             {draft ? (pin ? 'Tap the map again to move the centre.' : 'Tap the map where the office is.') : 'Pick an office above to move it, or New office.'}
           </Text>
-        </>
+        </View>
       )}
 
       {draft ? (
@@ -183,16 +198,14 @@ export default function OfficeMapScreen() {
             keyboardType="number-pad"
             error={draft.radius && !radiusOk ? '25 to 5000 metres' : null}
           />
-          <FieldPair>
-            <SummaryCard rows={[{ key: 'lat', label: 'Latitude', value: fmt(draft.lat) }]} />
-            <SummaryCard rows={[{ key: 'lng', label: 'Longitude', value: fmt(draft.lng) }]} />
-          </FieldPair>
+          <KeyValueList
+            rows={[
+              { key: 'lat', label: 'Latitude', value: fmt(draft.lat), tabular: true },
+              { key: 'lng', label: 'Longitude', value: fmt(draft.lng), tabular: true },
+            ]}
+          />
           <Button title="Use where I’m standing" variant="accent" icon={<Crosshair />} loading={locating} onPress={() => void here()} />
           {error ? <Banner tone="danger" message={error} /> : null}
-          <View style={{ gap: 8 }}>
-            <Button title={isNew ? 'Add this office' : 'Save changes'} icon={<MapPin />} disabled={!changed} onPress={review} />
-            <Button title="Cancel" variant="ghost" onPress={() => choose(null)} />
-          </View>
         </Card>
       ) : (
         <Button title="Offices as a list" variant="accent" onPress={() => router.push('/admin/hr-time/offices')} />

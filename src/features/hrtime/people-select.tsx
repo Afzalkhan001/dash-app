@@ -106,7 +106,8 @@ export function PeopleSelectScreen<P extends SelectablePerson>({
             key={f.key}
             label={f.label}
             selected={filter === f.key}
-            count={f.key === 'all' ? people.length : (counts.get(f.key) ?? 0)}
+            // No "0" badges while the list is still loading.
+            count={loading && !people.length ? undefined : f.key === 'all' ? people.length : (counts.get(f.key) ?? 0)}
             onPress={() => setFilter(f.key)}
           />
         ))}

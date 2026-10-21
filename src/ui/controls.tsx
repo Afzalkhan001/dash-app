@@ -5,7 +5,7 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Calendar, Check, ChevronDown, CircleAlert, Clock } from 'lucide-react-native';
 import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode, useEffect, useRef, useState } from 'react';
-import { type LayoutChangeEvent, Platform, Pressable, ScrollView, type StyleProp, View, type ViewStyle } from 'react-native';
+import { type LayoutChangeEvent, Platform, Pressable, ScrollView, type StyleProp, type TextStyle, View, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { dateLabel, hmLabel, todayIst } from '@/lib/dates';
@@ -27,24 +27,45 @@ export type Segment<K extends string> = { key: K; label: string; badge?: number 
 const SEGMENT_MAX = 4;
 const SEGMENT_LABEL_MAX = 10;
 
+// Room a segment's label needs: labelStrong 13 px ≈ 7.3 dp per character (it may shrink to 85 %), plus
+// the count badge (16 + 6 gap, wider for 2–3 digits) and the segment's own 8 + 8 padding.
+const SEG_CHAR = 7.3;
+
 /**
- * Equal-width segmented control with an animated white thumb (≤ 4 options, labels ≤ 10 characters).
- * With more options or a longer label it renders as a scrolling ChipRow of Chips instead (same API;
- * `badge` becomes the chip count), so it never cramps or truncates.
+ * Equal-width segmented control with an animated white thumb (≤ 4 options, labels ≤ 10 characters,
+ * and every label — with its badge — fits its segment in the width it really gets). Otherwise it
+ * renders as Chips instead (same API; `badge` becomes the chip count), so it never cramps or truncates:
+ * a scrolling ChipRow on the screen, or wrapping chips inside a card (where a scroll row would be clipped).
  */
 export function Segmented<K extends string>({ options, value, onChange }: { options: Segment<K>[]; value: K; onChange: (k: K) => void }) {
+  const l = useLayout();
+  const [measured, setMeasured] = useState(0);
   const list = Array.isArray(options) ? options : [];
-  const chips = list.length > SEGMENT_MAX || list.some((o) => o.label.length > SEGMENT_LABEL_MAX);
-  if (chips) {
-    return (
-      <ChipRow>
-        {list.map((o) => (
-          <Chip key={o.key} label={o.label} selected={o.key === value} count={o.badge ? o.badge : undefined} onPress={() => o.key !== value && onChange(o.key)} />
-        ))}
-      </ChipRow>
-    );
-  }
-  return <SegmentTrack options={list} value={value} onChange={onChange} />;
+  const screenW = l.width - l.gutter * 2;
+  const avail = measured || screenW;
+  const fs = Math.min(Math.max(l.fontScale, 1), 1.2);
+  const segW = (avail - 8) / Math.max(list.length, 1) - 2 * space.xs;
+  const need = (o: Segment<K>) => o.label.length * SEG_CHAR * fs * 0.88 + (o.badge ? 22 + (o.badge > 9 ? 6 : 0) : 0);
+  const chips = list.length > SEGMENT_MAX || list.some((o) => o.label.length > SEGMENT_LABEL_MAX || need(o) > segW);
+  // Narrower than the screen's content width: it sits inside a card, which would clip a bleeding scroll row.
+  const inCard = measured > 0 && measured < screenW - 2;
+  const onLayout = (e: LayoutChangeEvent) => {
+    const w = Math.round(e.nativeEvent.layout.width);
+    if (w > 0 && w !== measured) setMeasured(w);
+  };
+  return (
+    <View onLayout={onLayout}>
+      {chips ? (
+        <ChipRow wrap={inCard}>
+          {list.map((o) => (
+            <Chip key={o.key} label={o.label} selected={o.key === value} count={o.badge ? o.badge : undefined} onPress={() => o.key !== value && onChange(o.key)} />
+          ))}
+        </ChipRow>
+      ) : (
+        <SegmentTrack options={list} value={value} onChange={onChange} />
+      )}
+    </View>
+  );
 }
 
 function SegmentTrack<K extends string>({ options, value, onChange }: { options: Segment<K>[]; value: K; onChange: (k: K) => void }) {
@@ -168,7 +189,8 @@ export function Chip({
 /**
  * A row of chips. Scrolls horizontally edge to edge (bleeds into the screen gutter, or the card
  * padding with `bleed="card"`) so the last chip peeks; `wrap` wraps instead — use that only in forms
- * and filter sheets.
+ * and filter sheets. A selected chip that starts off-screen (a filter arriving through a route
+ * param) is scrolled into view.
  */
 export function ChipRow({
   children,
@@ -182,25 +204,66 @@ export function ChipRow({
   style?: StyleProp<ViewStyle>;
 }) {
   const { gutter, cardPad } = useLayout();
-  if (wrap) return <View style={[styles.chipWrap, style]}>{children}</View>;
+  const scroller = useRef<ScrollView>(null);
+  const viewW = useRef(0);
+  const chipAt = useRef<{ x: number; w: number }[]>([]);
+  const shownFor = useRef<string | null>(null);
   const pad = bleed === 'card' ? cardPad : bleed === 'none' ? 0 : gutter;
+  const items = Children.toArray(children);
+  const selectedAt = items.findIndex((c) => isValidElement(c) && !!(c.props as { selected?: boolean }).selected);
+  const selectedKey = selectedAt >= 0 ? String((items[selectedAt] as ReactElement).key ?? selectedAt) : null;
+  // Runs from the row's and the chips' onLayouts and when the selection changes, whichever lands last.
+  const reveal = () => {
+    const at = selectedAt >= 0 ? chipAt.current[selectedAt] : undefined;
+    if (wrap || !selectedKey || !at || shownFor.current === selectedKey || !viewW.current) return;
+    shownFor.current = selectedKey;
+    const { x, w } = at;
+    // Only when it isn't fully visible yet: bring it in with a little of the previous chip showing.
+    if (x + w + pad > viewW.current) scroller.current?.scrollTo({ x: Math.max(0, x - pad - space.xl), animated: false });
+  };
+  useEffect(() => {
+    reveal();
+  });
+  if (wrap) return <View style={[styles.chipWrap, style]}>{children}</View>;
   return (
     <ScrollView
+      ref={scroller}
       horizontal
       showsHorizontalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      onLayout={(e) => {
+        viewW.current = e.nativeEvent.layout.width;
+        reveal();
+      }}
       style={[{ marginHorizontal: -pad, flexGrow: 0 }, style]}
       contentContainerStyle={{ gap: space.xs, paddingHorizontal: pad, alignItems: 'center' }}>
-      {children}
+      {/* Every chip sits in a plain View (so selecting one never remounts it); the selected one reports where it is. */}
+      {items.map((child, i) => (
+        <View
+          key={isValidElement(child) && child.key != null ? child.key : i}
+          onLayout={(e) => {
+            chipAt.current[i] = { x: e.nativeEvent.layout.x, w: e.nativeEvent.layout.width };
+            if (i === selectedAt) reveal();
+          }}>
+          {child}
+        </View>
+      ))}
     </ScrollView>
   );
 }
 
 // ── Field chrome shared by Select / Date / Time ─────────────────────────────
+/**
+ * The one field-label inset: every label over a field (or over the content it names) sits 4 dp in from
+ * the edge — TextField, PillField, Select / Date / Time fields and SectionLabel all use it. A screen that
+ * draws its own label puts it on:  <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>Status</Text>
+ */
+export const FIELD_LABEL_INSET: TextStyle = { paddingHorizontal: space.xxs };
+
 function FieldLabel({ label }: { label?: string }) {
   if (!label) return null;
   return (
-    <Text variant="labelStrong" muted numberOfLines={2}>
+    <Text variant="labelStrong" muted numberOfLines={2} style={styles.fieldLabel}>
       {label}
     </Text>
   );
@@ -274,7 +337,11 @@ export function SelectField<V extends string>({
         </Text>
         <ChevronDown size={18} color={palette.textMuted} />
       </Pressable>
-      <FieldMessage error={error} hint={hint} />
+      {error || hint ? (
+        <View style={styles.fieldLabel}>
+          <FieldMessage error={error} hint={hint} />
+        </View>
+      ) : null}
       <Sheet visible={open} onClose={() => setOpen(false)} title={label || placeholder}>
         <View style={{ gap: 4 }}>
           {list.map((o) => {
@@ -346,7 +413,11 @@ function PickerField({
           {text ?? placeholder}
         </Text>
       </Pressable>
-      <FieldMessage error={error} hint={hint} />
+      {error || hint ? (
+        <View style={styles.fieldLabel}>
+          <FieldMessage error={error} hint={hint} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -609,6 +680,8 @@ const styles = themedStyles(() => ({
   chipCountOn: { backgroundColor: 'rgba(255,255,255,0.22)' },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
   fieldWrap: { gap: 6 },
+  // Field labels sit 4 dp in from the field edge (same as TextField, PillField and SectionLabel).
+  fieldLabel: { paddingHorizontal: space.xxs },
   field: {
     flexDirection: 'row',
     alignItems: 'center',

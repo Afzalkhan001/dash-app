@@ -15,7 +15,7 @@
 
 import { Image } from 'expo-image';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ImagePlus, MapPin, Plus, Save, Send, Trash2, X } from 'lucide-react-native';
+import { ImagePlus, MapPin, Plus, Save, Send, Trash2, UserRound, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -23,7 +23,7 @@ import { useBountyWallet } from '@/api/bounty';
 import { createJobOpening, type JobForm, type JobOpening, updateJobOpening, useInvalidateHiring } from '@/api/hiring';
 import { useDepartments } from '@/api/people';
 import { useTodayIst } from '@/features/attendance/use-now';
-import { citiesOf, coins, DESCRIPTION_MAX, EMPLOYMENT_TYPES } from '@/features/hiring/model';
+import { citiesOf, coins, DESCRIPTION_MAX, EMPLOYMENT_TYPES, employmentTypeLabel } from '@/features/hiring/model';
 import { SwitchRow } from '@/features/hiring/ui';
 import { useHiring } from '@/features/hiring/use-hiring';
 import { PersonPicker, usePickablePeople } from '@/features/shared/person-picker';
@@ -264,7 +264,7 @@ export default function JobEditScreen() {
               keyboardType="number-pad"
               error={tried ? errors.positions : null}
             />
-            <SelectField label="Type" value={form.employmentType} options={EMPLOYMENT_TYPES.map((t) => ({ value: t, label: t }))} onChange={(v) => set('employmentType', v)} />
+            <SelectField label="Type" value={form.employmentType} options={EMPLOYMENT_TYPES.map((t) => ({ value: t, label: employmentTypeLabel(t) }))} onChange={(v) => set('employmentType', v)} />
           </FieldPair>
           <Text variant="caption" muted>
             When this many people are selected, the position closes by itself.
@@ -291,21 +291,18 @@ export default function JobEditScreen() {
               ))}
             </ChipRow>
           ) : null}
-          <View style={styles.inline}>
-            <View style={styles.fill}>
-              <TextField
-                value={cityText}
-                onChangeText={(v) => (v.endsWith(',') ? addCity(v) : setCityText(v))}
-                onSubmitEditing={() => addCity(cityText)}
-                placeholder={form.cities.length ? 'Add another city' : 'e.g. Hyderabad'}
-                accessibilityLabel="Add a city"
-                autoCapitalize="words"
-                returnKeyType="done"
-                left={<MapPin size={18} color={palette.textMuted} />}
-              />
-            </View>
-            <Button title="Add" variant="ghost" size="sm" icon={<Plus />} disabled={!cityText.trim()} onPress={() => addCity(cityText)} />
-          </View>
+          {/* The field takes the full width; "Add" shows inside it once something is typed. */}
+          <TextField
+            value={cityText}
+            onChangeText={(v) => (v.endsWith(',') ? addCity(v) : setCityText(v))}
+            onSubmitEditing={() => addCity(cityText)}
+            placeholder={form.cities.length ? 'Add another city' : 'e.g. Hyderabad'}
+            accessibilityLabel="Add a city"
+            autoCapitalize="words"
+            returnKeyType="done"
+            left={<MapPin size={18} color={palette.textMuted} />}
+            right={cityText.trim() ? <Button title="Add" variant="text" size="sm" icon={<Plus />} onPress={() => addCity(cityText)} /> : undefined}
+          />
           {knownCities.length ? (
             <ChipRow wrap>
               {knownCities.slice(0, 6).map((c) => (
@@ -325,7 +322,9 @@ export default function JobEditScreen() {
             Hiring manager (optional)
           </Text>
           <AccountRow
-            left={<Avatar name={form.hiringManagerName || '?'} size={36} ring={false} />}
+            left={form.hiringManagerName ? <Avatar name={form.hiringManagerName} size={44} ring={false} /> : undefined}
+            icon={form.hiringManagerName ? undefined : UserRound}
+            module="people"
             title={form.hiringManagerName || 'No one'}
             sub={form.hiringManagerName ? 'HR sends candidates to them first' : 'Anyone in the company'}
             actionLabel={form.hiringManagerName ? 'Change' : 'Choose'}
@@ -355,7 +354,8 @@ export default function JobEditScreen() {
           <CardHeader title="Careers page and picture" />
           <SwitchRow
             title="Public application"
-            subtitle="Shows this posting on tamadamedia.com/careers, where anyone can apply. Separate from employee referrals."
+            subtitle="Shows this posting on the Tamada careers page, where anyone can apply. Separate from referrals."
+            flush
             value={form.isPublic}
             onChange={(v) => set('isPublic', v)}
           />

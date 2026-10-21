@@ -202,15 +202,19 @@ export function DigioVerifyCard({
   const brandInk = isDarkScheme() ? palette.primaryText : palette.primaryDeep;
   return (
     <View style={[styles.card, { backgroundColor: palette.primarySoft }]}>
+      {/* The button under it says "Verify with Digio", so the heading names the check, not the action. */}
       <View style={styles.head}>
         <ShieldCheck size={20} color={brandInk} style={{ flexShrink: 0 }} />
         <Text variant="bodyStrong" color={brandInk} style={{ flex: 1, minWidth: 0 }}>
-          {started ? 'Digio check started' : 'Verify with Digio'}
+          {started ? 'Digio check started' : 'Digio check'}
         </Text>
       </View>
       {needsTerms ? (
-        <View style={styles.inner}>
-          <Text variant="label" muted style={{ paddingVertical: space.sm }}>
+        // The button is already in place (disabled), with why under it — not a white box that reads
+        // like an empty field.
+        <View style={{ gap: space.xs }}>
+          <Button title="Verify with Digio" icon={compact ? undefined : <ArrowRight />} disabled onPress={startStage} />
+          <Text variant="caption" muted align="center">
             Tick “I agree” above to start.
           </Text>
         </View>

@@ -62,7 +62,7 @@ export default function AccountsDeskScreen() {
           value={sumOf(actor ? mine : waiting)}
           currency="₹"
           decimals={0}
-          info={{ label: plural((actor ? mine : waiting).length, 'item'), value: actor ? 'Approve in the Inbox or here' : 'View only' }}
+          info={{ label: plural((actor ? mine : waiting).length, 'item'), value: actor ? 'Also in your Inbox' : 'View only' }}
           onArrowPress={() => router.push({ pathname: '/admin/accounts/queue', params: { stage: 'awaiting' } })}
           arrowLabel="Open what is waiting"
         />
@@ -95,7 +95,7 @@ export default function AccountsDeskScreen() {
         loading={!loaded}
         empty="Nothing waiting on Accounts right now.">
         {waiting.slice(0, PREVIEW).map((it) => (
-          <ItemRow key={it.key} item={it} today={today} onPress={() => router.push({ pathname: '/admin/accounts/item/[type]/[id]', params: { type: it.type, id: it.id } })} />
+          <ItemRow key={it.key} item={it} today={today} hideStage onPress={() => router.push({ pathname: '/admin/accounts/item/[type]/[id]', params: { type: it.type, id: it.id } })} />
         ))}
       </ActivityList>
     </Screen>

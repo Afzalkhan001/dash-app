@@ -6,7 +6,7 @@
 
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert } from 'react-native';
 
 import { type BountyTask, useBountyDepartments } from '@/api/bounty';
 import { editBountyTask, useAdminTasks, useInvalidateBountyAdmin } from '@/api/bountyadmin';
@@ -17,7 +17,7 @@ import { useBountyAdmin } from '@/features/bountyadmin/gate';
 import { digitsOnly } from '@/features/bountyadmin/logic';
 import { MissingItem } from '@/features/inbox/detail';
 import { radius, space } from '@/theme/tokens';
-import { ActionBar, Button, DateField, NavHeader, Screen, SelectField, Skeleton, TextField, toast } from '@/ui';
+import { ActionBar, Button, Card, DateField, NavHeader, Screen, SelectField, Skeleton, TextField, toast } from '@/ui';
 
 const TITLE = 'Edit task';
 
@@ -106,7 +106,7 @@ function EditForm({ task }: { task: BountyTask }) {
           <Button title="Save changes" loading={saving} disabled={!!err} onPress={() => void save()} />
         </ActionBar>
       }>
-      <View style={{ gap: space.md }}>
+      <Card style={{ gap: space.md }}>
         <TextField label="Task title" value={f.title} onChangeText={(v) => set('title', v)} maxLength={120} />
         <TextField label="What to do" value={f.desc} onChangeText={(v) => set('desc', v)} multiline maxLength={2000} counter />
         <TextField label="Category (optional)" value={f.category} onChangeText={(v) => set('category', v)} maxLength={40} placeholder="e.g. Editing, Design" />
@@ -118,6 +118,8 @@ function EditForm({ task }: { task: BountyTask }) {
           hint={f.deptId ? 'Only this department’s people will see it and can take it.' : 'Everyone can see and take it.'}
         />
         <DateField label="Deadline" value={f.deadline || null} onChange={(v) => set('deadline', v)} minimumDate={today} />
+      </Card>
+      <Card style={{ gap: space.md }}>
         <TextField
           label="How many people can take part (optional)"
           value={f.maxAccepts}
@@ -137,7 +139,7 @@ function EditForm({ task }: { task: BountyTask }) {
           />
         ) : null}
         <TextField label="Reference link (optional)" value={f.referenceUrl} onChangeText={(v) => set('referenceUrl', v)} autoCapitalize="none" keyboardType="url" placeholder="https://" />
-      </View>
+      </Card>
     </Screen>
   );
 }

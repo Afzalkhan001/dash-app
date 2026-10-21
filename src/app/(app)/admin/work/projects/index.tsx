@@ -128,7 +128,8 @@ function Projects() {
                   title={code}
                   subtitle={sub || undefined}
                   subtitleLines={2}
-                  below={<StatusPill label={st.label} tone={st.tone} />}
+                  // Active or Inactive already says the status; only All mixes them.
+                  below={show === 'all' ? <StatusPill label={st.label} tone={st.tone} /> : undefined}
                   chevron
                   onPress={() => router.push(`/admin/work/projects/${encodeURIComponent(p.id)}`)}
                   accessibilityLabel={`${code}, ${sub}, ${st.label}`}

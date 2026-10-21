@@ -20,7 +20,7 @@ import { plural } from '@/lib/format';
 import { useAccess } from '@/lib/use-access';
 import { palette, space } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
-import { Button, ConfirmSheet, ErrorState, IconButton, ListCard, ModuleBadge, NavHeader, Screen, SectionLabel, SkeletonList, SummaryCard, SummaryHero, TextField, toast } from '@/ui';
+import { Button, Card, ConfirmSheet, ErrorState, IconButton, LabelledSection, ListCard, ModuleBadge, NavHeader, Screen, SkeletonList, SummaryCard, SummaryHero, TextField, toast } from '@/ui';
 
 const msg = (e: unknown, f: string) => (e instanceof Error && e.message) || f;
 
@@ -68,18 +68,17 @@ export default function ExpenseTypesScreen() {
     <Screen header={<NavHeader title="Expense types" />} onRefresh={() => refresh()}>
       <SummaryHero icon={Shapes} module="pettyCash" label="Expense types people can pick" value={q.data ? on : undefined} unit={on === 1 ? 'type' : 'types'} info={q.data ? { label: 'Switched off', value: String(heads.length - on) } : undefined} />
 
-      <View style={styles.add}>
+      <Card style={styles.add}>
         <TextField label="New expense type" value={name} onChangeText={setName} placeholder="e.g. Courier" maxLength={80} returnKeyType="done" onSubmitEditing={() => name.trim() && add.mutate(name.trim())} />
-        <Button title="Add" icon={<Plus />} variant="accent" loading={add.isPending} disabled={!name.trim()} onPress={() => add.mutate(name.trim())} />
-      </View>
+        <Button title="Add" icon={<Plus />} variant="accent" size="md" loading={add.isPending} disabled={!name.trim()} onPress={() => add.mutate(name.trim())} />
+      </Card>
 
       {q.isPending ? (
         <SkeletonList rows={5} avatar />
       ) : q.isError && !q.data ? (
         <ErrorState message={q.error?.message || 'Couldn’t load the expense types.'} onRetry={() => void q.refetch()} />
       ) : (
-        <View style={styles.block}>
-          <SectionLabel title={plural(heads.length, 'expense type')} />
+        <LabelledSection title={plural(heads.length, 'expense type')}>
           <ListCard>
             {heads.map((h) => (
               <View key={h.id} style={styles.row}>
@@ -99,7 +98,7 @@ export default function ExpenseTypesScreen() {
               </View>
             ))}
           </ListCard>
-        </View>
+        </LabelledSection>
       )}
 
       <ConfirmSheet
@@ -117,8 +116,7 @@ export default function ExpenseTypesScreen() {
 }
 
 const styles = themedStyles(() => ({
-  add: { gap: space.sm },
-  block: { gap: space.xs },
+  add: { gap: space.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.xxs, paddingRight: space.xs },
   flex: { flex: 1, minWidth: 0 },
 }));

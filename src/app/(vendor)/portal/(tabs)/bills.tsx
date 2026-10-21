@@ -99,7 +99,8 @@ export default function VendorBills() {
           const list = bucket[f.key] ?? [];
           return {
             key: f.key,
-            label: f.key === filter ? `${f.label} (showing)` : f.label,
+            label: f.label,
+            selected: f.key === filter,
             icon: f.icon,
             hint: list.length ? `${billsWord(list.length)} · ${rupees(sumBills(list))}` : 'No bills',
             onPress: () => setFilter(f.key),

@@ -13,7 +13,7 @@ import { canSeeReports, reportScopeOf } from '@/features/insights/access';
 import { presetRange, rangeLabel, shortDay } from '@/features/insights/format';
 import { InsightsGate, useInsightsAccess } from '@/features/insights/gate';
 import { HeatStrip } from '@/features/insights/heat-strip';
-import { buildReport, fmtHrs, ROLE_LABEL, taskDate } from '@/features/insights/reports';
+import { buildReport, hoursText, ROLE_LABEL, taskDate } from '@/features/insights/reports';
 import { isYmd, ymdRange } from '@/lib/ist';
 import { plural } from '@/lib/format';
 import { palette, radius, space } from '@/theme/tokens';
@@ -28,7 +28,6 @@ import {
   NumeralRow,
   PillBarChart,
   Screen,
-  SectionHeader,
   Skeleton,
   SkeletonList,
   Text,
@@ -113,8 +112,8 @@ function ReportPersonScreen() {
         <Text variant="caption" muted style={{ marginBottom: space.xs }}>
           {ROLE_LABEL[row.user.role] || row.user.role}
         </Text>
+        <Numeral value={hoursText(row.hours)} caption="Hours worked" style={{ marginBottom: space.md }} />
         <NumeralRow>
-          <Numeral value={fmtHrs(row.hours)} unit={fmtHrs(row.hours) === '—' ? undefined : 'h'} size="md" caption="Hours worked" />
           <Numeral value={row.tasks.length} size="md" caption={row.tasks.length === 1 ? 'Task' : 'Tasks'} />
           <Numeral value={daysWorked} size="md" caption={daysWorked === 1 ? 'Day' : 'Days'} />
         </NumeralRow>
@@ -127,7 +126,7 @@ function ReportPersonScreen() {
               values={perDay.map((h) => Math.round(h * 10) / 10)}
               labels={days.map((d) => String(Number(d.slice(8, 10))))}
               spokenLabels={days.map((d) => shortDay(d, today))}
-              formatValue={(v) => `${v}h`}
+              formatValue={(v) => hoursText(v)}
               caption="Hours a day"
               accessibilityLabel="Hours a day"
             />
@@ -150,11 +149,12 @@ function ReportPersonScreen() {
         </Card>
       ) : null}
 
-      <View>
-        <SectionHeader title="Tasks" />
-        {row.tasks.length ? (
-          <ActivityList>
-            {row.tasks.map((t) => {
+      <ActivityList
+        title="Tasks"
+        empty={
+          <EmptyState icon={<ClipboardList color={palette.textMuted} strokeWidth={1.8} />} title="No hours in these dates" message="Only sent or completed tasks with their timer stopped count." />
+        }>
+        {row.tasks.map((t) => {
               const corrected = report.correctedIds.has(t.id);
               return (
                 <ActivityRow
@@ -164,15 +164,11 @@ function ReportPersonScreen() {
                   title={t.title || '—'}
                   subtitle={[shortDay(taskDate(t), today), t.kekaCode || t.project].filter(Boolean).join(' · ')}
                   note={corrected ? 'Hours corrected by a manager' : undefined}
-                  value={fmtHrs(report.hoursOf(t)) === '—' ? '—' : `${fmtHrs(report.hoursOf(t))} h`}
+                  value={hoursText(report.hoursOf(t))}
                 />
               );
-            })}
-          </ActivityList>
-        ) : (
-          <EmptyState icon={<ClipboardList color={palette.textMuted} strokeWidth={1.8} />} title="No hours in these dates" message="Only sent or completed tasks with their timer stopped count." />
-        )}
-      </View>
+        })}
+      </ActivityList>
     </Screen>
   );
 }

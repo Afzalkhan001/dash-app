@@ -35,7 +35,7 @@ export const TextField = forwardRef<TextInputRef, TextFieldProps>(function TextF
   return (
     <View style={{ gap: 6 }}>
       {label ? (
-        <Text variant="labelStrong" muted numberOfLines={2}>
+        <Text variant="labelStrong" muted numberOfLines={2} style={styles.label}>
           {label}
         </Text>
       ) : null}
@@ -140,6 +140,8 @@ const styles = themedStyles(() => ({
   // The focus ring is a brand outline on a surface: primaryText (the same vermilion in light).
   fieldFocused: { borderWidth: 1.5, borderColor: palette.primaryText, backgroundColor: palette.surface },
   fieldError: { borderWidth: 1.5, borderColor: palette.dangerInk },
+  // Field labels (and the line under a field) sit 4 dp in from the field edge, everywhere in the kit.
+  label: { paddingHorizontal: space.xxs },
   input: {
     flex: 1,
     minWidth: 0,
@@ -148,9 +150,11 @@ const styles = themedStyles(() => ({
     color: palette.text,
     paddingVertical: Platform.OS === 'ios' ? 15 : 12,
     ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
+    // Web: the field draws its own focus ring, so drop the browser's rectangle inside the rounded box.
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
   },
   inputMultiline: { minHeight: 110, paddingTop: 14, paddingBottom: 14, alignSelf: 'stretch' },
-  below: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
+  below: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm, paddingHorizontal: space.xxs },
   otpRow: { flexDirection: 'row', gap: space.xs, justifyContent: 'center' },
   otpBox: {
     flex: 1,
@@ -165,5 +169,5 @@ const styles = themedStyles(() => ({
   },
   otpBoxActive: { borderColor: palette.primaryText, backgroundColor: palette.surface, borderWidth: 1.5 },
   otpBoxFilled: { backgroundColor: palette.surface, borderColor: withAlpha(palette.ink, 0.12) },
-  hiddenInput: { position: 'absolute', opacity: 0, width: 1, height: 1 },
+  hiddenInput: { position: 'absolute', opacity: 0, width: 1, height: 1, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null) },
 }));

@@ -18,7 +18,7 @@ import { BookingRow, useMe, useProfTypes, whenLine } from '@/features/booking/ui
 import { plural } from '@/lib/format';
 import { useAccess } from '@/lib/use-access';
 import { radius } from '@/theme/tokens';
-import { ActivityList, ActivityRow, CategoryGrid, ErrorState, ListCard, ListRow, ModuleBadge, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero } from '@/ui';
+import { ActivityList, CategoryGrid, ErrorState, ListCard, ListRow, ModuleBadge, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero } from '@/ui';
 
 const HISTORY_ROWS = 5;
 
@@ -72,24 +72,10 @@ export default function BookingHubScreen() {
       {waiting ? (
         <ActivityList title="Waiting on you">
           {queues.approve.map((b) => (
-            <ActivityRow
-              key={b.id}
-              person={{ name: b.resource || '' }}
-              title={b.resource || '—'}
-              subtitle={`Marked done · approve it · ${whenLine(b, today)}`}
-              chevron
-              onPress={() => router.push(`/inbox/bkdone/${encodeURIComponent(b.id)}`)}
-            />
+            <BookingRow key={b.id} b={b} today={today} types={types} who="resource" onPress={() => router.push(`/inbox/bkdone/${encodeURIComponent(b.id)}`)} />
           ))}
           {queues.rate.map((b) => (
-            <ActivityRow
-              key={b.id}
-              person={{ name: b.resource || '' }}
-              title={b.resource || '—'}
-              subtitle={`Rate their work · ${whenLine(b, today)}`}
-              chevron
-              onPress={() => router.push(`/inbox/bkrate/${encodeURIComponent(b.id)}`)}
-            />
+            <BookingRow key={b.id} b={b} today={today} types={types} who="resource" onPress={() => router.push(`/inbox/bkrate/${encodeURIComponent(b.id)}`)} />
           ))}
         </ActivityList>
       ) : null}

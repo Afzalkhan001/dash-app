@@ -4,14 +4,14 @@
 import { Image } from 'expo-image';
 import { BriefcaseBusiness, FileText } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, Pressable, Switch, View } from 'react-native';
+import { Alert, View } from 'react-native';
 
 import { fetchReferralResume, type JobOpening, useJobImage } from '@/api/hiring';
 import { FileError, saveDataUrl, shareFile } from '@/lib/files';
 import { coins, bonusOf, isOpen, whereLine } from '@/features/hiring/model';
 import { themedStyles } from '@/theme/themed';
 import { palette, radius, space, type StatusTone } from '@/theme/tokens';
-import { AccountRow, Avatar, Card, isDarkScheme, ListRow, ModuleBadge, StatusPill, Text } from '@/ui';
+import { AccountRow, ActivityRow, type ActivityRowProps, Avatar, Card, ListRow, ModuleBadge, StatusPill, SwitchRow as KitSwitchRow, Text } from '@/ui';
 
 /** The posting's picture when it has one (lazy, never stored on the phone), else the module badge. */
 export function JobThumb({ job, size = 40 }: { job: Pick<JobOpening, 'id' | 'hasImage' | 'position'>; size?: number }) {
@@ -51,6 +51,18 @@ export function JobRow({ job, sub, onPress, showStatus = true }: { job: JobOpeni
   );
 }
 
+/**
+ * An ActivityRow that keeps its title readable on a narrow phone. The kit's ActivityRow moves the
+ * status pill under the text below 360 dp only when the row also has a value; a row with just a status
+ * (a referral, a post, a TV) kept the pill on the right and squeezed the name to a word per line. Here,
+ * below 360 dp, the same row is drawn with the pill under the text (ListRow `below`), everything else
+ * as ActivityRow draws it. Shared by the hiring and newsroom lists.
+ */
+export function StatusRow(props: ActivityRowProps) {
+  // The kit's ActivityRow now puts a value-less status pill under the text by itself.
+  return <ActivityRow {...props} />;
+}
+
 /** A candidate's heading: initials, name, what they applied for, the status pill. */
 export function CandidateHeader({ name, sub, status }: { name: string; sub?: string | null; status: { label: string; tone: StatusTone } }) {
   return (
@@ -72,30 +84,23 @@ export function CandidateHeader({ name, sub, status }: { name: string; sub?: str
 }
 
 /** A switch as a whole-row control (the row is the switch for touch and screen readers). */
-export function SwitchRow({ title, subtitle, value, onChange, disabled }: { title: string; subtitle?: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
-  const offTrack = isDarkScheme() ? palette.hairline : palette.surfaceSunken;
-  return (
-    <Pressable
-      onPress={() => onChange(!value)}
-      disabled={disabled}
-      accessibilityRole="switch"
-      accessibilityLabel={title}
-      accessibilityHint={subtitle}
-      accessibilityState={{ checked: value, disabled: !!disabled }}
-      style={({ pressed }) => [styles.switchRow, pressed && styles.pressed]}>
-      <ListRow
-        title={title}
-        subtitle={subtitle}
-        numberOfLines={2}
-        subtitleLines={4}
-        right={
-          <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Switch value={value} disabled={disabled} trackColor={{ false: offTrack, true: palette.accentDeep }} thumbColor={palette.onAccent} ios_backgroundColor={offTrack} />
-          </View>
-        }
-      />
-    </Pressable>
-  );
+export function SwitchRow({
+  title,
+  subtitle,
+  value,
+  onChange,
+  disabled,
+  flush,
+}: {
+  title: string;
+  subtitle?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+  /** Inside a padded Card: line the title up with the field labels. */
+  flush?: boolean;
+}) {
+  return <KitSwitchRow title={title} subtitle={subtitle} value={value} onChange={onChange} disabled={disabled} flush={flush} subtitleLines={4} />;
 }
 
 function fileProblem(e: unknown, fallback: string) {
@@ -143,5 +148,6 @@ const styles = themedStyles(() => ({
   headText: { flex: 1, minWidth: 0, gap: 2 },
   pill: { alignSelf: 'flex-start', marginTop: space.xxs },
   switchRow: { borderRadius: radius.md },
+  flush: { marginHorizontal: -space.md },
   pressed: { backgroundColor: palette.pressedTint },
 }));

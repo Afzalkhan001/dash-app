@@ -21,7 +21,7 @@ import { DecidedSheet, DetailsCard, explainDecisionError, useOutcome } from '@/f
 import type { InboxDetailProps } from '@/features/plugin-types';
 import { useAccess } from '@/lib/use-access';
 import { space } from '@/theme/tokens';
-import { ActionBar, Button, Card, Chip, ChipRow, ConfirmSheet, EmptyState, ErrorState, NavHeader, Screen, SkeletonList, SummaryCard, Text, TextField } from '@/ui';
+import { FIELD_LABEL_INSET, ActionBar, Button, Card, Chip, ChipRow, ConfirmSheet, EmptyState, ErrorState, NavHeader, Screen, SkeletonList, SummaryCard, Text, TextField } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 
@@ -103,7 +103,7 @@ export function BookingRateDetail({ id }: InboxDetailProps) {
           <Card tone="frostStrong" style={styles.form}>
             <StarPicker value={rating} onChange={setRating} label={`Rate ${b.resource ? `${b.resource}’s` : 'their'} work`} />
             <View style={styles.likely}>
-              <Text variant="labelStrong" muted>
+              <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
                 Would you book them again? (optional)
               </Text>
               <ChipRow bleed="card" wrap>

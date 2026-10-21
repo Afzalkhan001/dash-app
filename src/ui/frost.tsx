@@ -17,7 +17,7 @@ import { Platform, Text as RNText, type StyleProp, View, type ViewStyle } from '
 import { font, type ModuleKey, moduleTone, palette, radius, space, type as typeScale } from '@/theme/tokens';
 import { hitSlopFor } from '@/ui/layout';
 import { PressableScale } from '@/ui/motion';
-import { Amount, Button, Card, Metric } from '@/ui/primitives';
+import { Amount, Button, Card, Metric, Skeleton } from '@/ui/primitives';
 import { Text } from '@/ui/text';
 import { TourTarget } from '@/ui/tour/target';
 
@@ -28,6 +28,7 @@ const IOS = Platform.OS === 'ios';
 const ICON = 38;
 const ARROW = 38;
 const EYE = 40;
+const FIGURE_H = typeScale.numeral.lineHeight; // 54: the hero figure's line
 
 export type SummaryHeroInfo = {
   /** Muted part of the chip ("Casual leave"). */
@@ -75,6 +76,12 @@ export type SummaryHeroProps = {
   tone?: 'frost' | 'frostStrong';
   /** Extra content at the bottom (e.g. a StripedProgress). */
   children?: ReactNode;
+  /**
+   * While the figure loads: a pulsing bar in its place at the figure's own height (and a bar for the
+   * info chip / sub-line when they are passed), so the card keeps its size — no guessed skeleton height,
+   * no "₹0" flash, no jump when the data lands. The label, icon and arrow show as usual.
+   */
+  loading?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -106,6 +113,7 @@ export function SummaryHero({
   action,
   tone = 'frostStrong',
   children,
+  loading,
   style,
 }: SummaryHeroProps) {
   const [ownHidden, setOwnHidden] = useState(false);
@@ -119,7 +127,9 @@ export function SummaryHero({
   const brandArrow = arrowTone === 'brand';
 
   let shown: ReactNode = null;
-  if (isHidden) {
+  if (loading) {
+    shown = <Skeleton width="62%" height={FIGURE_H - 14} radius={radius.sm} style={styles.figureSkeleton} />;
+  } else if (isHidden) {
     shown = (
       <Text variant="numeral" color={palette.textFaint} numberOfLines={1} accessibilityLabel="Amount hidden" style={styles.flexShrink}>
         {currency ? <RNText style={styles.hiddenCurrency}>{`${currency}\u2009`}</RNText> : null}
@@ -160,10 +170,10 @@ export function SummaryHero({
         ) : null}
       </View>
 
-      {shown != null || hideable ? (
+      {shown != null || hideable || loading ? (
         <View style={styles.figureRow}>
-          <View style={styles.figure}>{shown}</View>
-          {hideable ? (
+          <View style={[styles.figure, loading && styles.flex]}>{shown}</View>
+          {hideable && !loading ? (
             <PressableScale
               onPress={toggle}
               scaleTo={0.9}
@@ -177,7 +187,9 @@ export function SummaryHero({
         </View>
       ) : null}
 
-      {info ? (
+      {loading && (info || sub) ? (
+        <Skeleton width="44%" height={20} radius={radius.pill} style={styles.lineSkeleton} />
+      ) : info ? (
         info.tourId ? (
           <TourTarget id={info.tourId} radius={radius.pill} style={styles.chipTarget}>
             <InfoChip info={info} />
@@ -186,7 +198,7 @@ export function SummaryHero({
           <InfoChip info={info} />
         )
       ) : null}
-      {sub ? (
+      {sub && !loading ? (
         <Text variant="label" muted numberOfLines={2}>
           {sub}
         </Text>
@@ -264,6 +276,8 @@ const styles = themedStyles(() => ({
   arrowFrost: { backgroundColor: palette.surface, borderWidth: 1, borderColor: IOS ? palette.glassEdge : palette.glassLine },
   figureRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs, marginTop: space.sm },
   figure: { flexShrink: 1, minWidth: 0 },
+  figureSkeleton: { marginVertical: 7 },
+  lineSkeleton: { marginVertical: 6 },
   // Hidden figure: the same line height as the number, a small muted ₹ and smaller spaced dots.
   hiddenCurrency: { fontSize: 29, color: palette.textMuted, letterSpacing: 0 },
   hiddenDots: { fontSize: 30, letterSpacing: 3 },

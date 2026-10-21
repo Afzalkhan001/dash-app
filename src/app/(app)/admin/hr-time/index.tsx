@@ -51,7 +51,7 @@ export default function HrSetupHub() {
               module="attendance"
               icon={UserCog}
               title="Clock-in rules"
-              subtitle="Office only, office or field, or always remote — per person"
+              subtitle="How each person may clock in"
               chevron
               onPress={() => router.push('/admin/hr-time/clock-rules')}
             />
@@ -95,7 +95,7 @@ export default function HrSetupHub() {
             module="leave"
             icon={CalendarDays}
             title="Leave types and rules"
-            subtitle={`${n(typeCount, 'leave type', 'Casual, sick, earned…')} · leave year, back-dating, comp-off`}
+            subtitle={`${n(typeCount, 'leave type', 'Casual, sick, earned…')} · leave year and request rules`}
             chevron
             onPress={() => router.push('/admin/hr-time/leave')}
           />
@@ -103,7 +103,7 @@ export default function HrSetupHub() {
             module="leave"
             icon={CalendarRange}
             title="Leave balances"
-            subtitle="Everyone’s balance · add or take away days · carry forward"
+            subtitle="Everyone’s days · add, take away, carry forward"
             chevron
             onPress={() => router.push('/admin/hr-time/balances')}
           />

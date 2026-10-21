@@ -25,6 +25,7 @@ import { dateLabel } from '@/lib/dates';
 import { themedStyles } from '@/theme/themed';
 import { space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   ActionBar,
   ActionRow,
   ActivityList,
@@ -248,7 +249,7 @@ function PolicyForm({ policy: p, departments, onReload }: { policy: Policy | nul
       </Card>
 
       <View style={styles.group}>
-        <Text variant="labelStrong" muted>
+        <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
           Who it’s for
         </Text>
         <ChipRow wrap bleed="none">

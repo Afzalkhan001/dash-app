@@ -6,13 +6,15 @@
 //   IconPillGroup  Lendora's header pill — ONE frosted capsule holding 2 icon buttons, each with an
 //                  optional red unread dot (Home: bell + inbox, next to the avatar)
 //   DemoChip       the small gold "DEMO · HR" pill shown for the demo session (with the demo role)
-// Fit: the title stays centred only while it fits between two mirrored sides; a long title, or two
-// actions on a narrow phone (< 360 dp or text > 115 %), starts it after the back button instead, and it
-// shrinks a little (to 80 %) before truncating. Above 130 % text the title moves under the button row
-// and may wrap to two lines. Every button is ≥ 44 dp with its touch target padded to 48.
+// Fit: the title stays centred while it fits between two mirrored sides (allowing for its shrink to
+// 80 %); a title that doesn't — usually a long one beside two actions on a narrow phone — starts after
+// the back button instead (the same rule on every screen, docs/DESIGN.md §7.19), and it shrinks a little
+// (to 80 %) before truncating. Above 130 % text the title moves under the button row and may wrap to
+// two lines. More than 2 actions: the first stays and the rest go into a ••• MenuSheet (the header pill
+// on Home: 3 buttons, 2 below 360 dp). Every button is ≥ 44 dp with its touch target padded to 48.
 
 import { useRouter } from 'expo-router';
-import { ChevronLeft, type LucideIcon } from 'lucide-react-native';
+import { ChevronLeft, type LucideIcon, MoreHorizontal } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { type LayoutChangeEvent, Platform, type StyleProp, View, type ViewStyle } from 'react-native';
 
@@ -23,6 +25,7 @@ import { layout, palette, radius, shadow, space } from '@/theme/tokens';
 import { hitSlopFor, shouldStack, useLayout } from '@/ui/layout';
 import { PressableScale } from '@/ui/motion';
 import { IconButton } from '@/ui/primitives';
+import { MenuSheet } from '@/ui/sheet';
 import { MAX_FONT_SCALE, Text } from '@/ui/text';
 import { TourTarget } from '@/ui/tour/target';
 
@@ -33,6 +36,7 @@ const IOS = Platform.OS === 'ios';
 const TITLE_PX = 24;
 const TITLE_PX_COMPACT = 22;
 const TITLE_EM = 0.56; // Plus Jakarta Sans Regular: average glyph width ≈ 0.56 em
+const TITLE_FIT = 0.85; // a centred title may shrink this far (it can go to 80 %) before it moves to the start
 
 /** One round header action: a line icon, its spoken label, and an optional red unread dot. */
 export type NavAction = {
@@ -51,17 +55,37 @@ export type NavAction = {
  * Small gold "DEMO" pill, shown for the demo session (or forced on / off with `show`). It names the
  * demo role being explored ("DEMO · HR", "DEMO · Vendor"); `label` overrides the text.
  */
-export function DemoChip({ show, label }: { show?: boolean; label?: string }) {
+export function DemoChip({ show, label, short }: { show?: boolean; label?: string; /** Just "DEMO" (the role is still read out), where room is tight. */ short?: boolean }) {
   const pill = useSession((s) => demoPillLabel(s.token));
   if (!(show ?? !!pill)) return null;
   const text = label ?? pill ?? 'DEMO';
   return (
     <View style={styles.demoChip} accessibilityLabel={text === 'DEMO' ? 'Demo account' : `Demo account, ${text.replace(/^DEMO · /, '')}`}>
       <Text variant="micro" color={palette.goldInk} numberOfLines={1} maxFontSizeMultiplier={1}>
-        {text}
+        {short ? 'DEMO' : text}
       </Text>
     </View>
   );
+}
+
+/**
+ * Keeps at most `max` actions: past that, the first `max − 1` stay and a ••• button opens the rest in a
+ * MenuSheet (so an extra header action never silently disappears).
+ */
+function useOverflow(actions: NavAction[], max: number): { shown: NavAction[]; menu: ReactNode } {
+  const [open, setOpen] = useState(false);
+  if (actions.length <= max) return { shown: actions, menu: null };
+  const keep = actions.slice(0, Math.max(0, max - 1));
+  const rest = actions.slice(keep.length);
+  const more: NavAction = { key: 'more', icon: MoreHorizontal, label: 'More actions', dot: rest.some((a) => a.dot), onPress: () => setOpen(true) };
+  const menu = (
+    <MenuSheet
+      visible={open}
+      onClose={() => setOpen(false)}
+      items={rest.map((a, i) => ({ key: a.key ?? `${a.label}-${i}`, label: a.label, icon: a.icon, onPress: a.onPress, disabled: a.disabled }))}
+    />
+  );
+  return { shown: [...keep, more], menu };
 }
 
 function ActionButton({ action, size }: { action: NavAction; size: number }) {
@@ -83,7 +107,7 @@ type HeaderProps = {
   title: string;
   /** A muted line under the title ("Updated 9:00 AM"). */
   subtitle?: string;
-  /** Up to two round frosted actions on the right (more go into a ••• MenuSheet). */
+  /** Up to two round frosted actions on the right (with more, the first stays and the rest go into a ••• MenuSheet). */
   actions?: NavAction[];
   /** Custom right content instead of `actions` (measured, so the title stays centred). */
   right?: ReactNode;
@@ -101,21 +125,20 @@ function HeaderBar({
 }: HeaderProps & { back?: { label: string; onPress: () => void } | null; overline?: ReactNode }) {
   const l = useLayout();
   const size = l.compact ? layout.control.md - 4 : layout.control.md; // 40 compact / 44
-  const list = (Array.isArray(actions) ? actions : []).filter(Boolean).slice(0, 2);
+  const { shown: list, menu } = useOverflow((Array.isArray(actions) ? actions : []).filter(Boolean), 2);
   const [rightMeasured, setRightMeasured] = useState(0);
   const rightW = right != null ? rightMeasured : list.length ? list.length * size + (list.length - 1) * space.xs : 0;
   const leftW = back ? size : 0;
   // > 130 % text: the title gets its own line under the buttons.
   const below = shouldStack(l, { text: 'huge' });
-  // The title stays centred only while it fits between two mirrored sides; otherwise (two actions on a
-  // narrow phone, a long title, larger text) it starts after the back button and keeps the room the
-  // mirrored side would take. Width is estimated (≈ 0.56 em per glyph at 24 px, × text size).
+  // One rule on every screen: the title stays centred while it fits between two mirrored sides at its
+  // shrink-to-fit floor (TITLE_FIT); otherwise it starts after the back button. Width is estimated
+  // (≈ 0.56 em per glyph at 24 px, × text size), so it never flickers.
   const side0 = Math.max(leftW, rightW);
   const centredRoom = l.width - l.gutter * 2 - side0 * 2 - space.xs * 2;
   const titlePx = l.compact ? TITLE_PX_COMPACT : TITLE_PX;
   const titleW = String(title ?? '').length * titlePx * TITLE_EM * Math.min(Math.max(l.fontScale, 1), MAX_FONT_SCALE.title);
-  const tightPair = list.length + (right != null ? 1 : 0) >= 2 && shouldStack(l, { below: 'narrow' });
-  const centred = !below && !tightPair && titleW <= centredRoom;
+  const centred = !below && titleW * TITLE_FIT <= centredRoom;
   const side = centred ? side0 : undefined;
   const onRightLayout = (e: LayoutChangeEvent) => {
     const w = Math.round(e.nativeEvent.layout.width);
@@ -171,6 +194,7 @@ function HeaderBar({
           </View>
         ) : null}
         {titleBlock}
+        {menu}
       </View>
     );
   }
@@ -179,6 +203,7 @@ function HeaderBar({
       {centred ? <View style={[styles.side, { width: side }]}>{backButton}</View> : backButton}
       {titleBlock}
       {centred ? <View style={[styles.side, styles.sideRight, { minWidth: side }]}>{rightContent}</View> : rightContent}
+      {menu}
     </View>
   );
 }
@@ -201,7 +226,9 @@ export function NavHeader({ onBack, backLabel = 'Back', ...props }: HeaderProps 
  */
 export function TabRootHeader({ overline, demo, ...props }: HeaderProps & { overline?: string; demo?: boolean }) {
   const demoSession = useSession((s) => isDemoToken(s.token));
+  const l = useLayout();
   const showDemo = demo ?? demoSession;
+  // On a compact phone the overline (a name) keeps its room: the pill drops the role ("DEMO").
   const over =
     overline || showDemo ? (
       <View style={styles.overline}>
@@ -210,25 +237,38 @@ export function TabRootHeader({ overline, demo, ...props }: HeaderProps & { over
             {overline}
           </Text>
         ) : null}
-        <DemoChip show={showDemo} />
+        <DemoChip show={showDemo} short={!!overline && l.compact} />
       </View>
     ) : null;
   return <HeaderBar {...props} back={null} overline={over} />;
 }
 
 /**
- * Lendora's header pill: one frosted capsule (48 high) holding up to 3 icon buttons (2 reads best),
- * each 48 × 48 with an optional red unread dot. Every button needs its own spoken `label`.
+ * Lendora's header pill: one frosted capsule (48 high) holding up to 3 icon buttons (2 reads best; 2
+ * below 360 dp), each 48 × 48 with an optional red unread dot; past that a ••• button opens the rest
+ * in a MenuSheet. Every button needs its own spoken `label`.
  *   <IconPillGroup items={[
  *     { icon: Bell, label: 'Notifications', dot: true, onPress: … },
  *     { icon: Inbox, label: 'Inbox, 3 waiting', dot: true, onPress: () => router.push('/inbox') },
  *   ]} />
  */
-export function IconPillGroup({ items, style }: { items: NavAction[]; style?: StyleProp<ViewStyle> }) {
-  const list = (Array.isArray(items) ? items : []).filter(Boolean).slice(0, 3);
+export function IconPillGroup({
+  items,
+  max,
+  style,
+}: {
+  items: NavAction[];
+  /** Buttons in the pill before a ••• takes the rest (default 3, 2 below 360 dp). */
+  max?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const l = useLayout();
+  const cap = max ?? (shouldStack(l, { below: 'narrow' }) ? 2 : 3);
+  const { shown: list, menu } = useOverflow((Array.isArray(items) ? items : []).filter(Boolean), Math.max(1, cap));
   if (!list.length) return null;
   return (
     <View style={[styles.pill, style]}>
+      {menu}
       {list.map((it, i) => {
         const Icon = it.icon;
         const key = it.key ?? `${it.label}-${i}`;

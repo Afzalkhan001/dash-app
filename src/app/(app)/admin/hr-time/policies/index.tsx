@@ -17,6 +17,11 @@ import { moduleTone } from '@/theme/tokens';
 import { ActivityList, ActivityRow, Button, Card, EmptyState, ErrorState, NavHeader, Screen, Segmented, SkeletonList } from '@/ui';
 
 type Tab = 'draft' | 'published' | 'archived';
+const EMPTY: Record<Tab, string> = {
+  draft: 'A new policy starts as a draft. Nobody sees it until you publish it.',
+  published: 'Publish a draft to show it to everyone it is for.',
+  archived: 'A policy you archive from its page moves here. Nobody sees it any more.',
+};
 
 export default function ManagePoliciesScreen() {
   const router = useRouter();
@@ -58,8 +63,14 @@ export default function ManagePoliciesScreen() {
           <EmptyState
             icon={<ScrollText color={moduleTone.policies.fg} strokeWidth={1.8} />}
             title={`No ${WORD[tab]}`}
-            message={tab === 'draft' ? 'A new policy starts as a draft. Nobody sees it until you publish it.' : undefined}
-            action={tab === 'draft' ? <Button title="New policy" icon={<Plus />} onPress={() => router.push('/admin/hr-time/policies/new')} /> : undefined}
+            message={EMPTY[tab]}
+            action={
+              tab === 'draft' ? (
+                <Button title="New policy" icon={<Plus />} onPress={() => router.push('/admin/hr-time/policies/new')} />
+              ) : tab === 'published' && count('draft') ? (
+                <Button title="See drafts" variant="accent" onPress={() => setTab('draft')} />
+              ) : undefined
+            }
           />
         </Card>
       ) : (

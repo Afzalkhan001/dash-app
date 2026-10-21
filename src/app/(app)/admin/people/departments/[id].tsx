@@ -24,13 +24,14 @@ import { PersonPicker, type PickPerson } from '@/features/shared/person-picker';
 import { plural } from '@/lib/format';
 import { useAccess } from '@/lib/use-access';
 import { themedStyles } from '@/theme/themed';
-import { palette, space } from '@/theme/tokens';
+import { moduleTone, palette, space } from '@/theme/tokens';
 import {
   AccountRow,
   ActivityList,
   Avatar,
   Banner,
   Button,
+  Card,
   ConfirmSheet,
   EmptyState,
   ErrorState,
@@ -189,13 +190,20 @@ export default function DepartmentScreen() {
         />
 
         {rows && members.length ? (
-          <ActivityList key="members" title={`Members (${members.length})`}>
+          <ActivityList key="members" title="Members">
             {members.map((m) => (
               <RosterRow key={m.key} row={m} depts={depts.data} onPress={rosterOpen ? () => router.push(`/admin/people/${encodeURIComponent(m.key)}`) : undefined} />
             ))}
           </ActivityList>
         ) : rows ? (
-          <EmptyState key="members" icon={<UserMinus color={palette.textMuted} strokeWidth={1.8} />} title="No members yet" message="Move people in from the roster: open someone, then Edit › Department." />
+          <Card key="members" tone="surface">
+            <EmptyState
+              icon={<UserMinus color={moduleTone.people.fg} strokeWidth={1.8} />}
+              title="No members yet"
+              message="Move people in from the roster: open someone, then Edit › Department."
+              action={rosterOpen ? <Button title="Open the roster" variant="accent" size="md" onPress={() => router.push('/admin/people')} /> : undefined}
+            />
+          </Card>
         ) : (
           <SkeletonList key="members" rows={3} avatar tone="surface" />
         )}

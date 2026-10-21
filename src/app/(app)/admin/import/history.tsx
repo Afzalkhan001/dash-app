@@ -9,9 +9,11 @@ import { useState } from 'react';
 import { type UploadBatch, useUploadBatches } from '@/features/excel/api';
 import { useExcelAccess } from '@/features/excel/gate';
 import { ASSET_COL_WIDTHS, ASSET_COLS, KEKA_COLS } from '@/features/excel/parse';
+import { useTodayIst } from '@/features/attendance/use-now';
 import { stampLabel } from '@/lib/dates';
 import { plural } from '@/lib/format';
 import { type Cell, shareXlsx } from '@/lib/xlsx';
+import { palette } from '@/theme/tokens';
 import { ActivityList, ActivityRow, EmptyState, ErrorState, NavHeader, Screen, Segmented, SkeletonList, toast } from '@/ui';
 
 type Kind = 'employees' | 'assets';
@@ -58,6 +60,7 @@ function batchSheet(kind: Kind, b: UploadBatch) {
 }
 
 export default function UploadHistory() {
+  const today = useTodayIst();
   const { gates, ready } = useExcelAccess();
   const kinds: Kind[] = [...(gates.imports.employees ? (['employees'] as const) : []), ...(gates.imports.assets ? (['assets'] as const) : [])];
   const [pick, setPick] = useState<Kind | null>(null);
@@ -95,14 +98,14 @@ export default function UploadHistory() {
       ) : q.isError ? (
         <ErrorState message={q.error instanceof Error ? q.error.message : 'Upload history could not be loaded.'} onRetry={() => q.refetch()} />
       ) : !q.data?.length ? (
-        <EmptyState title="No uploads yet" message={kind === 'employees' ? 'Employee sheets you upload appear here.' : 'Asset sheets you upload appear here.'} icon={<History />} />
+        <EmptyState title="No uploads yet" message={kind === 'employees' ? 'Employee sheets you upload appear here.' : 'Asset sheets you upload appear here.'} icon={<History color={palette.textMuted} strokeWidth={1.8} />} />
       ) : (
         <ActivityList title={kind === 'employees' ? 'Employee uploads' : 'Asset uploads'} overline="Tap to download again">
           {q.data.map((b) => (
             <ActivityRow
               key={b.id}
               title={b.fileName || 'Upload'}
-              subtitle={stampLabel(b.uploadedAt)}
+              subtitle={stampLabel(b.uploadedAt, today)}
               value={plural(b.count, 'row')}
               module={kind === 'employees' ? 'people' : 'support'}
               icon={FileDown}

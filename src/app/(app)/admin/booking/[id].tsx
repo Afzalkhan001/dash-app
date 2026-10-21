@@ -16,12 +16,10 @@ import { cancelBooking, refreshBookings, StepError } from '@/features/booking/ac
 import { BookingHero, bookingFields, ProDayCard, useBookingById } from '@/features/booking/detail-parts';
 import { canCancel, isMine, needsReview, statusOf, typeLabel } from '@/features/booking/model';
 import { BOOKING_MODULE, typeIcon, useMe, useProfTypes, whenLine } from '@/features/booking/ui';
-import { DetailsCard, WhoCards } from '@/features/inbox/detail';
+import { DetailsCard, Timeline, WhoCards } from '@/features/inbox/detail';
 import type { TimelineEvent } from '@/features/inbox/format';
-import { stampLabel } from '@/lib/dates';
 import { useAccess } from '@/lib/use-access';
-import { space } from '@/theme/tokens';
-import { ActionBar, Banner, Button, Card, ConfirmSheet, EmptyState, ErrorState, EventTimeline, NavHeader, Screen, SkeletonList, SuccessSheet, SummaryCard, Text } from '@/ui';
+import { ActionBar, Banner, Button, ConfirmSheet, EmptyState, ErrorState, NavHeader, Screen, SkeletonList, SuccessSheet, SummaryCard } from '@/ui';
 
 export default function MyBookingScreen() {
   const { id = '' } = useLocalSearchParams<{ id: string }>();
@@ -68,13 +66,13 @@ export default function MyBookingScreen() {
   const toRate = mine && b.status === 'completed' && needsReview(b);
 
   const events: TimelineEvent[] = [
-    { key: 'sent', label: `Booked by ${b.requestedBy || '—'}`, at: b.createdAt ? stampLabel(b.createdAt, today) : undefined, tone: 'neutral' },
-    ...(b.approvedAt || b.approvedBy ? [{ key: 'ok', label: `Approved${b.approvedBy ? ` by ${b.approvedBy}` : ''}`, at: b.approvedAt ? stampLabel(b.approvedAt, today) : undefined, tone: 'good' as const }] : []),
+    { key: 'sent', label: `Booked by ${b.requestedBy || '—'}`, at: b.createdAt || undefined, tone: 'neutral' },
+    ...(b.approvedAt || b.approvedBy ? [{ key: 'ok', label: `Approved${b.approvedBy ? ` by ${b.approvedBy}` : ''}`, at: b.approvedAt || undefined, tone: 'good' as const }] : []),
     ...(b.status === 'rejected' ? [{ key: 'no', label: st.label === 'Cancelled' ? 'Cancelled' : `Rejected${b.rejectedBy ? ` by ${b.rejectedBy}` : ''}`, note: b.reason || undefined, tone: 'bad' as const }] : []),
-    ...(b.markedDoneAt ? [{ key: 'mk', label: `Marked done by ${b.markedDoneBy || b.resource || '—'}`, at: stampLabel(b.markedDoneAt, today), tone: 'info' as const }] : []),
-    ...(b.completedAt ? [{ key: 'cp', label: `Completed${b.completedBy ? ` by ${b.completedBy}` : ''}`, at: stampLabel(b.completedAt, today), tone: 'good' as const }] : []),
+    ...(b.markedDoneAt ? [{ key: 'mk', label: `Marked done by ${b.markedDoneBy || b.resource || '—'}`, at: b.markedDoneAt, tone: 'info' as const }] : []),
+    ...(b.completedAt ? [{ key: 'cp', label: `Completed${b.completedBy ? ` by ${b.completedBy}` : ''}`, at: b.completedAt, tone: 'good' as const }] : []),
     ...(Array.isArray(b.reviews) && b.reviews[0]
-      ? [{ key: 'rv', label: `Rated ${b.reviews[0].rating ?? '—'} of 5 by ${b.reviews[0].reviewerName || '—'}`, at: b.reviews[0].date ? stampLabel(b.reviews[0].date, today) : undefined, tone: 'good' as const }]
+      ? [{ key: 'rv', label: `Rated ${b.reviews[0].rating ?? '—'} of 5 by ${b.reviews[0].reviewerName || '—'}`, at: b.reviews[0].date || undefined, tone: 'good' as const }]
       : []),
   ];
 
@@ -108,12 +106,7 @@ export default function MyBookingScreen() {
           <Banner tone="info" title={`Waiting for ${b.locationApproverName}`} message="They approve bookings of this location." />
         ) : null}
         <DetailsCard status={st} fields={[...bookingFields(b), ...(b.status === 'rejected' && b.reason ? [{ label: 'Reason', value: b.reason }] : [])]} />
-        <Card tone="frostStrong" style={{ gap: space.sm }}>
-          <Text variant="heading" accessibilityRole="header">
-            History
-          </Text>
-          <EventTimeline events={events.map((e) => ({ key: e.key, label: e.label, at: e.at, note: e.note, tone: e.tone }))} />
-        </Card>
+        <Timeline events={events} today={today} />
         {forMe ? <ProDayCard b={b} list={list} today={today} /> : null}
       </Screen>
 

@@ -20,7 +20,7 @@ import { isApiError } from '@/api/client';
 import { useSession } from '@/auth/session';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { moduleTone, palette, radius, space } from '@/theme/tokens';
-import { Banner, Card, ErrorState, IconButton, ListCard, ListRow, ModuleBadge, Sheet, Skeleton, StatusPill, Text } from '@/ui';
+import { FIELD_LABEL_INSET, Banner, Card, ErrorState, IconButton, ListCard, ListRow, ModuleBadge, Sheet, Skeleton, StatusPill, Text } from '@/ui';
 
 import { openFileSource } from './files';
 import { asArray, claimStatusMeta, dateTimeLabel, submissionTypeOf } from './logic';
@@ -169,7 +169,7 @@ export function MySubmissionSheet({ task, visible, onClose }: { task: BountyTask
 
           {data.submitNote ? (
             <View style={{ gap: space.xxs }}>
-              <Text variant="labelStrong" muted>
+              <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
                 Your note
               </Text>
               <Text variant="body" selectable>

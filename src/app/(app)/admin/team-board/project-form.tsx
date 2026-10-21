@@ -30,10 +30,12 @@ import { PersonPicker } from '@/features/shared/person-picker';
 import { ProjectPicker, projectLabel } from '@/features/shared/project-picker';
 import { type Board, BoardGate } from '@/features/teamboard/gate';
 import { PRIORITY_LABEL, PROJECT_STATUS_LABEL } from '@/features/teamboard/model';
+import { FormChoice } from '@/features/teamboard/pickers';
 import { useDeptMembers } from '@/features/teamboard/use-board';
 import { radius, space } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
 import {
+  FIELD_LABEL_INSET,
   AccountRow,
   ActionBar,
   Avatar,
@@ -47,7 +49,6 @@ import {
   haptic,
   NavHeader,
   Screen,
-  Segmented,
   Skeleton,
   Text,
   TextField,
@@ -167,9 +168,10 @@ function Fields({ board, header, project }: { board: Board; header: ReactNode; p
               : 'Optional. Every task under this project takes this code, and its logged time counts against it.'
           }
         />
-        {code ? <Button title="No project code" variant="text" size="md" onPress={() => setCode('')} style={styles.self} /> : null}
+        {/* A code the picker can't match has no × in the field: offer the way out here instead. */}
+        {code && !codeMatch ? <Button title="Remove project code" variant="text" size="md" onPress={() => setCode('')} style={styles.self} /> : null}
         <View style={styles.part}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Project lead
           </Text>
           {lead ? (
@@ -183,13 +185,13 @@ function Fields({ board, header, project }: { board: Board; header: ReactNode; p
           ) : (
             <AccountRow icon={UserRoundPlus} module="tasks" title="No lead" sub="Optional" actionLabel="Choose" onPress={() => setLeadOpen(true)} />
           )}
-          {lead ? <Button title="No lead" variant="text" size="md" icon={<UserRoundX />} onPress={() => setLead(null)} style={styles.self} /> : null}
+          {lead ? <Button title="Remove lead" variant="text" size="md" icon={<UserRoundX />} onPress={() => setLead(null)} style={styles.self} /> : null}
         </View>
         <View style={styles.part}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Priority
           </Text>
-          <Segmented
+          <FormChoice
             options={PRIORITIES.map((p) => ({
               key: p,
               label: PRIORITY_LABEL[p],
@@ -199,10 +201,10 @@ function Fields({ board, header, project }: { board: Board; header: ReactNode; p
           />
         </View>
         <View style={styles.part}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Status
           </Text>
-          <Segmented
+          <FormChoice
             options={PROJECT_STATUSES.map((s) => ({
               key: s,
               label: PROJECT_STATUS_LABEL[s],
@@ -232,7 +234,7 @@ function Fields({ board, header, project }: { board: Board; header: ReactNode; p
         </View>
         {!project ? (
           <View style={styles.part}>
-            <Text variant="labelStrong" muted>
+            <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
               Teams on this project
             </Text>
             {teams.length ? (

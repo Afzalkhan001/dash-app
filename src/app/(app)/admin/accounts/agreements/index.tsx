@@ -3,7 +3,9 @@
 //   1. "Waiting for your signature": agreements the vendor signed that name you as the countersigner;
 //   2. the company's agreements (Accounts and the super admin oversee them all) or the ones you drafted,
 //      with a status filter and a project code filter. Rows open the agreement (draft, signatures,
-//      Extend deadline, Countersign).
+//      Extend deadline, Countersign);
+//   3. "You countersigned": ones I signed as the countersigner that neither list carries (kept on this
+//      phone when I signed, features/docs/countersigned).
 
 import { Redirect, useRouter } from 'expo-router';
 import { FilePlus2, FileSignature, PenLine } from 'lucide-react-native';
@@ -13,12 +15,14 @@ import { useAgreements, useBillVendors, usePendingMySignature } from '@/api/acco
 import { useNow, useTodayIst } from '@/features/attendance/use-now';
 import { canSeeAgreements } from '@/features/accounts/access';
 import { canDraftAgreement } from '@/features/docs/access';
+import { useCountersigned } from '@/features/docs/countersigned';
+import { DeskRow } from '@/features/accounts/ui';
 import { agreementExpired, agreementStatus } from '@/features/accounts/vendor-format';
 import { shortDate } from '@/features/petty-cash/logic';
 import { plural } from '@/lib/format';
 import { useAccess } from '@/lib/use-access';
 import { palette } from '@/theme/tokens';
-import { ActivityList, ActivityRow, Banner, Chip, ChipRow, EmptyState, ErrorState, NavHeader, Screen, SelectField, SkeletonList, SummaryHero } from '@/ui';
+import { ActivityList, Banner, Chip, ChipRow, EmptyState, ErrorState, NavHeader, Screen, SelectField, SkeletonList, SummaryHero } from '@/ui';
 
 type Filter = 'all' | 'vendor' | 'expired' | 'countersign' | 'signed';
 const FILTERS: { key: Filter; label: string }[] = [
@@ -41,6 +45,7 @@ export default function AgreementsScreen() {
   const allQ = useAgreements({}, allowed);
   const pendingQ = usePendingMySignature(allowed);
   const vendorsQ = useBillVendors(allowed);
+  const keptQ = useCountersigned(allowed);
 
   if (!allowed) return <Redirect href="/" />;
 
@@ -48,6 +53,9 @@ export default function AgreementsScreen() {
   const rows = listQ.data?.agreements ?? [];
   const isOverseer = !!listQ.data?.isOverseer;
   const mine = pendingQ.data ?? [];
+  // Signed by me as the countersigner but in neither server list (I'm not the drafter or an overseer).
+  const listed = new Set([...(allQ.data?.agreements ?? []), ...mine].map((a) => a.id));
+  const countersigned = allQ.data ? (keptQ.data ?? []).filter((a) => !listed.has(a.id)) : [];
   const codes = [...new Set((allQ.data?.agreements ?? []).map((a) => a.keka_code || '').filter(Boolean))].sort();
   const test = (k: Filter, a: (typeof rows)[number]) =>
     k === 'all' ||
@@ -62,10 +70,10 @@ export default function AgreementsScreen() {
     <Screen
       header={
         <NavHeader
-          title="Vendor agreements"
+          title="Agreements"
           actions={canDraftAgreement(access) ? [{ key: 'new', icon: FilePlus2, label: 'New agreement', onPress: () => router.push('/admin/accounts/agreements/new') }] : undefined}
         />
-      } onRefresh={() => Promise.all([listQ.refetch(), pendingQ.refetch(), allQ.refetch()])}>
+      } onRefresh={() => Promise.all([listQ.refetch(), pendingQ.refetch(), allQ.refetch(), keptQ.refetch()])}>
       <SummaryHero
         icon={FileSignature}
         module="vendor"
@@ -73,14 +81,14 @@ export default function AgreementsScreen() {
         value={listQ.data ? rows.length : undefined}
         unit={rows.length === 1 ? 'agreement' : 'agreements'}
         info={mine.length ? { label: 'Waiting for your signature', value: String(mine.length) } : undefined}
-        sub={canDraftAgreement(access) ? "Draft a new one with the + at the top." : undefined}
+        sub={canDraftAgreement(access) ? 'Draft a new one with the button at the top right.' : undefined}
       />
 
       {pendingQ.isError && !pendingQ.data ? <Banner tone="warning" title="Couldn’t check what waits for your signature" message={pendingQ.error?.message} /> : null}
       {mine.length ? (
         <ActivityList title="Waiting for your signature">
           {mine.map((a) => (
-            <ActivityRow
+            <DeskRow
               key={a.id}
               module="vendor"
               icon={PenLine}
@@ -88,7 +96,23 @@ export default function AgreementsScreen() {
               subtitle={vendors.get(a.vendor_id) || 'Vendor'}
               note={[a.signed_at ? `Vendor signed ${shortDate(a.signed_at, today)}` : null, a.created_by_name ? `By ${a.created_by_name}` : null].filter(Boolean).join(' · ') || null}
               status={{ label: 'Sign', tone: 'pending' }}
-              chevron
+              onPress={() => open(a.id)}
+            />
+          ))}
+        </ActivityList>
+      ) : null}
+
+      {countersigned.length ? (
+        <ActivityList title="You countersigned">
+          {countersigned.map((a) => (
+            <DeskRow
+              key={a.id}
+              module="vendor"
+              icon={FileSignature}
+              title={a.project_name}
+              subtitle={vendors.get(a.vendor_id) || 'Vendor'}
+              note={[a.internal_signed_at ? `You signed ${shortDate(a.internal_signed_at, today)}` : null, a.created_by_name ? `By ${a.created_by_name}` : null].filter(Boolean).join(' · ') || null}
+              status={{ label: 'Signed', tone: 'done' }}
               onPress={() => open(a.id)}
             />
           ))}
@@ -111,7 +135,7 @@ export default function AgreementsScreen() {
           {shown.map((a) => {
             const st = agreementStatus(a, now);
             return (
-              <ActivityRow
+              <DeskRow
                 key={a.id}
                 module="vendor"
                 icon={FileSignature}
@@ -119,7 +143,6 @@ export default function AgreementsScreen() {
                 subtitle={[vendors.get(a.vendor_id) || 'Vendor', a.keka_code].filter(Boolean).join(' · ')}
                 note={[a.status === 'pending_signature' && a.deadline_at ? `Sign by ${shortDate(a.deadline_at, today)}` : null, a.created_by_name ? `By ${a.created_by_name}` : null].filter(Boolean).join(' · ') || null}
                 status={{ label: st.label, tone: st.tone }}
-                chevron
                 onPress={() => open(a.id)}
               />
             );

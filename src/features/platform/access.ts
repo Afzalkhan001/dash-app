@@ -76,3 +76,24 @@ export const featuresOff = (t: Tenant | null | undefined) => (t ? FEATURE_REGIST
 
 /** The write for one switch: `bounty` lives in its own field, the rest in featureFlags (only that key: the server merges). */
 export const featurePatch = (id: string, on: boolean): Partial<Tenant> => (id === 'bounty' ? { bountyEnabled: on } : { featureFlags: { [id]: on } });
+
+/**
+ * The HR catalogue's descriptions in plain words (DESIGN §0B). The server's own text ("Attendance
+ * Regularization", "Geofenced clock in/out on OpenStreetMap") is kept as the fallback for new modules.
+ */
+const HR_MODULE_DESC: Record<string, string> = {
+  attendance: 'Clock in and out at the office, daily attendance, and late or early-out marks.',
+  regularization: 'Requests to fix a missed or wrong clock-in, approved by the manager.',
+  shifts: 'Shift times, rotations and weekly offs.',
+  holidays: 'Each office’s holiday calendar, with optional holidays.',
+  leave: 'Leave types, balances, carry-forward and approvals.',
+  wfh: 'Work-from-home requests and approvals.',
+  comp_off: 'Days earned for working on a weekly off or a holiday.',
+  policies: 'Policy documents people read and accept.',
+  salary: 'Salary details and annual salary (CTC).',
+  payroll: 'The monthly payroll run.',
+  tax: 'Income tax (TDS) and PF deductions.',
+  payslips: 'Payslips people can open and download.',
+  reimbursements: 'Expense claims and salary advance.',
+};
+export const hrModuleDesc = (id: string, fallback?: string) => HR_MODULE_DESC[id] ?? fallback ?? '';

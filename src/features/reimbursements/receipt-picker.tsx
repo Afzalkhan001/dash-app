@@ -16,7 +16,7 @@ import { ActivityIndicator, Alert, Linking, Pressable, View } from 'react-native
 import { MAX_DATA_URL_CHARS } from '@/api/reimbursements';
 import { FileError, pickDocument, pickImage, type PickedFile } from '@/lib/files';
 import { moduleTone, palette, radius, space } from '@/theme/tokens';
-import { Button, FieldMessage, haptic, hitSlopFor, isDarkScheme, ModuleBadge, PressableScale, Text, useSurface, withAlpha } from '@/ui';
+import { FIELD_LABEL_INSET, Button, FieldMessage, haptic, hitSlopFor, isDarkScheme, ModuleBadge, PressableScale, Text, useSurface, withAlpha } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 export const fileSize = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
@@ -91,7 +91,7 @@ export function ReceiptPicker({
 
   return (
     <View style={styles.wrap}>
-      <Text variant="labelStrong" muted numberOfLines={2}>
+      <Text variant="labelStrong" muted numberOfLines={2} style={FIELD_LABEL_INSET}>
         {label}
       </Text>
       {value ? (

@@ -129,6 +129,8 @@ export function stampLabel(iso?: string | null, today?: string) {
 export function durationLabel(min?: number | null) {
   if (typeof min !== 'number' || !Number.isFinite(min)) return '—';
   const n = Math.max(0, Math.round(min));
+  // Whole hours drop the minutes ("4h", never "4h 0m"), per docs/DESIGN.md §0C.
+  if (n >= 60 && n % 60 === 0) return `${n / 60}h`;
   return (n >= 60 ? `${Math.floor(n / 60)}h ` : '') + `${n % 60}m`;
 }
 /** The same as durationLabel (kept for older callers). */

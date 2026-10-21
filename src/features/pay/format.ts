@@ -106,7 +106,7 @@ const REQ_STATUS: Record<string, { label: string; tone: StatusTone }> = {
   approved: { label: 'Approved', tone: 'done' },
   rejected: { label: 'Rejected', tone: 'failed' },
   cancelled: { label: 'Cancelled', tone: 'neutral' },
-  paid: { label: 'Paid', tone: 'info' },
+  paid: { label: 'Paid', tone: 'done' },
   closed: { label: 'Repaid', tone: 'neutral' },
 };
 export const reqStatus = (s: unknown) =>

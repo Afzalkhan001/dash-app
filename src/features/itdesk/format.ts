@@ -2,7 +2,7 @@
 // RoomsLocations (dash.html:21820–21982). No hooks, no clock: callers pass `today` / `now`.
 
 import type { LucideIcon } from 'lucide-react-native';
-import { AppWindow, Armchair, Car, Computer, Laptop, Monitor, Package, Printer, Smartphone, Tablet, Zap } from 'lucide-react-native';
+import { AppWindow, Armchair, Car, CircleAlert, CircleCheck, CircleMinus, CircleX, Computer, Laptop, Monitor, Package, Printer, Smartphone, Tablet, Zap } from 'lucide-react-native';
 
 import type { Asset, Invitee } from '@/api/itdesk';
 import type { PickPerson } from '@/features/shared/person-picker';
@@ -67,6 +67,8 @@ export function conditionTone(c: string): StatusTone {
   return c ? 'pending' : 'neutral';
 }
 export const conditionWords = (c: string) => (c === 'Not Working' ? 'Not working' : c || '—');
+/** The condition picker's tile icons (the word is always under it). */
+export const conditionIcon = (c: string): LucideIcon => (c === 'Good' ? CircleCheck : c === 'Fair' ? CircleMinus : c === 'Not Working' ? CircleX : CircleAlert);
 
 /** A warranty date as 'YYYY-MM-DD' (IST), or '' — the website's `dnum` accepts loose text too. */
 export function warrantyYmd(v: string) {
@@ -237,6 +239,52 @@ export function matchesAsset(a: Asset, q: string, holder: string) {
   const needle = q.trim().toLowerCase();
   if (!needle) return true;
   return [a.assetId, a.name, a.serial, a.assignedToEmpNo, holder].filter(Boolean).join(' ').toLowerCase().includes(needle);
+}
+
+/** Barcodes an asset tag can carry: the QR and the common printed 1-D labels and Data Matrix. */
+export const ASSET_TAG_CODES = ['qr', 'code128', 'code39', 'code93', 'ean13', 'ean8', 'upc_a', 'upc_e', 'itf14', 'codabar', 'datamatrix', 'pdf417'] as const;
+
+const tagKey = (v: unknown) => String(v ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
+
+/**
+ * What a scanned asset tag says: the text itself, or — for a QR holding a link — the last part of the
+ * link's path (…/assets/<id>) and any id=, asset=, serial= or tag= value in it.
+ */
+export function tagCandidates(raw: string): string[] {
+  const text = String(raw ?? '').trim();
+  if (!text) return [];
+  const out = new Set<string>([tagKey(text)]);
+  if (/^https?:\/\//i.test(text)) {
+    try {
+      const u = new URL(text);
+      const last = u.pathname.split('/').filter(Boolean).pop();
+      if (last) out.add(tagKey(decodeURIComponent(last)));
+      for (const k of ['id', 'asset', 'assetId', 'serial', 'tag']) {
+        const v = u.searchParams.get(k);
+        if (v) out.add(tagKey(v));
+      }
+    } catch {
+      // Not a link after all: the text alone is the tag.
+    }
+  }
+  return [...out].filter(Boolean);
+}
+
+/**
+ * The assets a scanned tag names, by asset ID, serial number or record id (exact, ignoring case and
+ * spaces), and the field text that matched (to search by when several share it).
+ */
+export function assetsForTag(list: Asset[], raw: string): { assets: Asset[]; term: string } {
+  const want = new Set(tagCandidates(raw));
+  let term = '';
+  const assets = want.size
+    ? list.filter((a) => {
+        const hit = [a.assetId, a.serial, a.id].find((v) => v && want.has(tagKey(v)));
+        if (hit && !term) term = hit;
+        return !!hit;
+      })
+    : [];
+  return { assets, term };
 }
 
 // ── Room bookings ────────────────────────────────────────────────────────────

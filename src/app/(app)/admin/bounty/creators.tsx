@@ -11,15 +11,16 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Trash2, UserPlus, Users } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, View } from 'react-native';
 
 import { fetchFreshTenant, useUpdateTenant } from '@/api/company';
 import type { TenantGrant } from '@/api/me';
 import { CoinsField } from '@/features/bountyadmin/components';
 import { AdminGate, useBountyAdmin } from '@/features/bountyadmin/gate';
 import { PersonPicker, type PickPerson, usePickablePeople } from '@/features/shared/person-picker';
+import { themedStyles } from '@/theme/themed';
 import { palette, space } from '@/theme/tokens';
-import { ActivityList, ActivityRow, Banner, Button, Card, ConfirmSheet, EmptyState, IconButton, NavHeader, Screen, Text, toast } from '@/ui';
+import { ActivityList, ActivityRow, Banner, Button, Card, ConfirmSheet, EmptyState, IconButton, NavHeader, Screen, SectionHeader, Text, toast } from '@/ui';
 
 const TITLE = 'Task posters';
 const low = (v: unknown) => String(v ?? '').trim().toLowerCase();
@@ -103,9 +104,10 @@ function Creators() {
         <Banner
           tone="info"
           title="Who can post bounty tasks"
-          message="Super Admin, CEO and COO always can. Add anyone else here by name — they fund their tasks with coins Super Admin gives them."
+          message={`Super Admin, CEO and COO always can. Add anyone else here by name — they fund their tasks with coins Super Admin gives them.${
+            g.editCreators ? '' : ' Changing this list is for Super Admin, CEO, COO and HR.'
+          }`}
         />
-        {!g.editCreators ? <Banner tone="info" message="You can see this list. Changing it is for Super Admin, CEO, COO and HR." /> : null}
 
         <ActivityList
           title="Added people"
@@ -136,22 +138,22 @@ function Creators() {
         </ActivityList>
 
         {g.cap ? (
-          <Card tone="frostStrong" style={{ gap: space.sm }}>
-            <Text variant="heading" accessibilityRole="header">
-              Monthly earning cap
-            </Text>
-            <Text variant="label" muted>
-              {tenant?.bountyMonthlyEarnCap ? `Now ${Number(tenant.bountyMonthlyEarnCap).toLocaleString('en-IN')} coins a month` : 'No cap now'}
-            </Text>
-            <CoinsField
-              label="Most coins one person can earn in a month"
-              value={cap}
-              onChange={setCap}
-              placeholder="No cap"
-              hint="Once someone reaches it, new tasks stop showing for them until next month. Work they already took is not affected."
-            />
-            <Button title="Save cap" variant="ghost" loading={savingCap} disabled={capN === Number(tenant?.bountyMonthlyEarnCap || 0)} onPress={() => void saveCap()} />
-          </Card>
+          <View style={styles.section}>
+            <SectionHeader title="Monthly earning cap" />
+            <Card style={styles.card}>
+              <Text variant="label" muted>
+                {tenant?.bountyMonthlyEarnCap ? `Now ${Number(tenant.bountyMonthlyEarnCap).toLocaleString('en-IN')} coins a month` : 'No cap now'}
+              </Text>
+              <CoinsField
+                label="Most coins one person can earn in a month"
+                value={cap}
+                onChange={setCap}
+                placeholder="No cap"
+                hint="Once someone reaches it, new tasks stop showing for them until next month. Work they already took is not affected."
+              />
+              <Button title="Save cap" size="md" loading={savingCap} disabled={capN === Number(tenant?.bountyMonthlyEarnCap || 0)} onPress={() => void saveCap()} />
+            </Card>
+          </View>
         ) : null}
       </Screen>
 
@@ -180,3 +182,8 @@ function Creators() {
     </>
   );
 }
+
+const styles = themedStyles(() => ({
+  section: { gap: space.sm },
+  card: { gap: space.md },
+}));

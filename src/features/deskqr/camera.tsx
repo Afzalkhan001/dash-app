@@ -2,12 +2,13 @@
 //   QrScanner     full-screen QR scanner: reception scans a guest's pass (back camera), the kiosk lets a
 //                 guest hold their pass up to it (front camera). `onScanned` returns an error text to
 //                 show and keep scanning, or nothing to stop.
+//                 `barcodeTypes` widens it to printed barcodes (IT asset tags).
 //   PhotoCapture  full-screen live preview with a round shutter, then the web's visitShrink (≤ 640 px,
 //                 ≤ 550 KB). "Use the camera app" falls back to the picker when the camera can't open.
 // The camera is black with white words in both themes, like every phone's camera app. Nothing is saved:
 // the photo lives in memory (and the image cache) until it is sent.
 
-import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
+import { CameraView, type BarcodeScanningResult, type BarcodeType, useCameraPermissions } from 'expo-camera';
 import { Camera, X } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
@@ -24,6 +25,7 @@ const WHITE = '#FFFFFF';
 const SCRIM = 'rgba(0,0,0,0.55)';
 
 type Facing = 'front' | 'back';
+const QR_ONLY: BarcodeType[] = ['qr'];
 
 /** Asks for the camera, or explains how to allow it. Renders nothing once allowed. */
 function useCameraGate() {
@@ -70,6 +72,7 @@ export function QrScanner({
   title,
   hint,
   facing = 'back',
+  barcodeTypes = QR_ONLY,
   onScanned,
   onClose,
 }: {
@@ -77,18 +80,20 @@ export function QrScanner({
   title: string;
   hint: string;
   facing?: Facing;
+  /** What the camera reads: QR codes only (passes) unless a caller asks for more (asset tags). */
+  barcodeTypes?: BarcodeType[];
   /** Return an error text to show (scanning carries on), or nothing to finish. */
   onScanned: (data: string) => string | void | Promise<string | void>;
   onClose: () => void;
 }) {
   return (
     <Modal visible={visible} animationType="fade" onRequestClose={onClose} presentationStyle="fullScreen" statusBarTranslucent>
-      {visible ? <ScannerBody title={title} hint={hint} facing={facing} onScanned={onScanned} onClose={onClose} /> : null}
+      {visible ? <ScannerBody title={title} hint={hint} facing={facing} barcodeTypes={barcodeTypes} onScanned={onScanned} onClose={onClose} /> : null}
     </Modal>
   );
 }
 
-function ScannerBody({ title, hint, facing, onScanned, onClose }: { title: string; hint: string; facing: Facing; onScanned: (data: string) => string | void | Promise<string | void>; onClose: () => void }) {
+function ScannerBody({ title, hint, facing, barcodeTypes, onScanned, onClose }: { title: string; hint: string; facing: Facing; barcodeTypes: BarcodeType[]; onScanned: (data: string) => string | void | Promise<string | void>; onClose: () => void }) {
   const { granted, gate } = useCameraGate();
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
@@ -121,7 +126,7 @@ function ScannerBody({ title, hint, facing, onScanned, onClose }: { title: strin
         <CameraView
           style={StyleSheet.absoluteFill}
           facing={facing}
-          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          barcodeScannerSettings={{ barcodeTypes }}
           onBarcodeScanned={busy ? undefined : (r) => void handle(r)}
           onMountError={(e) => setFailed(e.message || 'The camera could not start.')}
         />

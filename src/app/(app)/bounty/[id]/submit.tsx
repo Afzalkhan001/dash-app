@@ -26,6 +26,7 @@ import { asArray, attachmentCap, claimReward, headlineReward, myClaimOf, submiss
 import { type PickedFile, pickDocument, pickImage } from '@/lib/files';
 import { moduleTone, palette, radius, space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   ActionBar,
   ActionRow,
   Banner,
@@ -248,7 +249,7 @@ export default function BountySubmitScreen() {
 
       {isFileType ? (
         <View style={{ gap: space.sm }}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             {`${type === 'image' ? 'Photos' : type === 'video' ? 'Videos' : 'Files'}${cap > 1 ? ` (up to ${cap})` : ''}`}
           </Text>
           {files.map((f, i) => (

@@ -338,6 +338,19 @@ export function ComposeForm({ initial }: { initial: Announcement | null }) {
   ];
   const priorityHint = priorityOptions.find((p) => p.value === f.priority)?.hint ?? null;
 
+  // The button words, under the link they open (shared by posts and pop-ups).
+  const ctaFields = (
+    <>
+      <SelectField<string>
+        label="Button text"
+        value={ctaPreset}
+        onChange={(v) => set('ctaText', v === CUSTOM ? '' : v)}
+        options={[...CTA_PRESETS.map((p) => ({ value: p, label: p })), { value: CUSTOM, label: 'Your own words…' }]}
+      />
+      {ctaPreset === CUSTOM ? <TextField label="Your button text" value={f.ctaText} onChangeText={(v) => set('ctaText', v)} placeholder="e.g. Book a seat" maxLength={40} /> : null}
+    </>
+  );
+
   const title = editing ? (popup ? 'Edit pop-up' : 'Edit post') : 'New post';
   const swipeLabel = editing ? 'Swipe to save changes' : schedule ? 'Swipe to schedule' : emergency ? 'Swipe to post the emergency' : 'Swipe to publish';
   const note = editing
@@ -395,24 +408,64 @@ export function ComposeForm({ initial }: { initial: Announcement | null }) {
         ) : null}
       </LabelledSection>
 
-      <TextField
-        label="Title"
-        value={f.title}
-        onChangeText={(v) => set('title', v)}
-        placeholder={popup ? 'e.g. Diwali party invite' : 'e.g. Office closed on Friday'}
-        maxLength={200}
-        hint={popup ? 'Used to find this pop-up in your list. It is never drawn over the picture.' : null}
-      />
+      {/* The words first, in one card; files and the banner each get their own card under it. */}
+      <LabelledSection title={popup ? 'The pop-up' : 'The post'}>
+        <Card style={styles.fields}>
+          <TextField
+            label="Title"
+            value={f.title}
+            onChangeText={(v) => set('title', v)}
+            placeholder={popup ? 'e.g. Diwali party invite' : 'e.g. Office closed on Friday'}
+            maxLength={200}
+            hint={popup ? 'Used to find this pop-up in your list. It is never drawn over the picture.' : null}
+          />
+          {popup ? (
+            <SelectField<PopupFrequency>
+              label="How often should it appear?"
+              value={f.popupFrequency}
+              onChange={(v) => set('popupFrequency', v)}
+              options={POPUP_FREQ.map((x) => ({ value: x.value, label: x.label }))}
+              hint={POPUP_FREQ.find((x) => x.value === f.popupFrequency)?.hint ?? null}
+            />
+          ) : (
+            <>
+              <SelectField<NewsType>
+                label="Type"
+                value={f.type}
+                onChange={(v) => {
+                  if (v === f.type) return;
+                  set('type', v);
+                  setFile(null);
+                  setFileErr(null);
+                }}
+                options={NEWS_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+              />
+              <TextField
+                label={f.type === 'text' ? 'Description' : 'Description (optional)'}
+                value={f.body}
+                onChangeText={(v) => set('body', v)}
+                placeholder="The details"
+                multiline
+                maxLength={5000}
+              />
+              <TextField
+                label={f.type === 'link' ? 'Link' : 'Link (optional)'}
+                value={f.linkUrl}
+                onChangeText={(v) => set('linkUrl', v)}
+                placeholder="https://…"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                hint={f.type === 'link' ? null : 'With a link, the post shows a button that opens it.'}
+              />
+              {showCta ? ctaFields : null}
+            </>
+          )}
+        </Card>
+      </LabelledSection>
 
       {popup ? (
         <>
-          <SelectField<PopupFrequency>
-            label="How often should it appear?"
-            value={f.popupFrequency}
-            onChange={(v) => set('popupFrequency', v)}
-            options={POPUP_FREQ.map((x) => ({ value: x.value, label: x.label }))}
-            hint={POPUP_FREQ.find((x) => x.value === f.popupFrequency)?.hint ?? null}
-          />
           <FileCard
             label="Pop-up picture"
             hint="Shown on its own over the Home page, so put any words inside the artwork. Poster-shaped works best."
@@ -422,60 +475,21 @@ export function ComposeForm({ initial }: { initial: Announcement | null }) {
             onPick={() => void choose('file')}
             error={fileErr}
           />
-          <TextField
-            label="Link (optional)"
-            value={f.linkUrl}
-            onChangeText={(v) => set('linkUrl', v)}
-            placeholder="https://…"
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-            hint="Leave blank for a picture-only pop-up. With a link, a button opens it."
-          />
-        </>
-      ) : (
-        <>
-          <SelectField<NewsType>
-            label="Type"
-            value={f.type}
-            onChange={(v) => {
-              if (v === f.type) return;
-              set('type', v);
-              setFile(null);
-              setFileErr(null);
-            }}
-            options={NEWS_TYPES.map((t) => ({ value: t.value, label: t.label }))}
-          />
-          <TextField
-            label={f.type === 'text' ? 'Description' : 'Description (optional)'}
-            value={f.body}
-            onChangeText={(v) => set('body', v)}
-            placeholder="The details"
-            multiline
-            maxLength={5000}
-          />
-          <TextField
-            label={f.type === 'link' ? 'Link' : 'Link (optional)'}
-            value={f.linkUrl}
-            onChangeText={(v) => set('linkUrl', v)}
-            placeholder="https://…"
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-            hint={f.type === 'link' ? null : 'With a link, the post shows a button that opens it.'}
-          />
-        </>
-      )}
-
-      {showCta ? (
-        <>
-          <SelectField<string>
-            label="Button text"
-            value={ctaPreset}
-            onChange={(v) => set('ctaText', v === CUSTOM ? '' : v)}
-            options={[...CTA_PRESETS.map((p) => ({ value: p, label: p })), { value: CUSTOM, label: 'Your own words…' }]}
-          />
-          {ctaPreset === CUSTOM ? <TextField label="Your button text" value={f.ctaText} onChangeText={(v) => set('ctaText', v)} placeholder="e.g. Book a seat" maxLength={40} /> : null}
+          <LabelledSection title="Link (optional)">
+            <Card style={styles.fields}>
+              <TextField
+                label="Link"
+                value={f.linkUrl}
+                onChangeText={(v) => set('linkUrl', v)}
+                placeholder="https://…"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                hint="Leave blank for a picture-only pop-up. With a link, a button opens it."
+              />
+              {showCta ? ctaFields : null}
+            </Card>
+          </LabelledSection>
         </>
       ) : null}
 
@@ -539,13 +553,13 @@ export function ComposeForm({ initial }: { initial: Announcement | null }) {
           onChange={(v) => set('publishMode', v)}
         />
         {schedule ? (
-          <View style={styles.block}>
+          <Card style={styles.fields}>
             <FieldPair>
               <DateField label="Date" value={f.scheduleDate || null} onChange={(v) => set('scheduleDate', v)} minimumDate={today} />
               <TimeField label="Time (India)" value={f.scheduleTime || null} onChange={(v) => set('scheduleTime', v)} />
             </FieldPair>
             <FieldMessage hint={sched ? `It goes live on ${stampLabel(sched, today)}.` : 'Pick a date and a time.'} />
-          </View>
+          </Card>
         ) : null}
       </LabelledSection>
 
@@ -576,7 +590,7 @@ export function ComposeForm({ initial }: { initial: Announcement | null }) {
           />
         </ListCard>
         {!onlyToday ? (
-          <View style={styles.block}>
+          <Card style={styles.fields}>
             <DateField
               label="Visible until (optional)"
               value={f.expiresAt || null}
@@ -585,13 +599,15 @@ export function ComposeForm({ initial }: { initial: Announcement | null }) {
               hint={f.expiresAt ? `Shown until the end of ${dateLabel(f.expiresAt, today)}.` : 'Leave empty to keep it until it is deleted.'}
             />
             {f.expiresAt ? <Button variant="text" size="sm" title="Clear the date" onPress={() => set('expiresAt', '')} /> : null}
-          </View>
+          </Card>
         ) : null}
       </LabelledSection>
 
       {!popup ? (
         <LabelledSection title="Office TVs">
-          <SelectField<Priority> label="TV priority" value={f.priority} onChange={(v) => set('priority', v)} options={priorityOptions.map((p) => ({ value: p.value, label: p.label }))} hint={emergency ? null : priorityHint} />
+          <Card style={styles.fields}>
+            <SelectField<Priority> label="TV priority" value={f.priority} onChange={(v) => set('priority', v)} options={priorityOptions.map((p) => ({ value: p.value, label: p.label }))} hint={emergency ? null : priorityHint} />
+          </Card>
           {emergency ? (
             <Banner
               tone="danger"
@@ -606,7 +622,7 @@ export function ComposeForm({ initial }: { initial: Announcement | null }) {
         visible={reviewing}
         onClose={() => setReviewing(false)}
         title={editing ? 'Save these changes?' : schedule ? 'Schedule this post?' : popup ? 'Publish this pop-up?' : 'Publish this post?'}
-        from={{ title: f.title.trim() || '(untitled)', subtitle: popup ? 'Pop-up' : newsTypeLabel(f.type), icon: popup ? BellRing : Megaphone, module: 'news' }}
+        from={{ title: f.title.trim() || 'Untitled post', subtitle: popup ? 'Pop-up' : newsTypeLabel(f.type), icon: popup ? BellRing : Megaphone, module: 'news' }}
         to={{ title: where, subtitle: schedule ? 'Scheduled' : 'Everyone, at once', icon: schedule ? CalendarClock : Users, module: 'people' }}
         confirmLabel={swipeLabel}
         loading={saving}
@@ -670,7 +686,7 @@ function FileCard({
 const styles = themedStyles(() => ({
   under: { marginTop: space.xs },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, marginTop: space.sm, alignItems: 'center' },
-  block: { marginTop: space.sm, gap: space.xs },
+  fields: { gap: space.md },
   banner: { width: '100%', aspectRatio: 4, borderRadius: radius.md, marginTop: space.sm, backgroundColor: palette.surfaceSunken },
   poster: { width: '100%', height: 260, borderRadius: radius.md, marginTop: space.sm, backgroundColor: palette.surfaceSunken },
   photo: { width: '100%', aspectRatio: 16 / 9, borderRadius: radius.md, marginTop: space.sm, backgroundColor: palette.surfaceSunken },

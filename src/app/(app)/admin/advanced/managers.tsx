@@ -7,16 +7,18 @@
 import { useRouter } from 'expo-router';
 import { UserCog, Users } from 'lucide-react-native';
 import { useState } from 'react';
+import { View } from 'react-native';
 
 import { type WorkUser, useTeamTasks, useWorkDepts, useWorkUsers } from '@/api/work';
 import { canSeeManagers, managersFor, teamOf } from '@/features/adminadvanced/access';
 import { GateFallback, plural, useGate } from '@/features/adminadvanced/ui';
 import { roleLabel } from '@/features/people/roster';
 import { palette } from '@/theme/tokens';
-import { Avatar, Button, EmptyState, ErrorState, ListCard, ListRow, NavHeader, Screen, Sheet, SkeletonList, SummaryCard, SummaryHero } from '@/ui';
+import { Avatar, Button, EmptyState, ErrorState, ListCard, ListRow, NavHeader, Screen, Sheet, SkeletonList, SummaryCard, SummaryHero, useLayout } from '@/ui';
 
 export default function ManagersScreen() {
   const router = useRouter();
+  const { gap } = useLayout();
   const { access, pending } = useGate();
   const allowed = canSeeManagers(access);
   const usersQ = useWorkUsers(allowed);
@@ -44,7 +46,7 @@ export default function ManagersScreen() {
       ) : !list.length ? (
         <EmptyState icon={<UserCog color={palette.textMuted} />} title="No managers found" message="Nobody with the Manager role is in your departments." />
       ) : (
-        <>
+        <View style={{ gap }}>
           <SummaryHero label="Managers in your departments" icon={UserCog} module="people" value={list.length} />
           <ListCard>
             {list.map((m) => {
@@ -62,7 +64,7 @@ export default function ManagersScreen() {
               );
             })}
           </ListCard>
-        </>
+        </View>
       )}
 
       <Sheet visible={!!open} onClose={() => setOpen(null)} title={open?.name} subtitle={open ? deptName(open.dept) : undefined}>

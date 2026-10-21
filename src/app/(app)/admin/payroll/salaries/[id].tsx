@@ -11,9 +11,8 @@
 // profile can be changed again at any time, so it saves with a plain button. Nobody is messaged.
 
 import { useLocalSearchParams } from 'expo-router';
-import { ArrowRight, BadgeIndianRupee, Percent, Trash2, Wallet } from 'lucide-react-native';
+import { ArrowRight, BadgeIndianRupee, Trash2, Wallet } from 'lucide-react-native';
 import { useState } from 'react';
-import { View } from 'react-native';
 
 import {
   type ProfileInput,
@@ -28,11 +27,10 @@ import {
 import { useTodayIst } from '@/features/attendance/use-now';
 import { ToggleRow } from '@/features/hrtime/ui';
 import { isSelf } from '@/features/payroll/access';
-import { errorText, GateFallback, moneyTyping, rupeesOf, usePayrollGate, usePayView } from '@/features/payroll/ui';
+import { errorText, GateFallback, heroDecimals, moneyTyping, rupeesOf, usePayrollGate, usePayView } from '@/features/payroll/ui';
 import { dateLabel } from '@/lib/dates';
-import { themedStyles } from '@/theme/themed';
-import { palette, space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   ActivityList,
   ActivityRow,
   Banner,
@@ -48,13 +46,16 @@ import {
   Sheet,
   SkeletonList,
   SummaryCard,
+  SummaryHero,
   Text,
   toast,
+  useLayout,
 } from '@/ui';
 
 export default function SalaryPersonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const today = useTodayIst();
+  const { compact } = useLayout();
   const { pending, allowed, access } = usePayrollGate('salaries');
   const { money, eye } = usePayView();
   const q = useSalaryPeople(allowed);
@@ -103,32 +104,44 @@ export default function SalaryPersonScreen() {
   return (
     <Screen header={header} onRefresh={() => q.refetch()}>
       {notice ? <Banner tone="warning" title="Saved — check locked months" message={notice} action={{ label: 'OK', onPress: () => setNotice(null) }} /> : null}
+      <SummaryHero
+        icon={Wallet}
+        module="pay"
+        label={sal ? 'Annual salary (CTC)' : 'Salary'}
+        value={sal ? sal.annual_ctc : undefined}
+        figure={sal ? undefined : <Text variant="title">No salary yet</Text>}
+        currency="₹"
+        decimals={sal ? heroDecimals(sal.annual_ctc, compact) : 0}
+        hideable={!!sal}
+        hidden={money.hidden}
+        onHiddenChange={(h) => (h !== money.hidden ? eye.onPress() : undefined)}
+        sub={
+          sal
+            ? `${sal.structure_name} · since ${dateLabel(sal.effective_from, today)}`
+            : `${person.name} isn’t in any payroll until a salary is set. The first salary date counts as the joining date.`
+        }
+        action={self ? undefined : { title: sal ? 'Revise salary' : 'Set salary', icon: <Wallet />, onPress: () => setSheet('revise') }}
+      />
       {sal ? (
         <SummaryCard
-          title="Current salary"
           rows={[
             { label: 'Team', value: person.department || 'No team' },
-            { label: 'Structure', value: sal.structure_name },
-            { label: 'Since', value: dateLabel(sal.effective_from, today) },
-            { label: 'Monthly CTC', value: money.inr(sal.monthly_ctc) },
-            { label: 'Monthly gross', value: money.inr(sal.monthly_gross) },
+            { label: 'Monthly (CTC)', value: money.inr(sal.monthly_ctc) },
           ]}
-          total={{ label: 'Annual CTC', value: money.inr(sal.annual_ctc) }}
         />
-      ) : (
-        <Banner tone="info" title="No salary yet" message={`${person.name} isn’t in any payroll until a salary is set. The first salary date counts as the joining date.`} />
-      )}
-      {earnings.length ? <SummaryCard title="Each month" rows={earnings.map((l) => ({ key: l.code, label: l.name, value: money.inr(l.amount), hint: l.taxable ? null : 'Not taxable' }))} total={{ label: 'Gross', value: money.inr(sal?.monthly_gross) }} /> : null}
+      ) : null}
+      {earnings.length ? <SummaryCard title="Each month" rows={earnings.map((l) => ({ key: l.code, label: l.name, value: money.inr(l.amount), hint: l.taxable ? null : 'Not taxable' }))} total={{ label: 'Monthly gross', value: money.inr(sal?.monthly_gross) }} /> : null}
       {employer.length ? <SummaryCard title="Paid by the company" rows={employer.map((l) => ({ key: l.code, label: l.name, value: money.inr(l.amount) }))} /> : null}
 
       <SummaryCard
         title="Tax profile"
+        right={self ? undefined : <Button title="Change" size="sm" variant="accent" accessibilityLabel="Change the tax profile" onPress={() => setSheet('tax')} />}
         rows={[
           { label: 'Tax regime', value: p.regime ? (p.regime === 'new' ? 'New' : 'Old') : 'Company default' },
           { label: 'Old-regime deductions', value: p.declarations ? `${money.inr(p.declarations, { decimals: false })} a year` : 'None' },
           { label: 'Professional tax state', value: p.pt_state || 'Not set' },
           { label: 'PF', value: p.pf_enabled ? 'Deducted' : 'Not deducted' },
-          { label: 'Manual TDS', value: p.tds_monthly ? `${money.inr(p.tds_monthly)} a month` : 'None' },
+          { label: 'Fixed income tax (TDS)', value: p.tds_monthly ? `${money.inr(p.tds_monthly)} a month` : 'None' },
         ]}
       />
 
@@ -149,7 +162,7 @@ export default function SalaryPersonScreen() {
                     title="Remove"
                     size="sm"
                     variant="danger"
-                    icon={<Trash2 size={16} color={palette.dangerInk} />}
+                    icon={<Trash2 />}
                     accessibilityLabel={`Remove the salary from ${dateLabel(r.effective_from, today)}`}
                     onPress={() => {
                       setRemoveError(null);
@@ -167,12 +180,7 @@ export default function SalaryPersonScreen() {
         <Text variant="caption" muted align="center">
           You can’t change your own pay records. Ask another HR admin.
         </Text>
-      ) : (
-        <View style={styles.actions}>
-          <Button title={sal ? 'Revise salary' : 'Set salary'} icon={<Wallet size={18} color={palette.onPrimary} />} onPress={() => setSheet('revise')} />
-          <Button title="Tax profile" variant="accent" icon={<Percent size={18} color={palette.text} />} onPress={() => setSheet('tax')} />
-        </View>
-      )}
+      ) : null}
 
       {!self ? (
         <ReviseFlow
@@ -202,7 +210,7 @@ export default function SalaryPersonScreen() {
           rows={[
             { label: 'From', value: removing ? dateLabel(removing.effective_from, today) : '' },
             { label: 'Structure', value: removing?.structure_name ?? '' },
-            { label: 'Annual CTC', value: money.inr(removing?.annual_ctc) },
+            { label: 'Annual salary (CTC)', value: money.inr(removing?.annual_ctc) },
             {
               label: 'Afterwards',
               value:
@@ -272,7 +280,7 @@ function ReviseFlow({ visible, person, today, onClose, onSaved }: { visible: boo
           error={structures.error ? errorText(structures.error) : null}
         />
         <PillField
-          label="Annual CTC"
+          label="Annual salary (CTC)"
           value={ctc}
           onChangeText={(v) => setCtc(moneyTyping(v))}
           keyboardType="decimal-pad"
@@ -290,7 +298,7 @@ function ReviseFlow({ visible, person, today, onClose, onSaved }: { visible: boo
             total={{ label: 'Gross', value: money.inr(preview.data.gross) }}
           />
         ) : preview.error ? (
-          <Banner tone="danger" title="This CTC doesn’t fit the structure" message={errorText(preview.error)} />
+          <Banner tone="danger" title="This salary doesn’t fit the structure" message={errorText(preview.error)} />
         ) : st && amount ? (
           <Text variant="caption" muted>
             Working out the monthly pay…
@@ -311,7 +319,7 @@ function ReviseFlow({ visible, person, today, onClose, onSaved }: { visible: boo
         <SummaryCard
           rows={[
             { label: 'Structure', value: st?.name ?? '' },
-            { label: 'Annual CTC', value: money.inr(amount) },
+            { label: 'Annual salary (CTC)', value: money.inr(amount) },
             { label: 'Monthly gross', value: money.inr(preview.data?.gross) },
             { label: 'Takes effect', value: dateLabel(effective, today) },
           ]}
@@ -360,7 +368,7 @@ function TaxSheet({ visible, person, onClose }: { visible: boolean; person: Sala
           <Button title="Save" onPress={() => void save()} loading={saveProfile.isPending} disabled={!valid} />
         </>
       }>
-      <Text variant="labelStrong" muted>
+      <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
         Income-tax regime
       </Text>
       <Segmented
@@ -393,21 +401,17 @@ function TaxSheet({ visible, person, onClose }: { visible: boolean; person: Sala
         error={ptOk ? null : 'A state name or code, letters only'}
       />
       <PillField
-        label="Manual TDS a month"
+        label="Fixed income tax (TDS) a month"
         value={tds}
         onChangeText={(v) => setTds(moneyTyping(v))}
         keyboardType="decimal-pad"
         inputMode="decimal"
         placeholder="0"
         trailing={<Text variant="label" muted>₹</Text>}
-        hint="Used only when the company’s TDS is set to a manual amount."
+        hint="Used only when the company’s income tax (TDS) is a set amount per person."
         error={tdsN === null ? 'Rupees, up to 2 decimals' : null}
       />
       <ToggleRow label="PF applies" sub="Deduct Provident Fund from this person’s pay" value={pf} onChange={setPf} />
     </Sheet>
   );
 }
-
-const styles = themedStyles(() => ({
-  actions: { gap: space.sm },
-}));

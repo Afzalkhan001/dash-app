@@ -3,7 +3,8 @@
 // (IST, useTodayIst), so render never reads Date.now().
 
 import type { TrPriority, TrProject, TrProjectStatus, TrTask, TrTaskStatus } from '@/api/teamboard';
-import { dateLabel } from '@/lib/dates';
+import { hms as runningClock } from '@/features/attendance/format';
+import { dateLabel, durationLabel } from '@/lib/dates';
 import type { StatusTone } from '@/theme/tokens';
 
 export const PRIORITY_LABEL: Record<TrPriority, string> = {
@@ -57,17 +58,20 @@ export function liveSeconds(t: Pick<TrTask, 'elapsed_seconds' | 'started_at'>, n
 
 export const isRunningTr = (t: Pick<TrTask, 'started_at'>) => !!t.started_at;
 
-/** fmtHours (13546): "12.5h", "0h" — two decimals at most, as the website. */
+/** Logged time in the app's one duration format (DESIGN §0C): "16h 52m", "45m", "0m". The website's
+ *  fmtHours (13546) shows decimal hours ("16.87h"); the phone never does. */
 export function hoursLabel(seconds: number) {
-  const h = (seconds || 0) / 3600;
-  return h ? `${Math.round(h * 100) / 100}h` : '0h';
+  return minutesLabel(Math.floor((seconds || 0) / 60));
 }
 
-/** fmtHMS (13545): "01:02:03". */
-export function hms(seconds: number) {
-  const s = Math.max(0, Math.floor(seconds || 0));
-  return [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60].map((x) => String(x).padStart(2, '0')).join(':');
+/** durationLabel without a trailing "0m" on whole hours: 60 → "1h", 110 → "1h 50m", 45 → "45m". */
+export function minutesLabel(min: number) {
+  const m = Math.max(0, Math.round(min || 0));
+  return m >= 60 && m % 60 === 0 ? `${m / 60}h` : durationLabel(m);
 }
+
+/** A running clock (DESIGN §0C): "2h 14m 05s", "4m 09s" — never "02:14:05" (the website's fmtHMS 13545). */
+export const hms = runningClock;
 
 /** A bare Work (no assignee, no parent) is a planning container, not trackable work (13971). */
 export const isTrackable = (t: Pick<TrTask, 'assignee_id' | 'parent_task_id'>) => !!(t.assignee_id || t.parent_task_id);

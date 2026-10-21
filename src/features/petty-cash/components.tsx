@@ -20,6 +20,7 @@ import { useTodayIst } from '@/features/attendance/use-now';
 import { plural } from '@/lib/format';
 import { font, type ModuleKey, palette, radius, space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   AccountRow,
   ActionRow,
   ActivityRow,
@@ -373,7 +374,7 @@ export function SearchPickerField({
   const shown = value ? (display ? display(value) : { title: value.title, sub: value.subtitle }) : null;
   return (
     <View style={{ gap: 6 }}>
-      <Text variant="labelStrong" muted numberOfLines={2}>
+      <Text variant="labelStrong" muted numberOfLines={2} style={FIELD_LABEL_INSET}>
         {label}
       </Text>
       {variant === 'row' ? (

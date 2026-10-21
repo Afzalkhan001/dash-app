@@ -26,7 +26,7 @@ import { useDeskVisitSheet } from '@/features/desk/visit-sheet';
 import { useAccess } from '@/lib/use-access';
 import { themedStyles } from '@/theme/themed';
 import { palette, radius, space } from '@/theme/tokens';
-import { ActivityList, Button, Chip, ChipRow, EmptyState, ErrorState, ListCard, ListRow, NavHeader, Screen, SectionHeader, Skeleton, SkeletonList, SummaryHero, Text } from '@/ui';
+import { ActivityList, Button, Chip, ChipRow, EmptyState, ErrorState, ListCard, ListRow, ModuleBadge, NavHeader, Screen, SectionHeader, Skeleton, SkeletonList, SummaryHero, Text } from '@/ui';
 
 type Focus = 'waiting' | 'no_response' | 'rejected' | 'all';
 
@@ -99,9 +99,11 @@ export default function VisitorDeskScreen() {
       {canScanPass(access) ? (
         <ListCard>
           <ListRow
-            left={<ScanLine size={22} color={palette.primaryText} strokeWidth={1.8} />}
+            size="lg"
+            left={<ModuleBadge module="visitors" icon={ScanLine} />}
             title="Scan a pass"
             subtitle="Check in an invited guest from their QR"
+            subtitleLines={2}
             chevron
             onPress={() => router.push(DESKQR_ROUTES.scan)}
           />
@@ -162,7 +164,7 @@ export default function VisitorDeskScreen() {
           {inside.length ? (
             <ActivityList title="Inside now">
               {inside.map((v) => (
-                <DeskVisitRow key={v.id} visit={v} today={today} onPress={() => open(v)} />
+                <DeskVisitRow key={v.id} visit={v} today={today} showStatus={false} onPress={() => open(v)} />
               ))}
             </ActivityList>
           ) : null}

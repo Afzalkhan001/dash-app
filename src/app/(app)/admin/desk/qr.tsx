@@ -126,7 +126,8 @@ export default function CheckInLinkScreen() {
             </Text>
             <ActionRow>
               <Button variant="ghost" title="Print" icon={<Printer />} loading={making === 'print'} disabled={!!making} onPress={() => void poster('print')} />
-              <Button title="Poster PDF" icon={<FileDown />} loading={making === 'pdf'} disabled={!!making} onPress={() => void poster('pdf')} />
+              {/* Share link (below) is the screen's one filled button; the poster is a second choice. */}
+              <Button variant="ghost" title="Poster PDF" icon={<FileDown />} loading={making === 'pdf'} disabled={!!making} onPress={() => void poster('pdf')} />
             </ActionRow>
           </Card>
 

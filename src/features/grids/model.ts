@@ -165,7 +165,8 @@ export function sheetDayLines(p: SheetPerson, days: DayInfo[], today: string) {
 export function balanceColumns(data: CompanyBalances | undefined): { first: GridColumn<BalancePerson>; columns: GridColumn<BalancePerson>[]; types: LeaveType[] } {
   const types: LeaveType[] = Array.isArray(data?.types) ? data.types : [];
   const bal = (p: BalancePerson, id: string) => (Array.isArray(p.balances) ? p.balances : []).find((b) => b.leave_type_id === id);
-  const first: GridColumn<BalancePerson> = { key: 'name', label: 'Employee', width: 150, cell: (p) => ({ text: p.name || 'Unnamed', sub: p.department || 'No team' }), sort: (p) => p.name };
+  // The team has its own (sortable) column, so the name cell holds just the name.
+  const first: GridColumn<BalancePerson> = { key: 'name', label: 'Employee', width: 150, cell: (p) => p.name || 'Unnamed', sort: (p) => p.name };
   const columns: GridColumn<BalancePerson>[] = [
     { key: 'dept', label: 'Team', long: 'Team', width: 110, align: 'left', cell: (p) => p.department || null, sort: (p) => p.department || '' },
     ...types.map(
@@ -173,7 +174,8 @@ export function balanceColumns(data: CompanyBalances | undefined): { first: Grid
         key: t.id,
         label: t.code || t.name,
         long: `${t.name}${t.code ? ` (${t.code})` : ''}`,
-        width: 92,
+        // Room for "used 3.5 · waiting 1" under the figure.
+        width: 132,
         cell: (p) => {
           const b = bal(p, t.id);
           if (!b) return null;
@@ -421,15 +423,6 @@ export const filterLedger = (rows: LedgerRow[], q: string) =>
 export function ledgerTotals(rows: LedgerRow[]) {
   const sum = (k: 'raised' | 'submitted' | 'outstanding' | 'awaiting' | 'rejected' | 'over') => round2(rows.reduce((t, L) => t + L[k], 0));
   return { raised: sum('raised'), submitted: sum('submitted'), outstanding: sum('outstanding'), awaiting: sum('awaiting'), rejected: sum('rejected'), over: sum('over') };
-}
-
-export function billLines(L: LedgerRow, today: string) {
-  return L.bills.map((b) => ({
-    key: b.id,
-    label: `${pettyCashRef('bill', b)} · ${b.createdAt ? dateLabel(b.createdAt, today) : ''}`,
-    value: `${rupees(b.amount)} · ${b.status === 'rejected' ? 'Rejected, not counted' : b.status === 'pending' ? 'Waiting review' : 'Counted'}`,
-    hint: [b.description, b.status === 'rejected' && 'rejectionReason' in b && b.rejectionReason ? `Rejected: ${b.rejectionReason}` : null].filter(Boolean).join(' · ') || null,
-  }));
 }
 
 /** Expense claims paid and confirmed received (the ledger's own "Reimbursements" tab — not petty cash). */

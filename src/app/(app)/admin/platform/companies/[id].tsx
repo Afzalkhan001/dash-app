@@ -165,7 +165,7 @@ export default function CompanyScreen() {
 
   return (
     <Screen
-      header={<NavHeader title={name} actions={[{ icon: Pencil, label: 'Edit company details', onPress: open }]} />}
+      header={<NavHeader title="Company" actions={[{ icon: Pencil, label: 'Edit company details', onPress: open }]} />}
       onRefresh={() => Promise.all([tenantsQ.refetch(), usersQ.refetch(), invitesQ.refetch(), hrQ.refetch()])}>
       <Card padded style={{ gap: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -177,8 +177,10 @@ export default function CompanyScreen() {
             <Text variant="caption" muted numberOfLines={1}>
               {email || 'No Super Admin email'}
             </Text>
+            <View style={{ flexDirection: 'row', marginTop: 4 }}>
+              <StatusPill label={suspended ? 'Suspended' : 'Active'} tone={suspended ? 'failed' : 'done'} />
+            </View>
           </View>
-          <StatusPill label={suspended ? 'Suspended' : 'Active'} tone={suspended ? 'failed' : 'done'} />
         </View>
         {usersQ.data && max ? <StripedProgress label="People on DASH" used={n} total={max} /> : null}
         {usersQ.data && !max ? <Text variant="label">{plural(n, 'person', 'people')} on DASH</Text> : null}
@@ -203,7 +205,7 @@ export default function CompanyScreen() {
               left={<Avatar name={adminName} size={40} ring={false} />}
               title={adminName}
               subtitle={email}
-              right={
+              below={
                 <StatusPill
                   label={adminState === 'signed' ? 'Signed up' : adminState === 'invited' ? 'Invited' : 'Not invited'}
                   tone={adminState === 'signed' ? 'done' : adminState === 'invited' ? 'pending' : 'failed'}
@@ -236,7 +238,7 @@ export default function CompanyScreen() {
             { key: 'tax', label: 'Tax ID', value: str(t.tax) || '—' },
             { key: 'seats', label: 'Seat limit', value: max ? plural(max, 'person', 'people') : '—', hint: 'Not enforced by DASH today' },
             { key: 'bounty', label: 'Bounty coins', value: t.bountyEnabled !== false ? 'On' : 'Off' },
-            { key: 'hr', label: 'HR', value: hrQ.data ? (hrQ.data.enabled ? plural(hrQ.data.modules.length, 'module') : 'Off') : hrQ.isError ? '—' : '…' },
+            { key: 'hr', label: 'HR', value: hrQ.data ? (hrQ.data.enabled ? plural(hrQ.data.modules.length, 'feature') : 'Off') : hrQ.isError ? '—' : '…' },
             { key: 'features', label: 'Features off', value: off ? String(off) : 'None' },
           ]}
         />

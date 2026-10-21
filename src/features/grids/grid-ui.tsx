@@ -3,7 +3,7 @@
 // column in plain words, and the "Share as CSV" button (with a warning first when the table holds pay).
 
 import { Redirect } from 'expo-router';
-import { FileSpreadsheet, ZoomIn, ZoomOut } from 'lucide-react-native';
+import { ALargeSmall, FileSpreadsheet } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { View } from 'react-native';
 
@@ -14,7 +14,7 @@ import { useAccess } from '@/lib/use-access';
 import { type CsvColumn, shareCsv } from '@/lib/csv';
 import { themedStyles } from '@/theme/themed';
 import { space } from '@/theme/tokens';
-import { Banner, Button, ConfirmSheet, type NavAction, Screen, Sheet, SkeletonList, SummaryCard, Text, toast } from '@/ui';
+import { Banner, Button, ConfirmSheet, haptic, type NavAction, Screen, Sheet, SkeletonList, SummaryCard, Text, toast } from '@/ui';
 
 // ── Gate ─────────────────────────────────────────────────────────────────────
 /** Each grid re-checks its own gate; a cold start waits for /hr/me and the company before deciding. */
@@ -36,25 +36,25 @@ export function GridGateFallback({ pending, header }: { pending: boolean; header
 }
 
 // ── Text size (zoom) ─────────────────────────────────────────────────────────
+const NEXT_ZOOM: Record<Zoom, Zoom> = { 0: 1, 1: 2, 2: 0 };
+
+/**
+ * One header button that steps the table's text size: Small → Normal → Large → Small. One button, not
+ * a − / + pair, because the header holds two actions at most and the money tables also need the eye.
+ */
 export function useZoom(initial: Zoom = 1) {
   const [zoom, setZoom] = useState<Zoom>(initial);
-  const actions: NavAction[] = [
-    {
-      key: 'zoom-out',
-      icon: ZoomOut,
-      label: zoom === 0 ? 'Smallest text' : `Smaller text (now ${ZOOM_LABEL[zoom].toLowerCase()})`,
-      disabled: zoom === 0,
-      onPress: () => setZoom((z) => (z > 0 ? ((z - 1) as Zoom) : z)),
+  const next = NEXT_ZOOM[zoom];
+  const action: NavAction = {
+    key: 'zoom',
+    icon: ALargeSmall,
+    label: `Text size: ${ZOOM_LABEL[zoom].toLowerCase()}. Tap for ${ZOOM_LABEL[next].toLowerCase()}`,
+    onPress: () => {
+      haptic.select();
+      setZoom(next);
     },
-    {
-      key: 'zoom-in',
-      icon: ZoomIn,
-      label: zoom === 2 ? 'Largest text' : `Bigger text (now ${ZOOM_LABEL[zoom].toLowerCase()})`,
-      disabled: zoom === 2,
-      onPress: () => setZoom((z) => (z < 2 ? ((z + 1) as Zoom) : z)),
-    },
-  ];
-  return { zoom, actions };
+  };
+  return { zoom, actions: [action] };
 }
 
 // ── Row sheet ────────────────────────────────────────────────────────────────
@@ -92,6 +92,12 @@ export function RowSheet<T>({
       ) : null}
     </Sheet>
   );
+}
+
+/** Close the row sheet first, then act once it has slid away (one sheet or route at a time, §7.15). */
+export const SHEET_EXIT_MS = 280;
+export function afterSheet(fn: () => void) {
+  setTimeout(fn, SHEET_EXIT_MS);
 }
 
 // ── Share as CSV ─────────────────────────────────────────────────────────────

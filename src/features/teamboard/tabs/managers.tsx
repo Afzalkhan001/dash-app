@@ -155,7 +155,7 @@ export function ManagersTab({ board }: { board: Board }) {
             avatar: { name: removing.employee_name || '?' },
           }}
           detailsTitle="Details"
-          confirmLabel="Swipe to remove access"
+          confirmLabel="Swipe to remove"
           onConfirm={() => remove.mutate(removing)}
           loading={remove.isPending}
           note="Their teams, projects and tasks stay. You can add them again later. No one is messaged.">

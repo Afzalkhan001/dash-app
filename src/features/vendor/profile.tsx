@@ -14,7 +14,7 @@ import { changeFieldLabel, docLabel, docStatus } from '@/features/vendor/constan
 import { dateIN } from '@/features/vendor/format';
 import { Field, useLastValue, useOpenCount } from '@/features/vendor/ui';
 import { palette, radius, space } from '@/theme/tokens';
-import { ActionRow, Banner, Button, Chip, ChipRow, haptic, ModuleBadge, Sheet, StatusPill, Text, TextField } from '@/ui';
+import { FIELD_LABEL_INSET, ActionRow, Banner, Button, Chip, ChipRow, haptic, ModuleBadge, Sheet, StatusPill, Text, TextField } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 // ── Password ───────────────────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ function ChangeForm({
       }>
       {choices.length > 1 ? (
         <View style={{ gap: 6 }}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             What do you want to change?
           </Text>
           <ChipRow wrap>
@@ -282,8 +282,14 @@ export function DocumentItem({ doc, onView }: { doc: VendorDocument; onView: () 
             {meta}
           </Text>
         ) : null}
+        {/* Accounts' note: amber only when it asks for a new copy; otherwise a quiet muted quote (up to 3
+            lines), so "Auto-fetched from Digio…" on every verified file doesn't read as a warning. */}
         {doc.remarks ? (
-          <Text variant="label" color={palette.warningInk} style={{ fontStyle: 'italic' }}>
+          <Text
+            variant="label"
+            color={doc.status === 'correction_required' ? palette.warningInk : palette.textMuted}
+            numberOfLines={3}
+            style={{ fontStyle: 'italic' }}>
             “{doc.remarks}”
           </Text>
         ) : null}

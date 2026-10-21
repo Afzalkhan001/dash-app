@@ -402,7 +402,7 @@ function SummaryTab({ email, from, to, today }: TabProps) {
               <ActivityRow
                 key={d.date}
                 title={shortDay(d.date.slice(0, 10), today)}
-                subtitle={`Productive ${d.productiveMinutes ?? '—'}m · Neutral ${d.neutralMinutes ?? '—'}m · Unproductive ${d.unproductiveMinutes ?? '—'}m · Idle ${d.idleMinutes ?? '—'}m`}
+                subtitle={`Productive ${mins(d.productiveMinutes)} · Neutral ${mins(d.neutralMinutes)} · Unproductive ${mins(d.unproductiveMinutes)} · Idle ${mins(d.idleMinutes)}`}
                 value={d.score == null ? '—' : String(d.score)}
                 meta="Score"
               />
@@ -598,3 +598,8 @@ const styles = themedStyles(() => ({
   hourBody: { borderTopWidth: 1, borderTopColor: palette.hairline, paddingHorizontal: space.md, paddingVertical: space.xs },
   hourItem: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: space.sm, paddingVertical: space.xs },
 }));
+
+/** TM360 minutes in the app's duration format (DESIGN §0C): 192 → "3h 12m"; '—' when missing. */
+function mins(m: number | null | undefined) {
+  return m == null ? '—' : tmDur(m * 60);
+}

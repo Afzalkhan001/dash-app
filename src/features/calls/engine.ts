@@ -653,7 +653,7 @@ export class LiveEngine extends BaseEngine {
           if (r.type === 'local-candidate' && r.id === pair.localCandidateId) local = r;
         });
         const t = local?.candidateType;
-        const kind = t === 'host' ? 'same network' : t === 'srflx' ? 'via STUN' : t === 'prflx' ? 'direct' : t === 'relay' ? 'via relay' : t ?? '';
+        const kind = t === 'host' ? 'same network' : t === 'srflx' || t === 'prflx' ? 'direct' : t === 'relay' ? 'via relay' : t ?? '';
         const rtt = pair.currentRoundTripTime != null ? `${Math.round(pair.currentRoundTripTime * 1000)}ms` : '';
         const route = [kind, rtt].filter(Boolean).join(' · ');
         if (this.meta.get(id)?.route !== route) this.patchPeer(id, () => ({ route }));
@@ -741,7 +741,7 @@ export class LiveEngine extends BaseEngine {
 }
 
 // ── The demo call (no media) ─────────────────────────────────────────────────
-const DEMO_ROUTES = ['same network · 18ms', 'via STUN · 42ms', 'via STUN · 61ms'];
+const DEMO_ROUTES = ['same network · 18ms', 'direct · 42ms', 'direct · 61ms'];
 
 export class DemoEngine extends BaseEngine {
   private timers = new Set<ReturnType<typeof setTimeout>>();

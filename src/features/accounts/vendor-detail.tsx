@@ -64,10 +64,12 @@ import {
   ChipRow,
   ConfirmSheet,
   ErrorState,
+  LabelledSection,
   ListCard,
   MenuSheet,
   NavHeader,
   Screen,
+  Section,
   Segmented,
   Skeleton,
   SummaryCard,
@@ -330,10 +332,7 @@ export function VendorDetailScreen({ id }: { id: string }) {
         {!approved || tab === 'details' ? (
           <>
             {canAct && checks.length ? (
-              <View style={styles.block}>
-                <Text variant="labelStrong" muted style={styles.label}>
-                  Checklist — tick every check before approving
-                </Text>
+              <LabelledSection title="Checklist — tick every check before approving">
                 <ListCard>
                   {checks.map((c) => (
                     <ToggleRow
@@ -350,7 +349,7 @@ export function VendorDetailScreen({ id }: { id: string }) {
                     MSME certificate — doesn’t apply
                   </Text>
                 ) : null}
-              </View>
+              </LabelledSection>
             ) : null}
 
             <SummaryCard
@@ -439,7 +438,7 @@ export function VendorDetailScreen({ id }: { id: string }) {
                 row('Type of entity', d206.entityType),
                 row('Return filed 2024-25', yesNo(d206.itrFiled2425), d206.itrFiled2425 === 'yes' ? [d206.itrAck2425, d206.itrDate2425 ? shortDate(d206.itrDate2425, today) : null].filter(Boolean).join(' · ') : d206.itrReason2425 || null),
                 row('Return filed 2023-24', yesNo(d206.itrFiled2324), d206.itrFiled2324 === 'yes' ? [d206.itrAck2324, d206.itrDate2324 ? shortDate(d206.itrDate2324, today) : null].filter(Boolean).join(' · ') : d206.itrReason2324 || null),
-                row('TDS of ₹50,000 or more', yesNo(d206.tdsOver50k)),
+                row('TDS of ₹50,000+', yesNo(d206.tdsOver50k)),
                 row('Signed by', d206.declarantName, [d206.declarationDate ? shortDate(d206.declarationDate, today) : null, d206.declarationPlace].filter(Boolean).join(' · ') || null),
               ]}
             />
@@ -460,7 +459,7 @@ export function VendorDetailScreen({ id }: { id: string }) {
                 ) : undefined
               }
               rows={[
-                row('Checked', v.bank.verified ? 'Penny drop by Digio' : 'Typed by the vendor', v.bank.verified ? [v.bank.holderNameOnBank ? `Name at bank: ${v.bank.holderNameOnBank}` : null, v.bank.verifiedAt ? shortDate(v.bank.verifiedAt, today) : null].filter(Boolean).join(' · ') : 'Check it against the cheque before approving', { status: v.bank.verified ? 'done' : 'pending' }),
+                row('Checked', v.bank.verified ? 'Penny drop' : 'Typed by the vendor', v.bank.verified ? ['By Digio', v.bank.holderNameOnBank ? `Name at bank: ${v.bank.holderNameOnBank}` : null, v.bank.verifiedAt ? shortDate(v.bank.verifiedAt, today) : null].filter(Boolean).join(' · ') : 'Check it against the cheque before approving', { status: v.bank.verified ? 'done' : 'pending' }),
                 row('Account name', v.bank.accountName),
                 row('Bank', v.bank.bankName),
                 row('Account number', bankNo),
@@ -497,8 +496,7 @@ export function VendorDetailScreen({ id }: { id: string }) {
             ) : null}
 
             {pending.length ? (
-              <View style={styles.block}>
-                <Text variant="heading">Changes the vendor asked for</Text>
+              <Section title="Changes the vendor asked for">
                 {pending.map((cr) => (
                   <View key={cr.id} style={styles.block}>
                     <SummaryCard
@@ -509,7 +507,7 @@ export function VendorDetailScreen({ id }: { id: string }) {
                     <ActionRow context="screen">
                       <Button
                         title="Reject"
-                        variant="ghost"
+                        variant="danger"
                         size="md"
                         onPress={() => {
                           setChangeNote('');
@@ -528,7 +526,7 @@ export function VendorDetailScreen({ id }: { id: string }) {
                     </ActionRow>
                   </View>
                 ))}
-              </View>
+              </Section>
             ) : null}
 
             <Timeline events={historyEvents(v)} today={today} />

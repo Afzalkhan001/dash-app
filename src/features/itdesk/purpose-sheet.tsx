@@ -12,7 +12,7 @@ import { PURPOSE_SWATCHES } from '@/features/itdesk/format';
 import { PurposeChip, ToggleRow } from '@/features/itdesk/ui';
 import { themedStyles } from '@/theme/themed';
 import { radius, space } from '@/theme/tokens';
-import { Banner, Button, ConfirmSheet, Sheet, Text, TextField, toast } from '@/ui';
+import { FIELD_LABEL_INSET, Banner, Button, ConfirmSheet, Sheet, Text, TextField, toast } from '@/ui';
 
 const BLANK: PurposeBody = { label: '', color: '#2563eb', bg: '#dbeafe', active: true, requiresClient: false, requiresRequirements: false, notice: '' };
 
@@ -63,7 +63,7 @@ export function PurposeSheet({ visible, onClose, purpose }: { visible: boolean; 
         <View style={styles.body}>
           <TextField label="Name" value={f.label} onChangeText={set('label')} placeholder="e.g. Board review" maxLength={40} counter />
           <View style={styles.tight}>
-            <Text variant="labelStrong" muted>
+            <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
               Colour
             </Text>
             <View style={styles.swatches} accessibilityRole="radiogroup" accessibilityLabel="Colour">
@@ -91,9 +91,9 @@ export function PurposeSheet({ visible, onClose, purpose }: { visible: boolean; 
             </View>
           </View>
           <View>
-            <ToggleRow title="Needs a client name" subtitle="The booking can’t be made without it. Super Admin and IT Admins get the details by email." value={f.requiresClient} onChange={set('requiresClient')} />
-            <ToggleRow title="Needs special requirements" subtitle="Projector, whiteboard, video call set-up and so on." value={f.requiresRequirements} onChange={set('requiresRequirements')} />
-            <ToggleRow title="Available for new bookings" subtitle="Off hides it from new bookings. Past bookings keep their label." value={f.active} onChange={set('active')} />
+            <ToggleRow bleed title="Needs a client name" subtitle="The booking can’t be made without it. Super Admin and IT Admins get the details by email." value={f.requiresClient} onChange={set('requiresClient')} />
+            <ToggleRow bleed title="Needs special requirements" subtitle="Projector, whiteboard, video call set-up and so on." value={f.requiresRequirements} onChange={set('requiresRequirements')} />
+            <ToggleRow bleed title="Available for new bookings" subtitle="Off hides it from new bookings. Past bookings keep their label." value={f.active} onChange={set('active')} />
           </View>
           <TextField label="Warning notice (optional)" value={f.notice} onChangeText={set('notice')} placeholder="Shown to the person before they confirm" multiline maxLength={400} counter />
           {error ? <Banner tone="danger" title="Couldn’t save" message={error} /> : null}

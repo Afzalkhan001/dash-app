@@ -213,8 +213,9 @@ export function TomorrowCard() {
           key={i.key}
           person={{ name: i.who }}
           title={i.who}
-          subtitle={[i.code, i.time].filter(Boolean).join(' · ') || null}
-          status={i.kind === 'Booked' ? { label: 'Booked', tone: 'done' } : { label: 'Task', tone: 'neutral' }}
+          // Task or booking is what it is, not a status: it goes in the note, so the time keeps the width.
+          subtitle={i.time || i.code || null}
+          note={[i.kind === 'Booked' ? 'Booked' : 'Task', i.time ? i.code : ''].filter(Boolean).join(' · ')}
           onPress={i.task ? () => router.push(taskHref(i.task!.id)) : undefined}
           chevron={false}
         />

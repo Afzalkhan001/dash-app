@@ -56,15 +56,11 @@ export default function SalariesScreen() {
             <ActivityRow
               person={{ name: item.name }}
               title={item.name}
-              subtitle={
-                item.salary
-                  ? `${item.department || 'No team'} · ${item.salary.structure_name} · since ${dateLabel(item.salary.effective_from, today)}${item.revisions.length > 1 ? ` · ${item.revisions.length} revisions` : ''}`
-                  : `${item.department || 'No team'} · No salary yet`
-              }
-              subtitleLines={3}
+              subtitle={item.salary ? `${item.department || 'No team'} · ${item.salary.structure_name}` : item.department || 'No team'}
+              note={item.salary ? `Since ${dateLabel(item.salary.effective_from, today)}${item.revisions.length > 1 ? ` · ${item.revisions.length} revisions` : ''}` : null}
               value={item.salary ? money.compact(item.salary.annual_ctc) : null}
               meta={item.salary ? 'a year' : null}
-              status={item.salary ? null : { label: 'Not set', tone: 'pending' }}
+              status={item.salary ? null : { label: 'No salary', tone: 'pending' }}
               chevron
               onPress={() => router.push(`/admin/payroll/salaries/${item.id}`)}
               accessibilityHint="Opens their salary and tax profile"
@@ -82,7 +78,7 @@ export default function SalariesScreen() {
             ) : null}
             {people.length ? (
               <Text variant="label" muted>
-                {`${shown.length} of ${people.length} ${noun(people.length, 'person', 'people')} · annual CTC`}
+                {`${shown.length === people.length ? people.length : `${shown.length} of ${people.length}`} ${noun(people.length, 'person', 'people')} · annual salary (CTC) on the right`}
               </Text>
             ) : null}
           </View>
@@ -93,7 +89,11 @@ export default function SalariesScreen() {
           ) : q.error ? (
             <ErrorState message={errorText(q.error)} onRetry={() => void q.refetch()} />
           ) : (
-            <EmptyState icon={<Users color={moduleTone.pay.fg} strokeWidth={1.8} />} title="Nobody matches" message="Try another name." />
+            <EmptyState
+              icon={<Users color={moduleTone.pay.fg} strokeWidth={1.8} />}
+              title={people.length ? 'Nobody matches' : 'Nobody here yet'}
+              message={people.length ? 'Try another name, or show everyone.' : 'People appear here once they are added to DASH.'}
+            />
           )
         }
         ListFooterComponent={

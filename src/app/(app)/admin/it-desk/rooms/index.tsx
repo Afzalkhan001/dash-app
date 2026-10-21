@@ -19,7 +19,7 @@ import { useNow, useTodayIst } from '@/features/attendance/use-now';
 import { canSeeRooms } from '@/features/itdesk/access';
 import { isRoomBookingPast, slotHm } from '@/features/itdesk/format';
 import { PurposeSheet } from '@/features/itdesk/purpose-sheet';
-import { PurposeDot } from '@/features/itdesk/ui';
+import { PurposeDot, StatusRow } from '@/features/itdesk/ui';
 import { dateLabel, hmLabel } from '@/lib/dates';
 import { firstName, plural } from '@/lib/format';
 import { useAccess } from '@/lib/use-access';
@@ -27,8 +27,6 @@ import { themedStyles } from '@/theme/themed';
 import { palette, space } from '@/theme/tokens';
 import {
   ActivityList,
-  ActivityRow,
-  Banner,
   Button,
   Chip,
   ChipRow,
@@ -41,13 +39,21 @@ import {
   SkeletonList,
   SuccessSheet,
   SummaryCard,
+  Text,
   TextField,
   toast,
+  useLayout,
 } from '@/ui';
 
 type Tab = 'rooms' | 'locations' | 'bookings' | 'purposes';
 type BkTab = 'upcoming' | 'rejected' | 'completed';
 const TABS: Tab[] = ['rooms', 'locations', 'bookings', 'purposes'];
+const TAB_OPTIONS: { key: Tab; label: string }[] = [
+  { key: 'rooms', label: 'Rooms' },
+  { key: 'locations', label: 'Locations' },
+  { key: 'bookings', label: 'Bookings' },
+  { key: 'purposes', label: 'Purposes' },
+];
 const DEFAULT_REASON = 'Cancelled by IT Admin';
 
 export default function RoomsScreen() {
@@ -57,6 +63,7 @@ export default function RoomsScreen() {
   const allowed = canSeeRooms(access);
   const today = useTodayIst();
   const now = useNow();
+  const { compact } = useLayout();
   const [tab, setTab] = useState<Tab>(TABS.includes(params.tab as Tab) ? (params.tab as Tab) : 'rooms');
   const [bkTab, setBkTab] = useState<BkTab>('upcoming');
   const rooms = useItRooms(allowed && tab === 'rooms');
@@ -120,30 +127,32 @@ export default function RoomsScreen() {
     <Screen
       header={<NavHeader title="Rooms & locations" actions={tab === 'bookings' ? [] : [{ key: 'add', icon: Plus, label: addLabel, onPress: add }]} />}
       onRefresh={() => (tab === 'rooms' ? rooms.refetch() : tab === 'locations' ? locations.refetch() : tab === 'bookings' ? bookings.refetch() : purposes.refetch())}>
-      <Segmented<Tab>
-        options={[
-          { key: 'rooms', label: 'Rooms' },
-          { key: 'locations', label: 'Locations' },
-          { key: 'bookings', label: 'Bookings' },
-          { key: 'purposes', label: 'Purposes' },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
+      {/* Four tabs fit a segmented control from 380 dp; on a narrower phone (or with large text) its
+          labels were cut ("Locati…", "Bookin…"), so the same tabs scroll as chips there. */}
+      {compact ? (
+        <ChipRow>
+          {TAB_OPTIONS.map((o) => (
+            <Chip key={o.key} label={o.label} selected={tab === o.key} onPress={() => setTab(o.key)} />
+          ))}
+        </ChipRow>
+      ) : (
+        <Segmented<Tab> options={TAB_OPTIONS} value={tab} onChange={setTab} />
+      )}
 
       {tab === 'rooms' ? (
         loadingOr(rooms) ??
         ((rooms.data ?? []).length ? (
           <ActivityList title={plural(rooms.data!.length, 'conference room')}>
             {rooms.data!.map((r) => (
-              <ActivityRow
+              <StatusRow
                 key={r.id}
                 module="support"
                 icon={DoorOpen}
                 title={r.name || 'Unnamed room'}
                 subtitle={[r.capacity ? `${r.capacity} people` : '', r.floor].filter(Boolean).join(' · ') || undefined}
                 note={[r.amenities.slice(0, 3).join(', '), r.imageCount ? plural(r.imageCount, 'photo') : 'No photos'].filter(Boolean).join(' · ')}
-                status={r.status === 'active' ? { label: 'Open', tone: 'done' } : { label: 'Closed', tone: 'neutral' }}
+                // Open is the usual state; only a closed room carries a pill.
+                status={r.status === 'active' ? null : { label: 'Closed', tone: 'neutral' }}
                 chevron
                 onPress={() => router.push(`/admin/it-desk/rooms/room?id=${encodeURIComponent(r.id)}`)}
               />
@@ -164,14 +173,14 @@ export default function RoomsScreen() {
         ((locations.data ?? []).length ? (
           <ActivityList title={plural(locations.data!.length, 'shooting location')}>
             {locations.data!.map((l) => (
-              <ActivityRow
+              <StatusRow
                 key={l.id}
                 module="support"
                 icon={MapPin}
                 title={l.name || 'Unnamed location'}
                 subtitle={[[l.area, l.city].filter(Boolean).join(', '), l.type === 'outdoor' ? 'Outdoor' : 'Indoor'].filter(Boolean).join(' · ')}
                 note={[l.approvalRequired ? `Approved by ${l.approverName || 'someone'}` : 'No approval needed', l.imageCount ? plural(l.imageCount, 'photo') : 'No photos'].join(' · ')}
-                status={l.status === 'active' ? { label: 'Open', tone: 'done' } : { label: 'Closed', tone: 'neutral' }}
+                status={l.status === 'active' ? null : { label: 'Closed', tone: 'neutral' }}
                 chevron
                 onPress={() => router.push(`/admin/it-desk/rooms/location?id=${encodeURIComponent(l.id)}`)}
               />
@@ -189,7 +198,6 @@ export default function RoomsScreen() {
 
       {tab === 'bookings' ? (
         <View style={styles.block}>
-          <Banner tone="info" message="You can cancel any room booking when the room is needed for something more important. The person who booked is told." />
           <ChipRow>
             {(['upcoming', 'rejected', 'completed'] as BkTab[]).map((t) => (
               <Chip
@@ -201,6 +209,11 @@ export default function RoomsScreen() {
               />
             ))}
           </ChipRow>
+          {bkTab === 'upcoming' && bkRows.length ? (
+            <Text variant="caption" muted>
+              Need a room for something more important? Tap a booking to cancel it. The person who booked is told.
+            </Text>
+          ) : null}
           {loadingOr(bookings) ??
             (bkRows.length ? (
               <ActivityList>
@@ -211,23 +224,25 @@ export default function RoomsScreen() {
                   // sets `rejected` aside). There is nothing left to cancel, so it is shown, not offered.
                   const canCancel = bkTab === 'upcoming' && b.status !== 'cancelled';
                   return (
-                    <ActivityRow
+                    <StatusRow
                       key={b.id}
                       module="support"
                       icon={bkTab === 'rejected' ? CalendarX : Building2}
                       title={b.resource || 'Room'}
-                      subtitle={[b.requestedBy, dateLabel(day(b), today), timeOfBooking(b)].filter(Boolean).join(' · ')}
-                      note={[label, b.clientName ? `Client: ${b.clientName}` : ''].filter(Boolean).join(' · ') || undefined}
+                      // When first, then who and why: the day and time never wrap out of view.
+                      subtitle={[dateLabel(day(b), today), timeOfBooking(b)].filter(Boolean).join(' · ')}
+                      note={[b.requestedBy, label, b.clientName ? `Client: ${b.clientName}` : ''].filter(Boolean).join(' · ') || undefined}
+                      // A pill only where it adds to the tab: "Booked" and "Done" are what the tab already says.
                       status={
                         bkTab === 'rejected'
                           ? { label: /cancel/i.test(String(b.reason || '')) ? 'Cancelled' : 'Rejected', tone: 'failed' }
                           : bkTab === 'completed'
-                            ? { label: 'Done', tone: 'neutral' }
+                            ? null
                             : b.status === 'cancelled'
                               ? { label: 'Cancelled by them', tone: 'neutral' }
                               : b.status === 'pending'
                                 ? { label: 'Waiting', tone: 'pending' }
-                                : { label: 'Booked', tone: 'done' }
+                                : null
                       }
                       chevron={canCancel}
                       accessibilityHint={canCancel ? 'Opens cancel' : undefined}
@@ -258,13 +273,13 @@ export default function RoomsScreen() {
         ((purposes.data ?? []).length ? (
           <ActivityList title="What people book rooms for">
             {purposes.data!.map((p) => (
-              <ActivityRow
+              <StatusRow
                 key={p.id}
                 left={<PurposeDot color={p.color} bg={p.bg} />}
                 title={p.label}
                 subtitle={[p.requiresClient ? 'Needs a client name' : '', p.requiresRequirements ? 'Needs special requirements' : ''].filter(Boolean).join(' · ') || 'Nothing extra needed'}
                 note={p.notice || undefined}
-                status={p.active ? { label: 'Shown', tone: 'done' } : { label: 'Hidden', tone: 'neutral' }}
+                status={p.active ? null : { label: 'Hidden', tone: 'neutral' }}
                 chevron
                 accessibilityLabel={`${p.label}, ${p.active ? 'shown' : 'hidden'} for new bookings`}
                 onPress={() => setPurposeOpen({ key: p.id, purpose: p })}
@@ -287,7 +302,7 @@ export default function RoomsScreen() {
         visible={!!cancelling}
         onClose={() => setCancelling(null)}
         title="Cancel this booking?"
-        from={{ title: cancelling?.resource || 'Room', subtitle: cancelling ? `${dateLabel(day(cancelling), today)} · ${timeOfBooking(cancelling)}` : undefined, icon: Building2, module: 'support' }}
+        from={{ title: cancelling?.resource || 'Room', subtitle: cancelling ? [dateLabel(day(cancelling), today), timeOfBooking(cancelling)].filter(Boolean).join(' · ') : undefined, icon: Building2, module: 'support' }}
         to={{ title: cancelling?.requestedBy || 'The person who booked', subtitle: 'Email and WhatsApp', avatar: { name: cancelling?.requestedBy || '?' } }}
         confirmLabel="Swipe to cancel booking"
         loading={cancel.isPending}

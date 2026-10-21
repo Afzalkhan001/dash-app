@@ -10,11 +10,11 @@ import { type BookingRecord, useAllBookings, useBookingDepartments, useBookingUs
 import { useTodayIst } from '@/features/attendance/use-now';
 import { canSeeBookingRequests } from '@/features/booking/access';
 import { profScope, type RequestBuckets, requestBuckets, statusOf, typeLabel } from '@/features/booking/model';
-import { BOOKING_MODULE, typeIcon, useMe, useProfTypes, whenLine } from '@/features/booking/ui';
+import { BOOKING_MODULE, StackedRow, typeIcon, useMe, useProfTypes, whenLine } from '@/features/booking/ui';
 import type { ProfType } from '@/api/me';
 import { useAccess } from '@/lib/use-access';
 import { palette, space } from '@/theme/tokens';
-import { ActivityList, ActivityRow, Button, EmptyState, ErrorState, SkeletonList } from '@/ui';
+import { ActivityList, Button, EmptyState, ErrorState, SkeletonList } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 
@@ -38,19 +38,18 @@ export function useRequestTracker() {
   };
 }
 
-/** One request in the approvers' lists: who is booked, when, who asked, its status. */
-export function RequestRow({ b, today, types, onPress }: { b: BookingRecord; today: string; types: ProfType[]; onPress: () => void }) {
+/** One request in the approvers' lists: who is booked, when, who asked, its status (under the text). */
+export function RequestRow({ b, today, types, hideStatus, onPress }: { b: BookingRecord; today: string; types: ProfType[]; hideStatus?: boolean; onPress: () => void }) {
   const st = statusOf(b);
   return (
-    <ActivityRow
+    <StackedRow
       person={b.type === 'professionals' ? { name: b.resource || '' } : undefined}
       module={b.type === 'professionals' ? undefined : BOOKING_MODULE}
       icon={b.type === 'professionals' ? undefined : typeIcon(b.type)}
       title={b.resource || '—'}
       subtitle={whenLine(b, today)}
       note={`Asked by ${b.requestedBy || '—'} · ${typeLabel(b, types)}`}
-      status={st}
-      chevron
+      status={hideStatus ? null : st}
       onPress={onPress}
       accessibilityLabel={[b.resource, whenLine(b, today), `asked by ${b.requestedBy || 'someone'}`, st.label].join(', ')}
     />
@@ -80,7 +79,7 @@ export function BookingHistory() {
           <RequestRow key={b.id} b={b} today={today} types={types} onPress={() => router.push(`/inbox/booking/${encodeURIComponent(b.id)}`)} />
         ))}
       </ActivityList>
-      {rows.length > limit ? <Button title="Show more" variant="text" onPress={() => setLimit((n) => n + PAGE)} style={styles.more} /> : null}
+      {rows.length > limit ? <Button title={`Show more (${rows.length - limit})`} variant="text" size="md" onPress={() => setLimit((n) => n + PAGE)} style={styles.more} /> : null}
     </View>
   );
 }

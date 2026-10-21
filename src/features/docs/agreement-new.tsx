@@ -22,16 +22,17 @@ import { useTodayIst } from '@/features/attendance/use-now';
 import { useInvalidateAccounts } from '@/features/accounts/use-items';
 import { canDraftAgreement } from '@/features/docs/access';
 import { b64Of, type Marker, PagePager, PdfPageView } from '@/features/docs/pdf-viewer';
-import { pdfStamp } from '@/features/docs/templates';
 import { type PickPerson, PersonPicker, usePickablePeople } from '@/features/shared/person-picker';
 import { ProjectPicker } from '@/features/shared/project-picker';
 import { AGREEMENT_PDF } from '@/demo/vendor/files';
+import { stampLabel } from '@/lib/dates';
 import { FileError, pickDocument } from '@/lib/files';
 import { addDaysYmd, istIsoAt } from '@/lib/ist';
 import { useAccess } from '@/lib/use-access';
 import { palette, space } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
 import {
+  FIELD_LABEL_INSET,
   AccountRow,
   ActionBar,
   Banner,
@@ -174,7 +175,7 @@ export function NewAgreementScreen({ vendorId: initialVendor }: { vendorId?: str
   // NewAgreementModal.submit (:34230), the same order and words.
   const problem = (): string | null => {
     if (!vendor) return 'Choose the vendor.';
-    if (!project) return 'Keka Code is required.';
+    if (!project) return 'Pick the project code.';
     if (!projectName.trim()) return 'Project name is required.';
     if (!day || !time) return 'Deadline is required.';
     if (!Number.isFinite(deadlineMs) || deadlineMs <= Date.now()) return 'The deadline must be in the future.';
@@ -202,7 +203,7 @@ export function NewAgreementScreen({ vendorId: initialVendor }: { vendorId?: str
           </ActionBar>
         }>
         <Text variant="label" muted>
-          The vendor signs in their DASH vendor portal. The Keka Code is never shown to them, only the project name.
+          The vendor signs in their DASH vendor portal. They see the project name, never the project code.
         </Text>
 
         <SelectField
@@ -213,15 +214,15 @@ export function NewAgreementScreen({ vendorId: initialVendor }: { vendorId?: str
           onChange={setVendorId}
           error={vendorsQ.isError && !vendorsQ.data ? 'Couldn’t load the vendors.' : null}
         />
-        <ProjectPicker label="Keka Code" value={project} onChange={setProject} projects={projectsQ.data} loading={projectsQ.isPending} module="vendor" />
-        <TextField label="Project name" value={projectName} onChangeText={setProjectName} placeholder="What the vendor will see, e.g. Website redesign agreement" maxLength={200} />
+        <ProjectPicker label="Project code" value={project} onChange={setProject} projects={projectsQ.data} loading={projectsQ.isPending} module="vendor" />
+        <TextField label="Project name" value={projectName} onChangeText={setProjectName} placeholder="What the vendor sees" maxLength={200} />
         <FieldPair>
           <DateField label="Sign by" value={day} onChange={setDay} minimumDate={today} />
           <TimeField label="Time" value={time} onChange={setTime} />
         </FieldPair>
 
         <View style={styles.block}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Internal signer (optional)
           </Text>
           {signer ? (
@@ -238,7 +239,7 @@ export function NewAgreementScreen({ vendorId: initialVendor }: { vendorId?: str
         </View>
 
         <View style={styles.block}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Draft document (PDF, up to 8 MB)
           </Text>
           {draft ? (
@@ -317,8 +318,8 @@ export function NewAgreementScreen({ vendorId: initialVendor }: { vendorId?: str
         <SummaryCard
           rows={[
             { key: 'p', label: 'Project name', value: projectName.trim() },
-            { key: 'k', label: 'Keka Code', value: project?.kekaCode || '—', hint: 'Not shown to the vendor' },
-            { key: 'd', label: 'Sign by', value: Number.isFinite(deadlineMs) ? pdfStamp(new Date(deadlineMs).toISOString()) : '—' },
+            { key: 'k', label: 'Project code', value: project?.kekaCode || '—', hint: 'Not shown to the vendor' },
+            { key: 'd', label: 'Sign by', value: Number.isFinite(deadlineMs) ? stampLabel(new Date(deadlineMs).toISOString(), today) : '—' },
             { key: 's', label: 'Countersigner', value: signer?.name || 'None — vendor only' },
             { key: 'f', label: 'Document', value: draft?.name || '—', hint: `${spots.length} ${spots.length === 1 ? 'spot' : 'spots'}` },
           ]}

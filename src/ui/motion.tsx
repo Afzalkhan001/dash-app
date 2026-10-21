@@ -8,7 +8,7 @@
 // jumps timing/spring animations to their end, and the JS-driven bits here check useReducedMotion().
 
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { type LayoutChangeEvent, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -43,21 +43,34 @@ function fadeUp(delay: number) {
   };
 }
 
-/** Fades its children up into place once, on mount. `index` staggers siblings by 40 ms (capped at 5). */
+/**
+ * Fades its children up into place once, on mount. `index` staggers siblings by 40 ms (capped at 5).
+ * `collapseGap`: the parent's `gap`. While the content renders nothing (0 high) the Reveal pulls itself
+ * up by that much, so an empty child (a component that returned null) never leaves a double gap.
+ */
 export function Reveal({
   index = 0,
   delay,
+  collapseGap,
   children,
   style,
 }: {
   index?: number;
   delay?: number;
+  collapseGap?: number;
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   const wait = delay ?? Math.min(Math.max(index, 0), motion.staggerMax) * motion.stagger;
+  const [empty, setEmpty] = useState(false);
+  const onLayout = collapseGap
+    ? (e: LayoutChangeEvent) => {
+        const none = e.nativeEvent.layout.height < 0.5;
+        if (none !== empty) setEmpty(none);
+      }
+    : undefined;
   return (
-    <Animated.View entering={fadeUp(wait)} style={style}>
+    <Animated.View entering={fadeUp(wait)} onLayout={onLayout} style={[style, empty && collapseGap ? { marginTop: -collapseGap } : null]}>
       {children}
     </Animated.View>
   );

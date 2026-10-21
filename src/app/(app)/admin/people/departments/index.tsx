@@ -19,12 +19,13 @@ import { membersOf } from '@/features/people/roster';
 import { useAccess } from '@/lib/use-access';
 import { plural } from '@/lib/format';
 import { themedStyles } from '@/theme/themed';
-import { palette, space } from '@/theme/tokens';
+import { moduleTone, palette, space } from '@/theme/tokens';
 import {
   ActivityList,
   ActivityRow,
   Banner,
   Button,
+  Card,
   EmptyState,
   ErrorState,
   hitSlopFor,
@@ -115,6 +116,7 @@ export default function DepartmentsScreen() {
             module="people"
             label="In the company"
             value={list.length}
+            unit={list.length === 1 ? 'department' : 'departments'}
             sub={noAdmin ? `${plural(noAdmin, 'department')} without an admin` : 'Every department has an admin'}
           />
         ) : null}
@@ -139,13 +141,20 @@ export default function DepartmentsScreen() {
           </ActivityList>
         ) : null}
         {loaded && !shown.length ? (
-          <EmptyState
-            key="empty"
-            icon={<Building2 color={palette.textMuted} strokeWidth={1.8} />}
-            title={needle ? 'No department matches' : 'No departments yet'}
-            message={needle ? 'Check the spelling.' : canEdit ? 'Add the first one to group your people.' : undefined}
-            action={needle ? <Button title="Clear search" variant="accent" size="md" onPress={() => setQ('')} /> : undefined}
-          />
+          <Card key="empty" tone="surface">
+            <EmptyState
+              icon={<Building2 color={moduleTone.people.fg} strokeWidth={1.8} />}
+              title={needle ? 'No department matches' : 'No departments yet'}
+              message={needle ? 'Check the spelling, or clear the search.' : canEdit ? 'Add the first one to group your people.' : 'Nobody has added a department yet.'}
+              action={
+                needle ? (
+                  <Button title="Clear search" variant="accent" size="md" onPress={() => setQ('')} />
+                ) : canEdit ? (
+                  <Button title="Add department" icon={<Plus />} size="md" onPress={() => setAdding(true)} />
+                ) : undefined
+              }
+            />
+          </Card>
         ) : null}
         {loaded ? <Banner key="web" tone="info" title="Each admin’s dashboard" message="Viewing a department as its admin is on the DASH website." /> : null}
       </Screen>

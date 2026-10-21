@@ -109,10 +109,12 @@ function DayPicker({ open, draft, max, onDraft, onClose, onPick }: {
 }
 
 // One person as a Payno row, like every other list: name, then when (in · out), then the flags and
-// where; the hours as the row's figure and the day's state as ONE pill (under the text on narrow
-// phones, so the name keeps its width; the whole right column moves under the text with large text).
+// where; the hours as the row's figure. Everyone here clocked in, so a plain "Present" day needs no
+// pill: only a day that is different (Working, Half day, Short hours, No clock-out) shows ONE pill
+// (under the text on narrow phones, so the name keeps its width; the whole right column moves under
+// the text with large text). Without the pill the in · out line keeps its room on one line.
 //   [avatar] Name …………………… 9h 55m  ›
-//            In 9:05 AM · Out 7:00 PM   [Present]
+//            In 9:05 AM · Out 7:00 PM
 //            Late · In office
 function TeamRow({ r, onPress }: { r: AttendanceRow; onPress: () => void }) {
   const st = dayState(r.state);
@@ -131,7 +133,7 @@ function TeamRow({ r, onPress }: { r: AttendanceRow; onPress: () => void }) {
       subtitle={`${keep(inAt)} · ${keep(outAt)}`}
       note={flags.join(' · ') || null}
       value={hours}
-      status={st}
+      status={r.state === 'present' ? undefined : st}
       chevron
       onPress={onPress}
       accessibilityLabel={[name, st.label, inAt, outAt, hours ? `worked ${hours}` : null, ...flags].filter(Boolean).join(', ')}

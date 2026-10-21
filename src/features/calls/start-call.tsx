@@ -83,7 +83,7 @@ export function StartCallSheet({ target, onClose }: { target: CallTarget | null;
     <ConfirmSheet
       visible={!!target}
       onClose={close}
-      title={group ? `Call ${target?.title}?` : `Call ${target?.title ?? ''}?`}
+      title={`Call ${target?.title ?? ''}?`}
       subtitle={support === 'demo' ? 'Demo call: colleagues answer on their own and no sound or video is sent.' : 'Audio first. You can turn your camera on in the call.'}
       from={{ title: me?.name || 'You', subtitle: 'Calling', avatar: { name: me?.name || 'You' } }}
       to={{ title: target?.title ?? '', subtitle: group ? plural(others, 'person', 'people') : 'Direct', avatar: { name: target?.title ?? '' } }}

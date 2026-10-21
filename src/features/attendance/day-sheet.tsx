@@ -18,7 +18,7 @@ import { PunchHistory } from '@/features/attendance/punch-history';
 import type { DayInfo } from '@/features/attendance/use-month-days';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { palette, radius, space } from '@/theme/tokens';
-import { Button, KeyValueRow, Sheet, Text } from '@/ui';
+import { FIELD_LABEL_INSET, Button, KeyValueRow, Sheet, shouldStack, Text, useLayout } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 const isYmd = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
@@ -26,12 +26,15 @@ const isYmd = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2
 /**
  * Clock-in and clock-out as two tiles: the time (shrinks to fit, never wraps) over where it happened.
  * Clock in sits on a soft green, clock out on a soft sunset, each with its icon and a coloured label.
+ * Side by side, stacked below 340 dp or with large text (the TwoUp rule), so "10:07 AM" never shrinks
+ * to a sliver beside its pair.
  */
 export function PunchTiles({ r, inLabel = 'Clock in', outLabel = 'Clock out' }: { r: AttendanceRow; inLabel?: string; outLabel?: string }) {
+  const stack = shouldStack(useLayout(), { below: 'tight' });
   if (!r) return null;
   const outNote = r.out_at ? modeLabel(r.out_mode, r.out_distance_m) : r.state === 'in_progress' || !r.state ? 'Still working' : 'No clock-out';
   return (
-    <View style={styles.tiles}>
+    <View style={[styles.tiles, stack && styles.tilesStacked]}>
       <Tile label={inLabel} value={clockTime(r.in_at)} note={modeLabel(r.in_mode, r.in_distance_m)} icon={LogIn} bg={palette.successSoft} ink={palette.successInk} />
       <Tile label={outLabel} value={clockTime(r.out_at)} note={outNote} icon={LogOut} bg={palette.sunsetSoft} ink={palette.coralInk} />
     </View>
@@ -84,7 +87,7 @@ export function PunchDetails({ r }: { r: AttendanceRow }) {
         </View>
       ) : null}
       <View style={styles.history}>
-        <Text variant="labelStrong" muted accessibilityRole="header">
+        <Text variant="labelStrong" muted accessibilityRole="header" style={FIELD_LABEL_INSET}>
           Timeline
         </Text>
         <PunchHistory r={r} />
@@ -202,6 +205,7 @@ const card = () => ({ backgroundColor: palette.surface, borderRadius: radius.md,
 
 const styles = themedStyles(() => ({
   tiles: { flexDirection: 'row', gap: space.sm },
+  tilesStacked: { flexDirection: 'column' },
   tile: { flex: 1, minWidth: 0, padding: space.md, gap: 2, borderRadius: radius.md },
   tileHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   panel: { ...card(), paddingHorizontal: space.md, paddingVertical: space.xxs },

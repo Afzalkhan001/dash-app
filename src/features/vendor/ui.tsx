@@ -11,7 +11,7 @@ import { type ReactNode, useState } from 'react';
 import { Pressable, type TextInputProps, View } from 'react-native';
 
 import { lightPalette, palette, radius, space } from '@/theme/tokens';
-import { Card, CardHeader, FieldMessage, haptic, isDarkScheme, KeyValueList, Text, TextField, useLayout, useSurface } from '@/ui';
+import { FIELD_LABEL_INSET, Card, CardHeader, FieldMessage, haptic, isDarkScheme, KeyValueList, Text, TextField, useLayout, useSurface } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 // ── Sheet sessions ─────────────────────────────────────────────────────────────
@@ -121,7 +121,7 @@ export function ChoiceButtons({
   return (
     <View style={{ gap: 6 }} accessibilityRole="radiogroup" accessibilityLabel={label}>
       {label ? (
-        <Text variant="labelStrong" muted>
+        <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
           {label}
           {required ? (
             <Text variant="labelStrong" color={palette.dangerInk}>

@@ -22,6 +22,7 @@ import { type MeetsPerson, useDirectory } from '@/api/chat';
 import { isApiError, isDemoSession } from '@/api/client';
 import { useMyTenant } from '@/api/me';
 import { useSession } from '@/auth/session';
+import { hms } from '@/features/attendance/format';
 import { useNow } from '@/features/attendance/use-now';
 import { callSupport, canRemoveFromCall, canSeeCalls, isCallHost } from '@/features/calls/access';
 import { activeCall, openCall, releaseCall, useCallState } from '@/features/calls/call-store';
@@ -114,11 +115,8 @@ function KeepAwake() {
 
 function Elapsed({ since }: { since: number }) {
   const now = useNow(1000);
-  const s = Math.max(0, Math.floor((now - since) / 1000));
-  const h = Math.floor(s / 3600);
-  const mm = String(Math.floor((s % 3600) / 60)).padStart(h ? 2 : 1, '0');
-  const ss = String(s % 60).padStart(2, '0');
-  return <>{h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`}</>;
+  // The app's one running-timer format (DESIGN §0C): "2m 05s", "1h 02m 05s".
+  return <>{hms((now - since) / 1000)}</>;
 }
 
 const names = (xs: { name?: string | null }[]) => {
@@ -226,8 +224,8 @@ function InCall({ meetingId, title, demo }: { meetingId: string; title: string |
             ) : null}
           </Text>
           <View style={styles.chips}>
-            {host ? <Chip label="HOST" /> : null}
-            {demo ? <Chip label="DEMO · NO SOUND SENT" /> : null}
+            {host ? <Chip label="Host" /> : null}
+            {demo ? <Chip label="Demo · no sound sent" /> : null}
           </View>
         </View>
         {host && s.phase === 'live' ? (

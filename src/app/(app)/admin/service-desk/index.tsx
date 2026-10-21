@@ -34,6 +34,7 @@ import {
   ErrorState,
   IconButton,
   NavHeader,
+  PillField,
   Screen,
   Segmented,
   SelectField,
@@ -41,7 +42,6 @@ import {
   Skeleton,
   SkeletonList,
   SummaryHero,
-  TextField,
 } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
@@ -174,19 +174,21 @@ export default function ServiceDeskScreen() {
         />
       ) : null}
 
-      <TextField
+      {/* Payno's search pill, as Reports. The placeholder stays short so it never cuts mid-word on a
+          320 dp phone; the spoken label says what it searches. */}
+      <PillField
+        icon={Search}
         value={q}
         onChangeText={(v) => {
           setQ(v);
           reset();
         }}
-        placeholder="Search reference, subject, person or team"
+        placeholder="Search requests"
         autoCorrect={false}
         autoCapitalize="none"
         returnKeyType="search"
-        accessibilityLabel="Search requests"
-        left={<Search size={18} color={palette.textMuted} />}
-        right={
+        accessibilityLabel="Search requests by reference, subject, person or team"
+        trailing={
           q ? (
             <IconButton accessibilityLabel="Clear search" size={32} tone="surface" onPress={() => setQ('')}>
               <X size={16} color={palette.textMuted} />

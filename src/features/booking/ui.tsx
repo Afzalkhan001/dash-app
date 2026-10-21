@@ -12,8 +12,8 @@ import { holdClock } from '@/features/booking/use-slot-hold';
 import { bookingDay, bookingTimes, minToHm, profTypesOf, statusOf, typeLabel } from '@/features/booking/model';
 import { dateLabel, dayLabel, hmLabel } from '@/lib/dates';
 import { addDaysYmd } from '@/lib/ist';
-import { palette, space } from '@/theme/tokens';
-import { ActivityRow, Banner, Chip, ChipRow, DateField, haptic, type Option, PressableScale, Row, Text } from '@/ui';
+import { type ModuleKey, palette, space, type StatusTone } from '@/theme/tokens';
+import { FIELD_LABEL_INSET, Avatar, Banner, Chip, ChipRow, DateField, haptic, ListRow, ModuleBadge, type Option, PressableScale, Row, StatusPill, Text } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 
@@ -46,20 +46,79 @@ export function useProfTypes(): ProfType[] {
 }
 
 /**
+ * A booking-shaped row: the leading badge or initials, a medium title over a 2-line muted subtitle and
+ * a 1-line note, and its StatusPill UNDER the text, so the title and the time keep the full width (a
+ * status-only right column squeezes "11:00 AM – 12:00 PM" into a word per line on a 320 dp phone).
+ * An optional figure (rating, waited days) stays on the right.
+ */
+export function StackedRow({
+  title,
+  subtitle,
+  note,
+  module,
+  icon,
+  person,
+  status,
+  value,
+  valueMeta,
+  titleColor,
+  onPress,
+  accessibilityLabel,
+}: {
+  title: string;
+  subtitle?: string | null;
+  note?: string | null;
+  module?: ModuleKey;
+  icon?: LucideIcon;
+  person?: { name?: string | null } | null;
+  status?: { label: string; tone: StatusTone } | null;
+  value?: string | null;
+  valueMeta?: string | null;
+  titleColor?: string;
+  onPress?: () => void;
+  accessibilityLabel?: string;
+}) {
+  const left = module && icon ? <ModuleBadge module={module} icon={icon} /> : person ? <Avatar name={person.name ?? undefined} size={40} ring={false} /> : null;
+  return (
+    <ListRow
+      size="lg"
+      left={left}
+      title={title}
+      titleWeight="medium"
+      valueWeight="medium"
+      titleColor={titleColor}
+      subtitle={subtitle}
+      subtitleLines={2}
+      numberOfLines={2}
+      meta={note}
+      value={value}
+      valueMeta={valueMeta}
+      below={status ? <StatusPill label={status.label} tone={status.tone} /> : undefined}
+      chevron={!!onPress}
+      onPress={onPress}
+      accessibilityLabel={accessibilityLabel ?? [title, subtitle, note, value, valueMeta, status?.label].filter(Boolean).join(', ')}
+    />
+  );
+}
+
+/**
  * One booking as a row: type badge, what was booked, when, and its status. `who` adds a person line
- * ("Asked by Meera Nair") for the approvers' lists.
+ * ("Asked by Meera Nair") for the approvers' lists. `hideStatus` drops the pill on a list where every
+ * row has the same one (say it once).
  */
 export function BookingRow({
   b,
   today,
   types,
   who,
+  hideStatus,
   onPress,
 }: {
   b: BookingRecord;
   today: string;
   types: ProfType[];
   who?: 'requester' | 'resource';
+  hideStatus?: boolean;
   onPress?: () => void;
 }) {
   const st = statusOf(b);
@@ -67,15 +126,14 @@ export function BookingRow({
   const title = who === 'requester' ? b.requestedBy || '—' : b.resource || '—';
   const kind = typeLabel(b, types);
   return (
-    <ActivityRow
+    <StackedRow
       module={who ? undefined : BOOKING_MODULE}
       icon={who ? undefined : typeIcon(b.type)}
       person={who ? { name: person || '' } : undefined}
       title={title}
       subtitle={whenLine(b, today)}
       note={who === 'resource' ? kind : [kind, b.kekaCode || b.project].filter(Boolean).join(' · ')}
-      status={st}
-      chevron={!!onPress}
+      status={hideStatus ? null : st}
       onPress={onPress}
       accessibilityLabel={[title, whenLine(b, today), kind, st.label].join(', ')}
     />
@@ -100,7 +158,7 @@ export function HoldNotice({ secsLeft, holdErr }: { secsLeft: number; holdErr: s
 export function StarPicker({ value, onChange, label = 'Rating' }: { value: number; onChange: (n: number) => void; label?: string }) {
   return (
     <View style={styles.starsWrap}>
-      <Text variant="labelStrong" muted>
+      <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
         {label}
       </Text>
       <Row style={styles.stars} accessibilityRole="radiogroup" accessibilityLabel={label}>
@@ -142,7 +200,7 @@ export function DayStrip({ value, onChange, today, days, maxDays, label = 'Date'
   const last = maxDays ? addDaysYmd(today, maxDays) : list[list.length - 1]!;
   return (
     <View style={styles.dayWrap}>
-      <Text variant="labelStrong" muted>
+      <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
         {label}
       </Text>
       <ChipRow>
@@ -168,6 +226,7 @@ export const andList = (names: string[]) => (names.length <= 1 ? names[0] || '' 
 const styles = themedStyles(() => ({
   starsWrap: { gap: space.xs },
   dayWrap: { gap: space.xs },
-  stars: { gap: space.xxs, flexWrap: 'wrap' },
-  star: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+  // Five stars always fit one line: each takes an equal share (never under 48 dp at 320 dp), capped at 56.
+  stars: { alignSelf: 'stretch', maxWidth: 5 * 56 },
+  star: { flex: 1, minWidth: 48, maxWidth: 56, height: 48, alignItems: 'center', justifyContent: 'center' },
 }));

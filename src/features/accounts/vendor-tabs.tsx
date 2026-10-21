@@ -10,14 +10,14 @@ import { useState } from 'react';
 import { type AccountsBill, fetchBillFile, useAgreements, useVendorBills } from '@/api/accounts';
 import { useNow, useTodayIst } from '@/features/attendance/use-now';
 import { billAmount, billStage } from '@/features/accounts/model';
-import { FileSheet, type FileLoad } from '@/features/accounts/ui';
+import { DeskRow, FileSheet, type FileLoad } from '@/features/accounts/ui';
 import { agreementStatus } from '@/features/accounts/vendor-format';
 import { rowMoney, shortDate } from '@/features/petty-cash/logic';
 import { billStatus } from '@/features/vendor/constants';
 import { MONTHS, MONTHS_LONG } from '@/lib/dates';
 import { inrCompact, plural } from '@/lib/format';
 import { palette } from '@/theme/tokens';
-import { ActivityList, ActivityRow, EmptyState, ErrorState, PillBarChart, SkeletonList, StatGrid, StatTile } from '@/ui';
+import { ActivityList, EmptyState, ErrorState, PillBarChart, SkeletonList, StatGrid, StatTile } from '@/ui';
 
 type Kpi = 'all' | 'approved' | 'waiting' | 'rejected';
 const WAITING = ['pending_keka_approval', 'pending_keka_reapproval', 'pending_accounts_approval'];
@@ -70,7 +70,7 @@ export function VendorBillsTab({ vendorId, pocEmail }: { vendorId: string; pocEm
           const st = billStatus(b.status);
           const stage = billStage(b);
           return (
-            <ActivityRow
+            <DeskRow
               key={b.id}
               module="vendor"
               icon={FileText}
@@ -79,7 +79,6 @@ export function VendorBillsTab({ vendorId, pocEmail }: { vendorId: string; pocEm
               note={`${shortDate(b.created_at, today)} · ${b.submitted_by_name || '—'}${pocEmail && b.submitted_by_email === pocEmail ? ' (their Tamada contact)' : ''}`}
               value={rowMoney(billAmount(b) || amountOf(b))}
               status={{ label: st.label, tone: st.tone }}
-              chevron
               onPress={() =>
                 stage
                   ? router.push({ pathname: '/admin/accounts/item/[type]/[id]', params: { type: 'bill', id: b.id } })
@@ -110,7 +109,7 @@ export function VendorAgreementsTab({ vendorId }: { vendorId: string }) {
       {rows.map((a) => {
         const st = agreementStatus(a, now);
         return (
-          <ActivityRow
+          <DeskRow
             key={a.id}
             module="vendor"
             icon={FileSignature}
@@ -118,7 +117,6 @@ export function VendorAgreementsTab({ vendorId }: { vendorId: string }) {
             subtitle={[a.keka_code, a.created_by_name ? `By ${a.created_by_name}` : null].filter(Boolean).join(' · ') || null}
             note={a.status === 'pending_signature' && a.deadline_at ? `Sign by ${shortDate(a.deadline_at, today)}` : null}
             status={{ label: st.label, tone: st.tone }}
-            chevron
             onPress={() => router.push({ pathname: '/admin/accounts/agreements/[id]', params: { id: a.id } })}
           />
         );

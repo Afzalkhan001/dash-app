@@ -12,15 +12,23 @@ import { FileError } from '@/lib/files';
 import { type PdfDoc, pdfHtml, printPdf, sharePdf } from '@/lib/pdf';
 import { palette, radius, space, type ModuleKey } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
-import { ActionBar, Button, EmptyState, ErrorState, NavHeader, Screen, Skeleton, SummaryHero, Text, toast } from '@/ui';
+import { FIELD_LABEL_INSET, ActionBar, Button, EmptyState, ErrorState, NavHeader, Screen, Skeleton, SummaryHero, Text, toast } from '@/ui';
 
 export type Printable = PdfDoc | { html: string; fileName: string; landscape?: boolean; title?: string };
 const htmlOf = (d: Printable) => ('html' in d ? d.html : pdfHtml(d));
 
-/** The preview shows the printed page zoomed out to the phone's width (A4 ≈ 760 px wide; landscape 1080). */
+/**
+ * The preview shows the printed page zoomed out to the phone's width (A4 ≈ 760 px wide; landscape 1080).
+ * A phone's WebView does it from the viewport tag; the web build's iframe ignores that tag, so a tiny
+ * script zooms the page to the frame there (on a phone the page is already `w` wide, so it does nothing).
+ */
 function previewHtml(html: string, landscape?: boolean) {
   const w = landscape ? 1080 : 760;
-  return html.replace(/<meta name="viewport"[^>]*>/, `<meta name="viewport" content="width=${w}">`).replace(/<body([^>]*)>/, `<body$1 style="padding:28px">`);
+  const fit = `<script>(function(){function f(){var z=Math.min(1,window.innerWidth/${w});document.documentElement.style.zoom=z<1?String(z):''}f();window.addEventListener('resize',f)})()</script>`;
+  return html
+    .replace(/<meta name="viewport"[^>]*>/, `<meta name="viewport" content="width=${w}">`)
+    .replace(/<\/head>/i, `${fit}</head>`)
+    .replace(/<body([^>]*)>/, `<body$1 style="padding:28px">`);
 }
 
 export const shareLabel = Platform.OS === 'web' ? 'Save as PDF' : 'Share PDF';
@@ -106,7 +114,7 @@ export function DocScreen({
         <EmptyState icon={<FileDown color={palette.textMuted} strokeWidth={1.8} />} title={empty.title} message={empty.message} />
       ) : doc ? (
         <View style={styles.preview}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Preview
           </Text>
           <View style={[styles.frame, { height: previewH }]}>

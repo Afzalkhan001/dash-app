@@ -71,8 +71,8 @@ export default function CompanyDashboardScreen() {
         <StatGrid columns={2}>
           <StatTile variant="light" module="people" icon={Users} label="People on DASH" value={d.users} caption="Tap for the list" onPress={() => setDrill('people')} />
           <StatTile variant="light" module="security" icon={Building2} label="Departments" value={d.departments} caption="Tap for the list" onPress={() => setDrill('departments')} />
-          <StatTile variant="light" module="tasks" icon={ClipboardList} label="Open tasks" value={d.activeTasks} caption="Not yet completed" />
-          <StatTile variant="light" module="leave" icon={CalendarClock} label="Bookings waiting" value={d.pendingBookings} caption="Waiting for approval" />
+          <StatTile variant="light" module="tasks" icon={ClipboardList} label="Open tasks" value={d.activeTasks} caption="Not completed yet" />
+          <StatTile variant="light" module="leave" icon={CalendarClock} label="Bookings waiting" value={d.pendingBookings} caption="Rooms and crew" />
         </StatGrid>
       ) : summary.isError ? (
         <ErrorState message={summary.error?.message ?? 'The company numbers could not be loaded.'} onRetry={() => void summary.refetch()} />

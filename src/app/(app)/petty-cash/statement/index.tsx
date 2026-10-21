@@ -3,17 +3,22 @@
 // shared, saved or printed.
 
 import { useQueryClient } from '@tanstack/react-query';
-import { FileSpreadsheet, Wallet } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Camera, FileSpreadsheet, Wallet } from 'lucide-react-native';
 
 import { usePettyCashOverview } from '@/api/petty-cash';
 import { useSession } from '@/auth/session';
 import { PettyReportsCard } from '@/features/petty-cash/lists';
 import { billBatches, list, roleSeesPettyCash } from '@/features/petty-cash/logic';
 import { plural } from '@/lib/format';
-import { palette } from '@/theme/tokens';
-import { EmptyState, ErrorState, NavHeader, Screen, SkeletonList, SummaryHero } from '@/ui';
+import { palette, radius } from '@/theme/tokens';
+import { Button, EmptyState, ErrorState, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero } from '@/ui';
+
+// The summary hero's height (label, figure, info chip), for its loading placeholder.
+const HERO_H = 196;
 
 export default function PettyCashReportsScreen() {
+  const router = useRouter();
   const qc = useQueryClient();
   const user = useSession((s) => s.user);
   const allowed = roleSeesPettyCash(user);
@@ -30,7 +35,8 @@ export default function PettyCashReportsScreen() {
         <EmptyState icon={<Wallet color={palette.textMuted} />} title="Petty cash isn’t available" message="It isn’t part of your role in DASH." />
       ) : !data ? (
         overviewQ.isLoading ? (
-          <SkeletonList rows={4} avatar />
+          // The hero's placeholder in the hero's slot; the rows' placeholder follows in the list's slot.
+          <Skeleton height={HERO_H} radius={radius.xxl} />
         ) : (
           <ErrorState message={overviewQ.error?.message || 'Could not load your expense reports.'} onRetry={() => void overviewQ.refetch()} />
         )
@@ -44,8 +50,14 @@ export default function PettyCashReportsScreen() {
           info={{ label: plural(count, 'report'), value: plural(bills, 'bill') }}
         />
       ) : (
-        <EmptyState icon={<FileSpreadsheet color={palette.textMuted} />} title="No expense reports yet" message="You get one each time you send bills." />
+        <EmptyState
+          icon={<FileSpreadsheet color={palette.textMuted} />}
+          title="No expense reports yet"
+          message="You get one each time you send bills."
+          action={<Button title="Add bills" variant="accent" size="md" icon={<Camera />} onPress={() => router.replace('/petty-cash/bills/new')} />}
+        />
       )}
+      {allowed && !data && overviewQ.isLoading ? <SkeletonList rows={4} avatar /> : null}
       {allowed && data && count ? <PettyReportsCard data={data} title="Reports" /> : null}
     </Screen>
   );

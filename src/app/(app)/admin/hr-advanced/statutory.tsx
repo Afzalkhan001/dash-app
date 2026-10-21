@@ -148,12 +148,12 @@ function Editor({ header, base, onReload }: { header: React.ReactNode; base: Sta
 
       <Card>
         <View style={styles.stack}>
-          <ToggleRow label="Provident Fund" sub="PF deducted from pay and paid by the company" value={d.pf.enabled} onChange={(v) => set('pf', { enabled: v })} />
+          <ToggleRow flush label="Provident Fund" sub="PF deducted from pay and paid by the company" value={d.pf.enabled} onChange={(v) => set('pf', { enabled: v })} />
           {d.pf.enabled ? (
             <>
               <PctField label="Employee share" value={d.pf.employeeRatePct} onChange={(v) => set('pf', { employeeRatePct: v })} error={show('pf.employeeRatePct')} />
               <PctField label="Company share" value={d.pf.employerRatePct} onChange={(v) => set('pf', { employerRatePct: v })} error={show('pf.employerRatePct')} />
-              <ToggleRow label="Cap the PF wage" sub="Work PF out on no more than the ceiling below" value={d.pf.capAtCeiling} onChange={(v) => set('pf', { capAtCeiling: v })} />
+              <ToggleRow flush label="Cap the PF wage" sub="Work PF out on no more than the ceiling below" value={d.pf.capAtCeiling} onChange={(v) => set('pf', { capAtCeiling: v })} />
               <MoneyField label="Wage ceiling" unit="₹ a month" value={d.pf.wageCeiling} onChange={(v) => set('pf', { wageCeiling: v })} error={show('pf.wageCeiling')} />
               <RoundingPicker value={d.pf.rounding} onChange={(v) => set('pf', { rounding: v })} />
             </>
@@ -163,7 +163,7 @@ function Editor({ header, base, onReload }: { header: React.ReactNode; base: Sta
 
       <Card>
         <View style={styles.stack}>
-          <ToggleRow label="ESI" sub="Employees’ State Insurance" value={d.esi.enabled} onChange={(v) => set('esi', { enabled: v })} />
+          <ToggleRow flush label="ESI" sub="Employees’ State Insurance" value={d.esi.enabled} onChange={(v) => set('esi', { enabled: v })} />
           {d.esi.enabled ? (
             <>
               <PctField label="Employee share" value={d.esi.employeeRatePct} onChange={(v) => set('esi', { employeeRatePct: v })} error={show('esi.employeeRatePct')} />
@@ -177,13 +177,13 @@ function Editor({ header, base, onReload }: { header: React.ReactNode; base: Sta
 
       <Card>
         <View style={styles.stack}>
-          <ToggleRow label="Professional tax" sub="A set amount by state and monthly gross" value={d.pt.enabled} onChange={(v) => setD((x) => ({ ...x, pt: { ...x.pt, enabled: v } }))} />
+          <ToggleRow flush label="Professional tax" sub="A set amount by state and monthly gross" value={d.pt.enabled} onChange={(v) => setD((x) => ({ ...x, pt: { ...x.pt, enabled: v } }))} />
           {d.pt.enabled ? (
             <>
               {d.pt.slabs.map((s, i) => (
                 <View key={s.key} style={styles.slab}>
                   <View style={styles.slabHead}>
-                    <Text variant="labelStrong" style={styles.flex}>
+                    <Text variant="labelStrong" style={styles.slabTitle}>
                       Slab {i + 1}
                     </Text>
                     <Button
@@ -389,6 +389,8 @@ const styles = themedStyles(() => ({
   stack: { gap: space.md },
   slab: { gap: space.sm, paddingTop: space.sm },
   slabHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  // No minWidth here: at 320 dp a minimum would squeeze the Remove button to "Remo…".
+  slabTitle: { flex: 1, paddingHorizontal: space.xxs },
   pair: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   pairEnd: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, alignItems: 'flex-end' },
   flex: { flex: 1, minWidth: 140 },

@@ -463,6 +463,7 @@ Colour pass (Oct 2026): the app was too monochrome; the user rejected indigo/pur
 | Good | fill/dot/icon `success`; text `successInk`; soft bg `successSoft` | done, approved, present, positive delta |
 | Bad | fill/dot/icon `danger`; text, badge fill, destructive fill `dangerInk`; soft bg `dangerSoft` | errors, rejected, absent, negative delta, destructive actions |
 | Waiting | fill/dot/icon `warning`; text `warningInk`; soft bg `warningSoft` | pending, half day, late |
+| In progress / info | `statusTone.info` and `palette.info` / `infoSoft`: a calm blue (the leave family, `#1F5FB5` text on light, `#8BB8F5` on dark). Never the brand vermilion, which read as "Rejected" next to the crimson `failed` | open, in progress, with Accounts, being paid, clocked in / working, plain info Banners |
 | Selected (chip, segment, tab) | `primary` vermilion fill with white SemiBold text | |
 | Badges | `dangerInk` fill with white `micro` text; only the Inbox tab and critical counts | |
 | Neutral counts (menu tile "new", segment counts) | `charcoal` fill with white `micro` text | |
@@ -630,6 +631,35 @@ K1–K17 are implemented. Everything below is exported from `'@/ui'` (except the
 | `TwoUp` | `stats.tsx` | `{ children (2), stackBelow?: Breakpoint \| number = 'tight', style? }` — two equal tiles at equal height, gap 12; stacked below 340 dp (`stackBelow`) or text > 115 % |
 | `AreaChart` | `charts.tsx` | `{ values, labels?, highlight?, formatPoint?: (v, i) => string, guide?, guideLabel?, color? = palette.sunset, height? = 140, zeroBased? = true, accessibilityLabel?, style? }` — smooth line over a fill fading to transparent, ink pill tooltip on the highlighted point, muted x labels (+22 dp), at most one faint dashed guide |
 | Tab bar | `tab-bar.tsx` | Android bar is now solid `palette.surface` (opaque) with a `glassLine` hairline; iOS keeps the blur |
+
+
+**Kit pass (22 Oct 2026): fit, rows, states.** Every older prop still works; the new ones are optional.
+
+| Change | Where | What it means for screens |
+|---|---|---|
+| Web shrink-to-fit | `text.tsx` | react-native-web ignores `adjustsFontSizeToFit`. On web a one-line `Text` with `adjustsFontSizeToFit` now measures itself and scales its font (and tracking) down to `minimumFontScale`, like a phone. Nested runs follow (`useTextFitScale()` for runs with their own `fontSize`). Hero figures (`Amount`, `Metric`, `SummaryHero`, `Numeral`, `StatTile`), NavHeader titles and segment labels no longer end in "…" in the preview. Don't add character-count workarounds |
+| `Screen` children | `screen.tsx`, `motion.tsx` | Fragments are flattened: each child of a `<>…</>` passed to `Screen` is its own section with the screen's gap. A child that renders `null` collapses its gap (`Reveal collapseGap`), so it never leaves 32 dp. Both are safe now; still prefer leaving a section out |
+| `ActivityRow` status | `list.tsx` | New `statusPlacement?: 'auto' \| 'right' \| 'below'` and `below?: ReactNode`. Auto puts the pill under the text when the row has no `value`, when the right column would leave the text under ~140 dp, or below 360 dp. When even the value / time would leave the text under 120 dp, the whole right column moves under the text. Hand-built `ListRow + below` workarounds are no longer needed |
+| `MenuItem.selected` | `sheet.tsx` | A picker menu marks the current item `selected` (a ✓ on the right, "selected" for screen readers). Never "(showing)" or "Showing now" in the label or hint |
+| `SummaryHero loading` | `frost.tsx` | `loading` keeps the hero's own size with a pulsing figure bar (and a chip bar when `info` / `sub` is passed). Use it instead of a guessed-height Skeleton or `value={x ?? 0}` |
+| `SwitchRow` (new) | `switch-row.tsx` | `{ title, subtitle?, value, onChange, disabled?, busy?, icon?+module? \| left?, subtitleLines? = 3, flush?, style? }` — the one switch row. Off track `textFaint` (≥ 3:1, visible in both themes), on `accentDeep`. `flush` lines the title up with field labels inside a padded card or sheet. The feature `ToggleRow` / `SwitchRow` copies now wrap it |
+| `FIELD_LABEL_INSET` | `controls.tsx` | Every field label sits 4 dp in from the field edge (TextField, PillField, Select / Date / Time, SectionLabel). A screen drawing its own label uses `style={FIELD_LABEL_INSET}` |
+| Header overflow | `chrome.tsx` | `NavHeader` / `TabRootHeader` with more than 2 actions keep the first and put the rest in a ••• MenuSheet (no action is dropped). `IconPillGroup` holds 3 (2 below 360 dp) and overflows the same way, so Home's pill always fits. `DemoChip short` shows just "DEMO" (TabRootHeader uses it beside an overline on a compact phone) |
+| `Segmented` | `controls.tsx` | Also falls back to chips when a label (plus its badge) doesn't fit the width it really gets; inside a card the chips wrap instead of scrolling (a card would clip a bleeding row) |
+| `ChipRow` | `controls.tsx` | A selected chip that starts off-screen is scrolled into view |
+| `StatGrid` | `stats.tsx` | Steps 4 → 3 → 2 columns while a label's longest word wouldn't fit a tile. Light `StatTile` 6–8 character figures start at 28 on a compact phone |
+| `SwipeToConfirm`, `ConfirmSheet` | `confirm.tsx` | `tone?: 'primary' \| 'destructive'` (default destructive when the label starts "Swipe to reject / delete / remove / switch off …"): red track like the destructive Button. The knob is always white. A label too long for one line drops to 13 px over 2 lines |
+| `Sheet` | `sheet.tsx` | With a pinned footer, a body that scrolls fades out above the footer until its end is reached (the typed confirmation under a swipe is visibly there) |
+| `SummaryCard` | `tiles.tsx` | The value column takes what it needs (up to 60 %), the label the rest; a label whose longest word wouldn't fit stacks the row; values with no break points (emails, URLs) wrap anywhere on web |
+| `AccountRow` | `tiles.tsx` | `subLines?: 1 \| 2`, `subEllipsize?: 'tail' \| 'middle'` (URLs and file names keep both ends) |
+| `StatusPill` | `primitives.tsx` | Never wider than its column: a long label ellipsises instead of spilling over the text beside it |
+| `StripedProgress` | `viz.tsx` | The % thumb rides just past a short fill ("11%", "0%") and centres on the fill's end once the fill is twice its width |
+| `SparkCard` | `viz.tsx` | The two ◂ ▸ triangles under the drop-line are gone (there is no slider) |
+| `AvatarTiles` | `tiles.tsx` | Two name lines are always reserved, so tiles in one row match |
+| `Button` disabled (dark) | `primitives.tsx` | A disabled `primary` / `destructive` in dark mode is a neutral veil with faint text, not a 40 % vermilion pill |
+| `ActionBar` | `actions.tsx` | Opaque on Android and web (the content behind never shows through the note or a ghost button) |
+| Inputs on web | `inputs.tsx`, `pill-input.tsx` | No browser focus rectangle inside rounded fields; the field's own ring shows focus |
+| `durationLabel` | `src/lib/dates.ts` | Whole hours print "4h" (never "4h 0m") |
 
 **Examples**
 
@@ -875,7 +905,7 @@ renderItem={({ item, index }) => (
 
 | Part | Spec |
 |---|---|
-| Field label | `labelStrong` muted, 6 above the field |
+| Field label | `labelStrong` muted, 6 above the field, **4 dp in from the field edge** (`FIELD_LABEL_INSET`; the same for every field type and for SectionLabel) |
 | Field box | minHeight **52** (was 56), radius `md` 16, padX 16, gap 8, fill `rgba(255,255,255,0.7)` (inside sheets `surfaceMuted`), 1 px `rgba(22,22,21,0.07)` |
 | Focus | 1.5 px `charcoal` border, `surface` fill |
 | Error | 1.5 px `dangerInk` border. Below the field: a row with gap 6 holding a `CircleAlert` 14 icon in `dangerInk` and the error text in `caption` `dangerInk` |
@@ -975,6 +1005,8 @@ Never render EmptyState or "no records" while the query is loading.
 | `TitleHeader` (pushed) | paddingHorizontal gutter, paddingVertical 8, gap 8. Back IconButton 40 (ChevronLeft 22). Title `heading` centred, 1 line, `flex: 1, minWidth: 0`. Right slot. New optional prop `rightSlots?: 1 \| 2` (default 1): both side slots get `width: rightSlots === 2 ? 88 : 40`, so the title stays centred. More than 2 actions go into a `MoreHorizontal` IconButton and a MenuSheet |
 
 `DemoChip` text uses `micro`.
+
+**NavHeader / TabRootHeader title rule (one rule on every screen).** The title is centred while it fits between two mirrored sides at 85 % of its size (it shrinks to fit down to 80 % before truncating). When it doesn't — usually a longer title beside two actions on a narrow phone — it starts right after the back button. So "Service desk" with two actions is centred at 390 dp and starts after the back button at 320 dp; that is intended, not a bug. More than two actions: the first stays and the rest go into a ••• MenuSheet.
 
 ### 7.20 Tab bar (`src/ui/tab-bar.tsx`)
 

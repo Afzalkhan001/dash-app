@@ -138,7 +138,7 @@ export function ShowNowSheet({ visible, onClose, device, posts }: { visible: boo
         value={id}
         onChange={setId}
         placeholder={posts.length ? 'Choose a post' : 'No posts to show'}
-        options={posts.map((a) => ({ value: a.id, label: a.title || '(untitled)' }))}
+        options={posts.map((a) => ({ value: a.id, label: a.title || 'Untitled post' }))}
         hint="The post must be published for this TV’s branch."
       />
       <SelectField<string> label="Show for" value={secs} onChange={setSecs} options={TV_SHOW_FOR} />

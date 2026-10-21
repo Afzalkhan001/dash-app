@@ -22,7 +22,7 @@ import { DecidedSheet, DetailsCard, explainDecisionError, outcomeStatus, useOutc
 import type { InboxDetailProps } from '@/features/plugin-types';
 import { stampLabel } from '@/lib/dates';
 import { useAccess } from '@/lib/use-access';
-import { ActionBar, Banner, Button, ConfirmSheet, EmptyState, ErrorState, NavHeader, Screen, SkeletonList, SummaryCard } from '@/ui';
+import { ActionBar, Button, ConfirmSheet, EmptyState, ErrorState, NavHeader, Screen, SkeletonList, SummaryCard } from '@/ui';
 
 export function BookingDoneDetail({ id }: InboxDetailProps) {
   const router = useRouter();
@@ -84,10 +84,15 @@ export function BookingDoneDetail({ id }: InboxDetailProps) {
         }>
         <BookingHero b={b} today={today} types={types} label="Work marked done" />
         <WhoCards from={{ title: b.resource || '—', subtitle: 'Marked it done', avatar: { name: b.resource || '' } }} to={{ title: 'You', subtitle: 'Approve it', avatar: { name: me?.name || 'You' } }} />
-        {b.markedDoneAt || b.markedDoneBy ? (
-          <Banner tone="info" icon={CircleCheckBig} title={`Marked done by ${b.markedDoneBy || pro}`} message={b.markedDoneAt ? stampLabel(b.markedDoneAt, today) : undefined} />
-        ) : null}
-        <DetailsCard status={statusOf(b)} fields={bookingFields(b)} />
+        {/* When it was marked done sits with the facts; the hero and the cards already say who. */}
+        <DetailsCard
+          status={statusOf(b)}
+          fields={[
+            ...(b.markedDoneAt ? [{ label: 'Marked done', value: stampLabel(b.markedDoneAt, today) }] : []),
+            ...(b.markedDoneBy && b.markedDoneBy !== b.resource ? [{ label: 'Marked done by', value: b.markedDoneBy }] : []),
+            ...bookingFields(b),
+          ]}
+        />
       </Screen>
 
       <ConfirmSheet

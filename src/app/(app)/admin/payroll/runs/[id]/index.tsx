@@ -15,7 +15,7 @@
 
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { AlertTriangle, Calculator, FileSpreadsheet, Landmark, Lock, MoreHorizontal, RefreshCw, Search, Trash2 } from 'lucide-react-native';
+import { AlertTriangle, Banknote, Calculator, FileSpreadsheet, Landmark, Lock, MoreHorizontal, RefreshCw, Search, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { RefreshControl, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type PayrollItem, type PayrollRun, registerCsvPath, usePayrollRun, usePayrollRunActions } from '@/api/payroll';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { isDraft } from '@/features/payroll/access';
-import { daysLine, errorText, GateFallback, monthName, noun, runStatus, usePayrollGate, usePayView } from '@/features/payroll/ui';
+import { daysLine, errorText, GateFallback, heroDecimals, monthName, noun, usePayrollGate, usePayView } from '@/features/payroll/ui';
 import { dateLabel } from '@/lib/dates';
 import { downloadAuthed, shareFile } from '@/lib/files';
 import { themedStyles } from '@/theme/themed';
@@ -46,8 +46,10 @@ import {
   SkeletonList,
   SuccessSheet,
   SummaryCard,
+  SummaryHero,
   Text,
   toast,
+  useLayout,
 } from '@/ui';
 
 export default function PayrollRunScreen() {
@@ -55,6 +57,7 @@ export default function PayrollRunScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const today = useTodayIst();
+  const { compact, gap } = useLayout();
   const { pending, allowed, access } = usePayrollGate('runs');
   const { money, eye } = usePayView();
   const q = usePayrollRun(id, allowed);
@@ -72,7 +75,7 @@ export default function PayrollRunScreen() {
   const draft = isDraft(run);
   const header = (
     <NavHeader
-      title={run ? monthName(run.month) : 'Payroll run'}
+      title={run ? monthName(run.month, compact) : 'Payroll run'}
       actions={allowed ? [eye, ...(run ? [{ key: 'more', icon: MoreHorizontal, label: 'More actions', onPress: () => setMenu(true) }] : [])] : undefined}
     />
   );
@@ -172,18 +175,39 @@ export default function PayrollRunScreen() {
   };
 
   const listHeader = (
-    <View style={styles.head}>
+    <View style={[styles.head, { gap }]}>
+      <SummaryHero
+        icon={Banknote}
+        module="pay"
+        label={t ? `Net pay · ${t.employees} ${noun(t.employees, 'person', 'people')}` : 'Net pay'}
+        value={t?.net ?? 0}
+        currency="₹"
+        decimals={heroDecimals(t?.net, compact)}
+        hideable
+        hidden={money.hidden}
+        onHiddenChange={(h) => (h !== money.hidden ? eye.onPress() : undefined)}
+        sub={warnLines ? `${warnLines} ${noun(warnLines, 'line')} with warnings${draft ? '. Check them before locking.' : ''}` : undefined}
+        action={
+          draft
+            ? {
+                title: 'Lock payroll',
+                icon: <Lock />,
+                disabled: busy || !items.length,
+                onPress: () => {
+                  setError(null);
+                  setTyped('');
+                  setSheet('lock');
+                },
+              }
+            : undefined
+        }
+      />
       <SummaryCard
-        title={`${monthName(run.month)}`}
-        right={<Text variant="label" muted>{runStatus(run).label}</Text>}
         rows={[
-          { label: 'Status', value: runStatus(run).label, status: runStatus(run).tone },
-          { label: 'People', value: t ? String(t.employees) : '—' },
           { label: 'Gross pay', value: money.inr(t?.gross) },
-          { label: 'Reimbursements', value: money.inr(t?.reimbursements) },
+          { label: 'Claims paid back', value: t?.reimbursements ? money.inr(t.reimbursements) : 'None' },
           { label: 'Deductions', value: money.inr(t?.deductions) },
         ]}
-        total={{ label: 'Net pay', value: money.inr(t?.net) }}
       />
       {run.status === 'locked' ? (
         <Banner
@@ -206,18 +230,6 @@ export default function PayrollRunScreen() {
       {negative.length && draft ? (
         <Banner tone="danger" title="Negative net pay" message={`${negative.map((i) => i.employee_name).join(', ')}. Fix ${negative.length === 1 ? 'that line' : 'those lines'} before locking.`} />
       ) : null}
-      {draft ? (
-        <Button
-          title="Lock payroll"
-          icon={<Lock size={18} color={palette.onPrimary} />}
-          disabled={busy || !items.length}
-          onPress={() => {
-            setError(null);
-            setTyped('');
-            setSheet('lock');
-          }}
-        />
-      ) : null}
       <PillField icon={Search} value={query} onChangeText={setQuery} placeholder="Search by name or team" accessibilityLabel="Search lines" autoCorrect={false} />
       {warnLines ? (
         <ChipRow bleed="none">
@@ -238,9 +250,9 @@ export default function PayrollRunScreen() {
             <ActivityRow
               person={{ name: item.employee_name }}
               title={item.employee_name}
-              subtitle={`${item.department || 'No team'} · ${daysLine(item)}`}
+              subtitle={compact ? daysLine(item) : `${item.department || 'No team'} · ${daysLine(item)}`}
               subtitleLines={3}
-              value={money.inr(item.net)}
+              value={money.inr(item.net, { decimals: false })}
               valueColor={item.net < 0 ? palette.dangerInk : undefined}
               status={item.warnings.length ? { label: `${item.warnings.length} ${noun(item.warnings.length, 'warning')}`, tone: 'pending' } : null}
               chevron
@@ -379,7 +391,7 @@ export default function PayrollRunScreen() {
         footer={
           <>
             {error ? <Banner tone="danger" title="Couldn’t export" message={error} /> : null}
-            <Button title="Export CSV" icon={<FileSpreadsheet size={18} color={palette.onPrimary} />} loading={exporting} onPress={() => void exportCsv()} />
+            <Button title="Export CSV" icon={<FileSpreadsheet />} loading={exporting} onPress={() => void exportCsv()} />
           </>
         }>
         <Text variant="body">
@@ -403,6 +415,6 @@ export default function PayrollRunScreen() {
 }
 
 const styles = themedStyles(() => ({
-  head: { gap: space.sm, paddingBottom: space.sm },
+  head: { paddingBottom: space.sm },
   foot: { paddingTop: space.md },
 }));

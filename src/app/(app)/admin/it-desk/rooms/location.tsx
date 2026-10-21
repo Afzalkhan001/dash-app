@@ -31,13 +31,13 @@ import {
   ErrorState,
   FieldMessage,
   FieldPair,
+  LabelledSection,
   NavHeader,
   Screen,
   Segmented,
   SelectField,
   SkeletonList,
   SuccessSheet,
-  Text,
   TextField,
   TimeField,
   toast,
@@ -67,7 +67,8 @@ export default function LocationScreen() {
 }
 
 type Form = Omit<LocationBody, 'images' | 'status'>;
-const minutesOptions = (list: number[], zero = 'None') => list.map((m) => ({ value: String(m), label: m === 0 ? zero : durationLabel(m) }));
+// Whole hours read "2h", not "2h 0m".
+const minutesOptions = (list: number[], zero = 'None') => list.map((m) => ({ value: String(m), label: m === 0 ? zero : m % 60 === 0 ? `${m / 60}h` : durationLabel(m) }));
 
 function LocationForm({ initial }: { initial: ItLocation | null }) {
   const router = useRouter();
@@ -186,63 +187,59 @@ function LocationForm({ initial }: { initial: ItLocation | null }) {
         />
       </Card>
 
-      <Card style={styles.group}>
-        <Text variant="labelStrong" muted>
-          Photos
-        </Text>
-        <PhotoStrip
+      <LabelledSection title="Photos">
+        <Card style={styles.group}>
+          <PhotoStrip
           photos={photos}
           onChange={(next) => {
             setPhotos(next);
-            setPhotosChanged(true);
-          }}
-        />
-      </Card>
+              setPhotosChanged(true);
+            }}
+          />
+        </Card>
+      </LabelledSection>
 
-      <Card style={styles.group}>
-        <Text variant="labelStrong" muted>
-          When it can be booked
-        </Text>
-        <FieldPair>
-          <TimeField label="Opens" value={f.openingTime} onChange={set('openingTime')} />
-          <TimeField label="Closes" value={f.closingTime} onChange={set('closingTime')} />
-        </FieldPair>
-        {tried && hoursBad ? <FieldMessage error={hoursBad} /> : null}
-        <SelectField label="Time slots" value={String(f.slotDuration)} options={minutesOptions(SLOT_LENGTHS)} onChange={(v) => set('slotDuration')(+v)} />
-        <SelectField label="Gap between bookings" value={String(f.bufferTime)} options={minutesOptions(BUFFERS)} onChange={(v) => set('bufferTime')(+v)} />
-      </Card>
+      <LabelledSection title="When it can be booked">
+        <Card style={styles.group}>
+          <FieldPair>
+            <TimeField label="Opens" value={f.openingTime} onChange={set('openingTime')} />
+            <TimeField label="Closes" value={f.closingTime} onChange={set('closingTime')} />
+          </FieldPair>
+          {tried && hoursBad ? <FieldMessage error={hoursBad} /> : null}
+          <SelectField label="Time slots" value={String(f.slotDuration)} options={minutesOptions(SLOT_LENGTHS)} onChange={(v) => set('slotDuration')(+v)} />
+          <SelectField label="Gap between bookings" value={String(f.bufferTime)} options={minutesOptions(BUFFERS)} onChange={(v) => set('bufferTime')(+v)} />
+        </Card>
+      </LabelledSection>
 
-      <Card style={styles.group}>
-        <Text variant="labelStrong" muted>
-          Booking rules
-        </Text>
-        <SelectField label="Shortest booking" value={String(f.minDuration)} options={minutesOptions(MIN_DURATIONS)} onChange={(v) => set('minDuration')(+v)} />
-        <SelectField label="Longest booking" value={String(f.maxDuration)} options={minutesOptions(MAX_DURATIONS)} onChange={(v) => set('maxDuration')(+v)} error={tried ? durBad : null} />
-        <ToggleRow title="Several bookings at once" subtitle="More than one team can book the same time." value={!!f.allowMultiple} onChange={set('allowMultiple')} />
-        <ToggleRow title="Needs approval" subtitle="Someone approves each booking before it is confirmed." value={!!f.approvalRequired} onChange={set('approvalRequired')} />
-        {f.approvalRequired ? (
-          <View style={styles.tight}>
-            <AccountRow
-              icon={UserCheck}
-              title={f.approverName || 'Choose who approves'}
-              sub={f.approverName ? 'Approves bookings' : 'A manager or admin'}
-              actionLabel={f.approverName ? 'Change' : 'Choose'}
-              onChange={() => setPicking(true)}
-              onPress={() => setPicking(true)}
-            />
-            {tried && errs.approver ? <FieldMessage error={errs.approver} /> : null}
-          </View>
-        ) : null}
-      </Card>
+      <LabelledSection title="Booking rules">
+        <Card style={styles.group}>
+          <SelectField label="Shortest booking" value={String(f.minDuration)} options={minutesOptions(MIN_DURATIONS)} onChange={(v) => set('minDuration')(+v)} />
+          <SelectField label="Longest booking" value={String(f.maxDuration)} options={minutesOptions(MAX_DURATIONS)} onChange={(v) => set('maxDuration')(+v)} error={tried ? durBad : null} />
+          <ToggleRow bleed title="Several bookings at once" subtitle="More than one team can book the same time." value={!!f.allowMultiple} onChange={set('allowMultiple')} />
+          <ToggleRow bleed title="Needs approval" subtitle="Someone approves each booking before it is confirmed." value={!!f.approvalRequired} onChange={set('approvalRequired')} />
+          {f.approvalRequired ? (
+            <View style={styles.tight}>
+              <AccountRow
+                icon={UserCheck}
+                title={f.approverName || 'Choose who approves'}
+                sub={f.approverName ? 'Approves bookings' : 'A manager or admin'}
+                actionLabel={f.approverName ? 'Change' : 'Choose'}
+                onChange={() => setPicking(true)}
+                onPress={() => setPicking(true)}
+              />
+              {tried && errs.approver ? <FieldMessage error={errs.approver} /> : null}
+            </View>
+          ) : null}
+        </Card>
+      </LabelledSection>
 
-      <Card style={styles.group}>
-        <Text variant="labelStrong" muted>
-          Contact at the location
-        </Text>
-        <TextField label="Contact person (optional)" value={f.contact} onChangeText={set('contact')} placeholder="Name" />
-        <TextField label="Phone (optional)" value={f.phone} onChangeText={set('phone')} placeholder="+91 …" keyboardType="phone-pad" />
-        <TextField label="Email (optional)" value={f.email} onChangeText={set('email')} placeholder="name@example.com" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
-      </Card>
+      <LabelledSection title="Contact at the location">
+        <Card style={styles.group}>
+          <TextField label="Contact person (optional)" value={f.contact} onChangeText={set('contact')} placeholder="Name" />
+          <TextField label="Phone (optional)" value={f.phone} onChangeText={set('phone')} placeholder="+91 …" keyboardType="phone-pad" />
+          <TextField label="Email (optional)" value={f.email} onChangeText={set('email')} placeholder="name@example.com" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+        </Card>
+      </LabelledSection>
 
       <Card style={styles.group}>
         <TextField label="Description (optional)" value={f.description} onChangeText={set('description')} placeholder="What the place is like, what to bring" multiline maxLength={600} counter />

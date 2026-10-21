@@ -10,7 +10,7 @@ import { themedStyles } from '@/theme/themed';
 import { layout, palette, space } from '@/theme/tokens';
 import { useLayout } from '@/ui/layout';
 import { type ButtonProps } from '@/ui/primitives';
-import { isDarkScheme, withAlpha } from '@/ui/surface';
+import { isDarkScheme } from '@/ui/surface';
 import { Text } from '@/ui/text';
 
 export type ActionContext = 'card' | 'hero' | 'bar' | 'sheet' | 'screen';
@@ -120,6 +120,7 @@ const styles = themedStyles(() => ({
     borderTopColor: palette.glassLine,
     overflow: 'hidden',
   },
-  // iOS: a frosted veil over the blur. Android (no blur): near-opaque ivory in light, the opaque card colour in dark.
-  barFill: { backgroundColor: Platform.OS === 'ios' ? palette.glassStrong : isDarkScheme() ? palette.surface : withAlpha(palette.canvasTop, 0.96) },
+  // iOS: a frosted veil over the blur. Android and web (no blur): opaque ivory in light, the opaque card
+  // colour in dark, so a document preview or a card's text never shows through behind the note and buttons.
+  barFill: { backgroundColor: Platform.OS === 'ios' ? palette.glassStrong : isDarkScheme() ? palette.surface : palette.canvasTop },
 }));

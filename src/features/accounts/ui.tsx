@@ -3,40 +3,86 @@
 // (a ConfirmSheet whose swipe stays off until the reason is long enough — rejecting emails someone).
 
 import { Image } from 'expo-image';
-import { FileText, Share2 } from 'lucide-react-native';
+import { FileText, type LucideIcon, Share2 } from 'lucide-react-native';
 import { type ReactNode, useEffect, useState } from 'react';
-import { Pressable, Switch, useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 
 import type { FilePayloadLoose } from '@/api/accounts';
 import { type ApiResult, isApiError } from '@/api/client';
 import { type AccountsItem, STAGE_META, type Stage, TYPE_META } from '@/features/accounts/model';
 import { rowMoney, shortDate } from '@/features/petty-cash/logic';
 import { saveDataUrl, shareFile } from '@/lib/files';
-import { palette, radius, space } from '@/theme/tokens';
+import { type ModuleKey, palette, radius, space, type StatusTone } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
-import { ActivityRow, Banner, Button, ConfirmSheet, ErrorState, type FromToItem, isDarkScheme, ListRow, Sheet, Skeleton, StatusPill, SummaryCard, type SummaryItem, Text, TextField } from '@/ui';
+import { ActivityRow, Banner, Button, ConfirmSheet, ErrorState, type FromToItem, Sheet, Skeleton, StatusPill, SummaryCard, type SummaryItem, SwitchRow, Text, TextField } from '@/ui';
 
 export function StagePill({ stage }: { stage: Stage }) {
   const m = STAGE_META[stage];
   return <StatusPill label={m.label} tone={m.tone} />;
 }
 
-/** One row for anything on the desk: who (or the vendor), what and its code, the amount over the stage. */
-export function ItemRow({ item, today, onPress, note }: { item: AccountsItem; today: string; onPress?: () => void; note?: string | null }) {
-  const t = TYPE_META[item.type];
-  const code = item.kekaCode ? ` · ${item.kekaCode}` : '';
+/**
+ * An ActivityRow-style row whose status pill sits UNDER the text (DESIGN T5), so long titles, vendor names
+ * and project codes keep the width instead of being squeezed by a pill in the right column. The right
+ * column holds only the amount (or nothing). `status` is left out where the screen already says it
+ * (a list filtered to one stage).
+ */
+export function DeskRow({
+  module,
+  icon,
+  title,
+  subtitle,
+  note,
+  value,
+  status,
+  onPress,
+  accessibilityLabel,
+}: {
+  module: ModuleKey;
+  icon: LucideIcon;
+  title: string;
+  subtitle?: string | null;
+  note?: string | null;
+  value?: string | null;
+  status?: { label: string; tone: StatusTone } | null;
+  onPress?: () => void;
+  accessibilityLabel?: string;
+}) {
+  // The kit's ActivityRow with the pill under the text; it also moves the amount under the text when
+  // a 320 dp row would leave the title a sliver.
   return (
     <ActivityRow
+      module={module}
+      icon={icon}
+      title={title}
+      subtitle={subtitle}
+      note={note}
+      value={value}
+      status={status}
+      statusPlacement="below"
+      chevron={!!onPress}
+      onPress={onPress}
+      accessibilityLabel={accessibilityLabel ?? [title, subtitle, note, value, status?.label].filter(Boolean).join(', ')}
+    />
+  );
+}
+
+/** One row for anything on the desk: who (or the vendor), what and its code, the amount; the stage under the text. */
+export function ItemRow({ item, today, onPress, note, hideStage }: { item: AccountsItem; today: string; onPress?: () => void; note?: string | null; hideStage?: boolean }) {
+  const t = TYPE_META[item.type];
+  const code = item.kekaCode ? ` · ${item.kekaCode}` : '';
+  const stage = STAGE_META[item.stage];
+  return (
+    <DeskRow
       module={t.module}
       icon={t.icon}
       title={item.title}
       subtitle={`${item.what}${code}`}
       note={note ?? `${item.type === 'bill' ? `Sent by ${item.person} · ` : ''}${shortDate(item.at, today)}${item.own ? ' · Yours' : ''}`}
       value={rowMoney(item.amount)}
-      status={{ label: STAGE_META[item.stage].label, tone: STAGE_META[item.stage].tone }}
-      chevron={!!onPress}
+      status={hideStage ? null : { label: stage.label, tone: stage.tone }}
       onPress={onPress}
-      accessibilityLabel={`${item.title}, ${item.what}, ${rowMoney(item.amount)}, ${STAGE_META[item.stage].label}`}
+      accessibilityLabel={`${item.title}, ${item.what}, ${rowMoney(item.amount)}, ${stage.label}`}
     />
   );
 }
@@ -203,30 +249,7 @@ export function ReasonConfirmSheet({
 // ── Switch row ───────────────────────────────────────────────────────────────
 // The whole row is the button (one 'switch' stop for screen readers); the Switch only shows the state.
 export function ToggleRow({ label, sub, value, onChange, disabled, left }: { label: string; sub?: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean; left?: ReactNode }) {
-  const offTrack = isDarkScheme() ? palette.hairline : palette.surfaceSunken;
-  return (
-    <Pressable
-      onPress={() => onChange(!value)}
-      disabled={disabled}
-      accessibilityRole="switch"
-      accessibilityLabel={label}
-      accessibilityHint={sub}
-      accessibilityState={{ checked: value, disabled: !!disabled }}
-      style={({ pressed }) => [styles.toggle, pressed && styles.pressed, disabled && styles.disabled]}>
-      <ListRow
-        title={label}
-        subtitle={sub}
-        left={left}
-        numberOfLines={2}
-        subtitleLines={2}
-        right={
-          <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Switch value={value} trackColor={{ false: offTrack, true: palette.accentDeep }} thumbColor={palette.onAccent} ios_backgroundColor={offTrack} />
-          </View>
-        }
-      />
-    </Pressable>
-  );
+  return <SwitchRow title={label} subtitle={sub} value={value} onChange={onChange} disabled={disabled} left={left} subtitleLines={2} />;
 }
 
 const styles = themedStyles(() => ({

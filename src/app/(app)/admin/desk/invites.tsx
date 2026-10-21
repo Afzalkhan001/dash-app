@@ -3,8 +3,8 @@
 // Same pieces as the employee's Your invitations: a light SummaryHero (guests coming, who is next,
 // "Invite a visitor"), then upcoming and earlier invitations; a row opens the code with Share pass /
 // Cancel invite (features/visitors/invites). New invites use the shared form, /visitors/invite.
-// "Passes with a QR" (features/deskqr/pass-sheet): each active upcoming invite's pass with a real QR of its
-// code, to print or share — reception scans it at the door (Scan a pass).
+// "Visitor passes" (features/deskqr/pass-sheet): one row that opens a picker of the active upcoming invites;
+// each pass has a real QR of its code, to print or share — reception scans it at the door (Scan a pass).
 
 import { Redirect, useRouter } from 'expo-router';
 import { QrCode, ScanLine, Ticket, UserPlus } from 'lucide-react-native';
@@ -24,7 +24,7 @@ import { dateLabel, timeWindow } from '@/features/visitors/format';
 import { asInvites, guestName, InviteList, splitInvites } from '@/features/visitors/invites';
 import { useAccess } from '@/lib/use-access';
 import { palette, radius } from '@/theme/tokens';
-import { EmptyState, ErrorState, ListCard, ListRow, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero } from '@/ui';
+import { EmptyState, ErrorState, ListCard, ListRow, MenuSheet, ModuleBadge, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero } from '@/ui';
 
 export default function DeskInvitesScreen() {
   const access = useAccess();
@@ -35,6 +35,7 @@ export default function DeskInvitesScreen() {
   const qr = useDeskQr(allowed);
   const me = useSession((s) => s.user?.name) ?? '';
   const [pass, setPass] = useState<Invite | null>(null);
+  const [picking, setPicking] = useState(false);
 
   if (!allowed) return <Redirect href="/" />;
 
@@ -66,19 +67,19 @@ export default function DeskInvitesScreen() {
         sub={next ? `Next: ${guestName(next)} · ${dateLabel(next.visitDate, today)}` : list.length ? 'Nobody is due. Invite someone when you need to.' : undefined}
         action={{ title: 'Invite a visitor', icon: <UserPlus />, onPress: () => router.push(DESK_ROUTES.invite) }}
       />
+      {/* One row, not a second copy of the Upcoming list: it opens a short picker of who to make a pass for. */}
       {upcoming.length ? (
-        <ListCard title="Passes with a QR">
-          {upcoming.map((i) => (
-            <ListRow
-              key={i.id}
-              left={<QrCode size={22} color={palette.primaryText} strokeWidth={1.8} />}
-              title={guestName(i)}
-              subtitle={[dateLabel(i.visitDate, today), timeWindow(i.timeFrom, i.timeTo)].filter(Boolean).join(' · ')}
-              chevron
-              onPress={() => setPass(i)}
-              accessibilityHint="Shows the visitor pass with its QR code"
-            />
-          ))}
+        <ListCard>
+          <ListRow
+            size="lg"
+            left={<ModuleBadge module="visitors" icon={QrCode} />}
+            title="Visitor passes"
+            subtitle={upcoming.length === 1 ? `A pass with a QR code for ${guestName(upcoming[0]!)}, to print or share` : `${upcoming.length} passes with a QR code, to print or share`}
+            subtitleLines={2}
+            chevron
+            onPress={() => (upcoming.length === 1 ? setPass(upcoming[0]!) : setPicking(true))}
+            accessibilityHint="Shows a visitor pass with its QR code"
+          />
         </ListCard>
       ) : null}
       {list.length ? (
@@ -90,6 +91,19 @@ export default function DeskInvitesScreen() {
       ) : (
         <EmptyState icon={<Ticket color={palette.textMuted} />} title="No invitations yet" message="Guests you invite show up here with their check-in code." />
       )}
+      <MenuSheet
+        visible={picking}
+        onClose={() => setPicking(false)}
+        title="Whose pass?"
+        subtitle="Reception scans its QR to check them in."
+        items={upcoming.map((i) => ({
+          key: i.id,
+          label: guestName(i),
+          hint: [dateLabel(i.visitDate, today), timeWindow(i.timeFrom, i.timeTo)].filter(Boolean).join(' · '),
+          icon: QrCode,
+          onPress: () => setPass(i),
+        }))}
+      />
       <PassSheet invite={pass} company={qr.data?.companyName ?? ''} host={me} today={today} onClose={() => setPass(null)} />
     </Screen>
   );

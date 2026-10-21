@@ -954,8 +954,6 @@ export function SparkCard({
               {dot ? (
                 <>
                   <Line x1={dot.x} x2={dot.x} y1={dot.y + 7} y2={SPARK_H - 12} stroke={palette.textFaint} strokeOpacity={0.6} strokeWidth={1.2} strokeDasharray="2 4" strokeLinecap="round" />
-                  <Polygon points={`${dot.x - 4} ${SPARK_H - 6} ${dot.x - 9} ${SPARK_H - 3} ${dot.x - 4} ${SPARK_H}`} fill={palette.textFaint} fillOpacity={0.55} />
-                  <Polygon points={`${dot.x + 4} ${SPARK_H - 6} ${dot.x + 9} ${SPARK_H - 3} ${dot.x + 4} ${SPARK_H}`} fill={palette.textFaint} fillOpacity={0.55} />
                   <Circle cx={dot.x} cy={dot.y} r={8} fill={color} fillOpacity={0.22} />
                   <Circle cx={dot.x} cy={dot.y} r={4.2} fill={color} stroke={palette.surface} strokeWidth={1.5} />
                 </>
@@ -1097,10 +1095,14 @@ export function StripedProgress({
   const inner = Math.max(0, tw - 2); // inside the track's 1 dp rim
   const fillH = Math.max(2, height - 2);
   const fillStyle = useAnimatedStyle(() => ({ width: p.get() * inner }), [inner]);
-  const thumbStyle = useAnimatedStyle(
-    () => ({ transform: [{ translateX: Math.min(Math.max(p.get() * tw - thumbW / 2, 0), Math.max(0, tw - thumbW)) }] }),
-    [tw, thumbW],
-  );
+  // The % thumb rides just past a short fill (so it never hides it: "11%", "0%") and slides to centre
+  // on the fill's end once the fill is twice its width; in between it moves smoothly.
+  const thumbStyle = useAnimatedStyle(() => {
+    const end = p.get() * tw;
+    const t = thumbW > 0 ? Math.min(1, Math.max(0, (end - thumbW) / thumbW)) : 1;
+    const x = end + 4 - t * (thumbW / 2 + 4);
+    return { transform: [{ translateX: Math.min(Math.max(x, 0), Math.max(0, tw - thumbW)) }] };
+  }, [tw, thumbW]);
 
   return (
     <View

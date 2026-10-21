@@ -111,9 +111,9 @@ export default function NewChatScreen() {
 
       {group ? (
         <View style={{ gap: space.xs }}>
-          <PillField icon={Type} placeholder="Group name, e.g. Post Production" value={name} onChangeText={setName} maxLength={100} accessibilityLabel="Group name" />
+          <PillField icon={Type} placeholder="Group name" value={name} onChangeText={setName} maxLength={100} accessibilityLabel="Group name" />
           <Text variant="caption" muted>
-            {picked.length ? `${plural(picked.length, 'person', 'people')} picked. You can add more later.` : 'You can add more people later.'}
+            {picked.length ? `${plural(picked.length, 'person', 'people')} picked. You can add more later.` : 'For example “Post Production”. You can add people later too.'}
           </Text>
         </View>
       ) : (

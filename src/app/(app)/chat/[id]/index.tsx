@@ -16,7 +16,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Info, Trash2 } from 'lucide-react-native';
+import { Info, MessageCircle, Trash2 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, FlatList, View } from 'react-native';
 
@@ -276,7 +276,7 @@ export default function ThreadScreen() {
   } else if (!newestFirst.length) {
     body = (
       <View style={styles.empty}>
-        <EmptyState title="No messages yet" message={canPost ? 'Say hello to get things going.' : 'Nothing was said before you left.'} />
+        <EmptyState icon={<MessageCircle color={palette.textMuted} />} title="No messages yet" message={canPost ? 'Say hello to get things going.' : 'Nothing was said before you left.'} />
       </View>
     );
   } else {

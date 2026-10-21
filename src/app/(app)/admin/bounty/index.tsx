@@ -138,7 +138,8 @@ function Hub() {
             onPress={() => router.push('/admin/bounty/tasks')}
           />
         ) : null}
-        {g.distribute ? (
+        {/* The company-wallet hero already carries "Give coins" for Super Admin, CEO and COO. */}
+        {g.distribute && !g.superTier ? (
           <ActivityRow module="bounty" icon={HandCoins} title="Give coins" subtitle="Fund task posters and referral bonuses" chevron onPress={() => router.push('/admin/bounty/distribute')} />
         ) : null}
         {g.creators ? (

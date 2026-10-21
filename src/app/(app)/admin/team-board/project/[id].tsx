@@ -135,7 +135,7 @@ function ProjectScreen({ board }: { board: Board }) {
   const p = projectQ.data?.project;
   const header = (
     <NavHeader
-      title={p?.name || 'Project'}
+      title="Project"
       actions={
         p
           ? [
@@ -213,15 +213,15 @@ function ProjectScreen({ board }: { board: Board }) {
         rows={[
           { key: 'lead', label: 'Lead', value: p.lead_name || '—' },
           { key: 'code', label: 'Project code', value: p.keka_code || null },
+          { key: 'logged', label: 'Time logged', value: hoursLabel(logged) },
         ]}
       />
 
-      <StatGrid columns={3}>
+      <StatGrid columns={2}>
         <StatTile variant="light" label="Tasks" value={trackable.length} module="tasks" />
         <StatTile variant="light" label="Done" value={done} module="tasks" />
         <StatTile variant="light" label="In progress" value={trackable.filter((t) => t.status === 'in_progress').length} module="tasks" />
         <StatTile variant="light" label="Overdue" value={overdue} valueColor={overdue ? palette.dangerInk : undefined} />
-        <StatTile variant="light" label="Logged" value={hoursLabel(logged)} />
       </StatGrid>
 
       <SectionHeader title={`Teams (${teams.length})`} />

@@ -5,7 +5,8 @@
 //      there (Accounts reviews it; the server only takes change requests from approved vendors),
 //   3. your change requests (latest 3) and your documents (each opens the file),
 //   4. Account: password, Google (only when linked), "Email Tamada" (the Tamada contact's address, when
-//      there is one) and Sign out (POST /vendor/auth/logout, then the token is forgotten).
+//      there is one), "Show me around"; then Sign out in a card of its own (POST /vendor/auth/logout,
+//      then the token is forgotten).
 // Look (docs/REFERENCE-COMPONENTS.md §3, Payno profile): the tab-root bar (centred "Profile"), a frosted
 // profile card (initials avatar, the business name, phone, Vendor ID, status), then each group as an
 // ActivityList — a small title (with a "See all" text link where there is more) over one card of rows.
@@ -62,15 +63,8 @@ type DetailSection = {
   changeFields?: string[];
 };
 
-// Rows wear the vendor module colour; a row with its own colour (Sign out in red) keeps that colour.
-const rowIcon = (Icon: LucideIcon, color?: string) =>
-  color ? (
-    <IconBadge>
-      <Icon size={20} color={color} strokeWidth={1.8} />
-    </IconBadge>
-  ) : (
-    <ModuleBadge module="vendor" icon={Icon} />
-  );
+// Rows wear the vendor module colour (Sign out has its own danger-tinted badge).
+const rowIcon = (Icon: LucideIcon) => <ModuleBadge module="vendor" icon={Icon} />;
 
 export default function VendorProfile() {
   const { gap } = useLayout();
@@ -348,12 +342,21 @@ export default function VendorProfile() {
             />
           ) : null}
           <ShowMeAroundRow kind="vendor" left={(icon) => rowIcon(icon)} />
+        </ActivityList>
+
+        {/* Sign out in a card of its own (as in the staff More tab), never one slip away from a link. */}
+        <ActivityList>
           <ListRow
-            left={rowIcon(LogOut, palette.dangerInk)}
+            left={
+              <IconBadge bg={palette.dangerSoft}>
+                <LogOut size={20} color={palette.dangerInk} strokeWidth={2} />
+              </IconBadge>
+            }
             title={signingOut ? 'Signing out…' : 'Sign out'}
             titleColor={palette.dangerInk}
             disabled={signingOut}
             onPress={confirmSignOut}
+            accessibilityHint="Asks before signing you out"
           />
         </ActivityList>
       </Screen>

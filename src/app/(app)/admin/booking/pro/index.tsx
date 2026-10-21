@@ -12,13 +12,12 @@ import { useAllBookings, useBookingDepartments, useBookingFeed, useBookingUsers 
 import { useTodayIst } from '@/features/attendance/use-now';
 import { canBook } from '@/features/booking/access';
 import { activeProfTypes, availablePros, citiesOf, proBookingsOn, profTypeLabel, ratingOf, specsOf } from '@/features/booking/model';
-import { DayStrip, useMe, useProfTypes } from '@/features/booking/ui';
+import { DayStrip, StackedRow, useMe, useProfTypes } from '@/features/booking/ui';
 import { dateLabel } from '@/lib/dates';
 import { useAccess } from '@/lib/use-access';
 import { palette } from '@/theme/tokens';
 import {
   ActivityList,
-  ActivityRow,
   Chip,
   ChipRow,
   EmptyState,
@@ -111,16 +110,15 @@ export default function BookProSearchScreen() {
                   const r = ratingOf(rated.data ?? feed.data!, u.id);
                   const busy = proBookingsOn(feed.data!, u.id, date).length > 0;
                   return (
-                    <ActivityRow
+                    <StackedRow
                       key={u.id}
                       person={{ name: u.name }}
                       title={u.name}
                       subtitle={[profTypeLabel(types, u.professionalType), deptName(u.dept), u.location].filter(Boolean).join(' · ')}
                       note={u.specializations.join(', ') || undefined}
                       value={r ? `★ ${r.avg.toFixed(1)}` : undefined}
-                      meta={r ? `${r.count} review${r.count === 1 ? '' : 's'}` : undefined}
+                      valueMeta={r ? `${r.count} review${r.count === 1 ? '' : 's'}` : undefined}
                       status={busy ? { label: 'Partly booked', tone: 'pending' } : { label: 'Free', tone: 'done' }}
-                      chevron
                       onPress={() => router.push(`/admin/booking/pro/${encodeURIComponent(u.id)}?date=${date}`)}
                     />
                   );

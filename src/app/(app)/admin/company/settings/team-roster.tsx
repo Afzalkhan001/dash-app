@@ -51,11 +51,14 @@ export default function TeamRosterAccessScreen() {
 
   const sub = (x: TeamRosterDept) =>
     x.adminId
-      ? [`Admin: ${x.adminName || 'unnamed'}`, plural(x.managerCount, 'manager'), plural(x.teamCount, 'team')].join(' · ')
+      ? [
+          `Admin: ${x.adminName || 'unnamed'}`,
+          x.managerCount || x.teamCount ? `${plural(x.managerCount, 'manager')} · ${plural(x.teamCount, 'team')}` : 'No teams yet',
+        ].join(' · ')
       : 'Give it a department admin first';
 
   return (
-    <Screen header={<NavHeader title="Team Roster by department" />} onRefresh={() => q.refetch()}>
+    <Screen header={<NavHeader title="Team Roster" subtitle="By department" />} onRefresh={() => q.refetch()}>
       {q.isPending ? (
         <SkeletonList rows={6} />
       ) : q.isError && !d ? (
@@ -68,7 +71,8 @@ export default function TeamRosterAccessScreen() {
           action={<Button title="Company settings" variant="accent" size="md" onPress={() => router.back()} />}
         />
       ) : d ? (
-        <>
+        // A View, not a fragment: Screen spaces its direct children only.
+        <View style={{ gap }}>
           <Text variant="body" muted>
             Departments switched on here can run teams, projects and timed tasks with the same people and roles as the rest of DASH.
           </Text>
@@ -93,7 +97,7 @@ export default function TeamRosterAccessScreen() {
               <EmptyState title={n ? 'No department matches' : 'No departments yet'} />
             )}
           </View>
-        </>
+        </View>
       ) : null}
 
       <ConfirmSheet

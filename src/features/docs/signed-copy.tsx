@@ -2,6 +2,8 @@
 // Document" download (buildSignedAgreementPdf, dash.html:32516): every page of the draft with the vendor's
 // (and the countersigner's) signature drawn on the spots marked for them, labelled with who signed and
 // when, then a signature certificate page with the reference numbers. Made on the phone; nothing is sent.
+// A countersigner who is neither drafter nor overseer finds the agreement in the copy this phone kept when
+// they signed (features/docs/countersigned); the server still serves them the files.
 
 import { useQuery } from '@tanstack/react-query';
 import { Redirect } from 'expo-router';
@@ -11,14 +13,16 @@ import { Platform, View } from 'react-native';
 
 import { fetchAgreementDraft, fetchAgreementSignature, useAgreements, useBillVendors, usePendingMySignature } from '@/api/accounts';
 import { isApiError } from '@/api/client';
-import { useNow } from '@/features/attendance/use-now';
+import { useNow, useTodayIst } from '@/features/attendance/use-now';
 import { agreementStatus } from '@/features/accounts/vendor-format';
 import { canSignedCopy } from '@/features/docs/access';
+import { useCountersigned, withCountersigned } from '@/features/docs/countersigned';
 import { shareLabel } from '@/features/docs/doc-screen';
 import { b64Of, type Marker, PagePager, PdfPageView } from '@/features/docs/pdf-viewer';
 import { pdfDate, signedAgreementHtml, type StampedPage } from '@/features/docs/templates';
 import type { WebFrameHandle, WebFrameMessage } from '@/features/docs/web-frame';
 import { MissingItem } from '@/features/inbox/detail';
+import { dateLabel } from '@/lib/dates';
 import { FileError } from '@/lib/files';
 import { printPdf, sharePdf } from '@/lib/pdf';
 import { useAccess } from '@/lib/use-access';
@@ -26,16 +30,18 @@ import { space } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
 import { ActionBar, Banner, Button, ErrorState, NavHeader, Screen, Skeleton, SummaryCard, SummaryHero, Text, toast } from '@/ui';
 
-type Files = { draft: string; vendorSig: string; internalSig: string };
+type Files = { draft: string; vendorSig: string; internalSig: string; internalAt: string; internalBy: string };
 
 export function SignedCopyScreen({ id }: { id: string }) {
   const access = useAccess();
   const now = useNow();
+  const today = useTodayIst();
   const allowed = canSignedCopy(access);
   const listQ = useAgreements({}, allowed);
   const pendingQ = usePendingMySignature(allowed);
   const vendorsQ = useBillVendors(allowed);
-  const a = [...(listQ.data?.agreements ?? []), ...(pendingQ.data ?? [])].find((x) => x.id === id) ?? null;
+  const keptQ = useCountersigned(allowed);
+  let a = withCountersigned([...(listQ.data?.agreements ?? []), ...(pendingQ.data ?? [])], keptQ.data).find((x) => x.id === id) ?? null;
   const filesQ = useQuery({
     queryKey: ['docs', 'agreement-files', access.user?.id, id, a?.signed_at ?? '', a?.internal_signed_at ?? ''],
     enabled: allowed && !!a,
@@ -49,7 +55,8 @@ export function SignedCopyScreen({ id }: { id: string }) {
       ]);
       if (isApiError(d)) throw new Error(d.error);
       const sig = (r: typeof v) => (r && !isApiError(r) && r.fileData ? (r.fileData.startsWith('data:') ? r.fileData : `data:${r.mimeType || 'image/png'};base64,${r.fileData}`) : '');
-      return { draft: b64Of(d.fileData), vendorSig: sig(v), internalSig: sig(i) };
+      const iMeta = i && !isApiError(i) ? i : null;
+      return { draft: b64Of(d.fileData), vendorSig: sig(v), internalSig: sig(i), internalAt: iMeta?.signedAt || '', internalBy: iMeta?.signerName || '' };
     },
   });
   const frame = useRef<WebFrameHandle>(null);
@@ -60,7 +67,7 @@ export function SignedCopyScreen({ id }: { id: string }) {
 
   if (!allowed) return <Redirect href="/" />;
   if (!a) {
-    if (listQ.isPending || pendingQ.isPending)
+    if (listQ.isPending || pendingQ.isPending || keptQ.isPending)
       return (
         <Screen header={<NavHeader title="Signed copy" />}>
           <Skeleton height={180} radius={28} />
@@ -69,6 +76,9 @@ export function SignedCopyScreen({ id }: { id: string }) {
     return <MissingItem title="Signed copy" />;
   }
 
+  // A copy remembered on this phone carries the phone's clock for the countersignature; the server's own
+  // time and name (from the countersignature itself) replace it once the files are in.
+  if (filesQ.data?.internalAt && a.internal_signed_at) a = { ...a, internal_signed_at: filesQ.data.internalAt, signer_name: filesQ.data.internalBy || a.signer_name };
   const vendor = (vendorsQ.data ?? []).find((v) => v.id === a.vendor_id)?.legalEntityName || 'Vendor';
   const st = agreementStatus(a, now);
   const positions = Array.isArray(a.sign_positions) ? a.sign_positions : [];
@@ -130,8 +140,8 @@ export function SignedCopyScreen({ id }: { id: string }) {
       <SummaryCard
         hideEmpty
         rows={[
-          { key: 'v', label: 'Vendor signed', value: a.signed_at ? pdfDate(a.signed_at) : null, hint: a.signature_reference ? `Ref ${a.signature_reference}` : null },
-          { key: 'i', label: 'Countersigned', value: a.internal_signed_at ? pdfDate(a.internal_signed_at) : null, hint: a.signer_name || null },
+          { key: 'v', label: 'Vendor signed', value: a.signed_at ? dateLabel(a.signed_at, today) : null, hint: a.signature_reference ? `Ref ${a.signature_reference}` : null },
+          { key: 'i', label: 'Countersigned', value: a.internal_signed_at ? dateLabel(a.internal_signed_at, today) : null, hint: a.signer_name || null },
           { key: 's', label: 'Sign spots', value: String(positions.length) },
         ]}
       />

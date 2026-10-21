@@ -44,9 +44,9 @@ export function PassSheet({ invite, company, host, today, onClose }: { invite: I
         <View style={styles.body}>
           <QrImage value={passPayload(code)} size={200} label={`Visitor pass QR for ${guestName(invite)}, code ${code}`} />
           <Text variant="caption" muted align="center">
-            CHECK-IN CODE
+            Check-in code
           </Text>
-          <Text variant="title" align="center" style={styles.code} accessibilityLabel={`Code ${code.split('').join(' ')}`}>
+          <Text variant="title" tabular align="center" style={styles.code} accessibilityLabel={`Code ${code.split('').join(' ')}`}>
             {code.split('').join(' ')}
           </Text>
           <SummaryCard

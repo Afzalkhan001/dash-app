@@ -1,7 +1,7 @@
 // Office TVs — the website's Config › TV Displays card (dash.html TvDisplaysCard :2864) for Super
 // Admin (CEO and COO share that menu). Each paired TV with its online dot, branch, what it is showing
 // and when it was last seen, refreshed every 20 s while this screen is on top (the website's own
-// rhythm); "+" pairs a new TV by the 6-digit code on its screen. Playlists are shown read only — the
+// rhythm); the hero's "Add a TV" pairs a new TV by the 6-digit code on its screen. Playlists are shown read only — the
 // playlist editor (ordered rows with durations and date windows) stays on the website. Custom TV media
 // (a picture or video that plays on EVERY TV) can be added and removed here, both swiped to confirm.
 
@@ -15,11 +15,11 @@ import { useNow } from '@/features/attendance/use-now';
 import { agoLabel, playlistName, tvOnline, tvPlatformLabel } from '@/features/newsroom/format';
 import { useNewsroomAccess } from '@/features/newsroom/gate';
 import { FileError, type PickedFile, pickDocument, pickImage } from '@/lib/files';
-import { palette } from '@/theme/tokens';
+import { StatusRow } from '@/features/hiring/ui';
+import { palette, radius } from '@/theme/tokens';
 import {
   ActivityList,
   ActivityRow,
-  Banner,
   Button,
   ConfirmSheet,
   EmptyState,
@@ -28,8 +28,9 @@ import {
   MenuSheet,
   NavHeader,
   Screen,
+  Skeleton,
   SummaryCard,
-  Text,
+  SummaryHero,
   toast,
 } from '@/ui';
 
@@ -56,8 +57,10 @@ export default function OfficeTvsScreen() {
   const titleOf = (id?: string | null) => {
     if (!id) return null;
     const a = (posts.data ?? []).find((x) => x.id === id);
-    return a ? a.title || '(untitled)' : 'A post';
+    return a ? a.title || 'Untitled post' : 'A post';
   };
+
+  const addTv = () => router.push('/admin/news/tvs/add');
 
   const choose = async (type: 'image' | 'video') => {
     setMenu(false);
@@ -76,13 +79,21 @@ export default function OfficeTvsScreen() {
 
   return (
     <Screen
-      header={<NavHeader title="Office TVs" subtitle={devices.data ? `${list.length} paired · ${online} online` : undefined} actions={[{ key: 'add', icon: Plus, label: 'Add a TV', onPress: () => router.push('/admin/news/tvs/add') }]} />}
+      header={<NavHeader title="Office TVs" />}
       onRefresh={() => Promise.all([devices.refetch(), playlists.refetch(), media.refetch()])}>
-      <Banner
-        tone="info"
-        title="Add a TV in a minute"
-        message="Open the Dash TV app on the TV (or dash-tv-web.vercel.app in its browser), then tap + and type the 6-digit code it shows."
-      />
+      {devices.isPending ? (
+        <Skeleton height={228} radius={radius.xxl} />
+      ) : devices.isError && !devices.data ? null : (
+        <SummaryHero
+          icon={Tv}
+          module="news"
+          label="TVs online"
+          value={online}
+          unit={`of ${list.length}`}
+          sub={list.length ? 'Pair another TV with the 6-digit code on its screen.' : 'Pair the first TV with the 6-digit code on its screen.'}
+          action={{ title: 'Add a TV', icon: <Plus />, onPress: addTv }}
+        />
+      )}
 
       {devices.isError && !devices.data ? (
         <ErrorState message={devices.error?.message ?? 'TVs could not be loaded.'} onRetry={() => void devices.refetch()} />
@@ -94,15 +105,14 @@ export default function OfficeTvsScreen() {
             <EmptyState
               icon={<Tv color={palette.textMuted} strokeWidth={1.8} />}
               title="No TVs yet"
-              message="Pair the first one with the code on its screen."
-              action={<Button title="Add a TV" icon={<Plus />} onPress={() => router.push('/admin/news/tvs/add')} />}
+              message="Open the Dash TV app on the TV, then tap Add a TV above and type the code it shows."
             />
           }>
           {list.map((d) => {
             const on = tvOnline(d);
             const showing = titleOf(d.currentAnnouncementId);
             return (
-              <ActivityRow
+              <StatusRow
                 key={d.id}
                 module="news"
                 icon={Tv}
@@ -119,9 +129,15 @@ export default function OfficeTvsScreen() {
         </ActivityList>
       )}
 
-      <ActivityList title="Playlists" loading={playlists.isPending} empty="No playlists. A TV without one shows every published post for its branch, most important first.">
+      <ActivityList
+        title="Playlists"
+        onSeeAll={() => router.push('/admin/advanced/playlists')}
+        seeAllLabel="Manage"
+        seeAllAccessibilityLabel="Manage playlists and choose which one each TV plays"
+        loading={playlists.isPending}
+        empty="No playlists. A TV without one shows every published post for its branch, most important first.">
         {lists.map((p) => (
-          <ActivityRow
+          <StatusRow
             key={p.id}
             module="news"
             icon={ListVideo}
@@ -131,10 +147,6 @@ export default function OfficeTvsScreen() {
           />
         ))}
       </ActivityList>
-      <Button variant="text" title="Make or change playlists" onPress={() => router.push('/admin/advanced/playlists')} />
-      <Text variant="caption" muted align="center">
-        Here you choose which one each TV plays.
-      </Text>
 
       <ActivityList
         title="Custom TV media"

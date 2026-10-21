@@ -5,7 +5,7 @@
 import { Redirect } from 'expo-router';
 import { Check, Minus, Plus } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Pressable, Switch, View } from 'react-native';
+import { View } from 'react-native';
 
 import { useHrMe } from '@/api/me';
 import { hrTimeGates, type HrTimeGates } from '@/features/hrtime/access';
@@ -13,7 +13,7 @@ import { WEEKDAYS } from '@/features/attendance/format';
 import { useAccess } from '@/lib/use-access';
 import { themedStyles } from '@/theme/themed';
 import { palette, radius, space } from '@/theme/tokens';
-import { Chip, ChipRow, FieldMessage, IconButton, isDarkScheme, ListRow, PillField, Screen, SkeletonList, Text } from '@/ui';
+import { Chip, ChipRow, FieldMessage, IconButton, PillField, Screen, SkeletonList, SwitchRow, Text } from '@/ui';
 
 // ── Gate ─────────────────────────────────────────────────────────────────────
 /**
@@ -64,43 +64,25 @@ export const fmtDays = (n: number) => (Number.isInteger(n) ? String(n) : n.toFix
 
 // ── Switch row ───────────────────────────────────────────────────────────────
 // The whole row is the button (one 'switch' stop for screen readers); the Switch only shows the state,
-// as features/more/security-card does.
+// as features/more/security-card does. `flush` is for a row placed straight inside a padded card
+// among fields: it pulls the row out by the ListRow's own padding (less the 4 dp field-label inset),
+// so its label lines up with the field labels above and below it.
 export function ToggleRow({
   label,
   sub,
   value,
   onChange,
   disabled,
+  flush,
 }: {
   label: string;
   sub?: string;
   value: boolean;
   onChange: (v: boolean) => void;
   disabled?: boolean;
+  flush?: boolean;
 }) {
-  const offTrack = isDarkScheme() ? palette.hairline : palette.surfaceSunken;
-  return (
-    <Pressable
-      onPress={() => onChange(!value)}
-      disabled={disabled}
-      accessibilityRole="switch"
-      accessibilityLabel={label}
-      accessibilityHint={sub}
-      accessibilityState={{ checked: value, disabled: !!disabled }}
-      style={({ pressed }) => [styles.toggle, pressed && styles.pressed, disabled && styles.disabled]}>
-      <ListRow
-        title={label}
-        subtitle={sub}
-        numberOfLines={2}
-        subtitleLines={3}
-        right={
-          <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Switch value={value} trackColor={{ false: offTrack, true: palette.accentDeep }} thumbColor={palette.onAccent} ios_backgroundColor={offTrack} />
-          </View>
-        }
-      />
-    </Pressable>
-  );
+  return <SwitchRow title={label} subtitle={sub} value={value} onChange={onChange} disabled={disabled} flush={flush} />;
 }
 
 // ── Weekly off ───────────────────────────────────────────────────────────────
@@ -108,7 +90,7 @@ export function WeekdayChips({ label = 'Weekly off', value, onChange, error }: {
   const set = cleanDays(value);
   return (
     <View style={styles.group}>
-      <Text variant="labelStrong" muted>
+      <Text variant="labelStrong" muted style={styles.label}>
         {label}
       </Text>
       <ChipRow wrap bleed="none">
@@ -156,7 +138,7 @@ export function Stepper({
   const shown = `${value > 0 && min < 0 ? '+' : ''}${fmtDays(value)}${unit ? ` ${unit}` : ''}`;
   return (
     <View style={styles.group}>
-      <Text variant="labelStrong" muted>
+      <Text variant="labelStrong" muted style={styles.label}>
         {label}
       </Text>
       <View style={styles.stepper} accessibilityRole="adjustable" accessibilityLabel={label} accessibilityValue={{ text: shown }}
@@ -218,9 +200,12 @@ export function Tick({ on }: { on: boolean }) {
 
 const styles = themedStyles(() => ({
   toggle: { borderRadius: radius.md },
+  flush: { marginHorizontal: -(space.md - space.xxs) },
   pressed: { backgroundColor: palette.pressedTint },
   disabled: { opacity: 0.5 },
   group: { gap: space.xs },
+  // The PillField label inset, so these labels line up with the fields around them.
+  label: { paddingHorizontal: space.xxs },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   stepValue: { flex: 1 },
   tick: {

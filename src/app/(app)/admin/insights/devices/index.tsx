@@ -302,7 +302,7 @@ function DevicesScreen() {
         from={linkFor ? { title: linkFor.name || linkFor.email, subtitle: 'DASH', avatar: { name: linkFor.name || linkFor.email } } : undefined}
         to={{ title: 'TM360', subtitle: 'New account', icon: Link2, module: 'security' }}
         detailsTitle="What happens"
-        confirmLabel="Swipe to create the account"
+        confirmLabel="Swipe to create"
         onConfirm={() => void doLink()}
         loading={linking}
         note="Recorded in the DASH audit log. DASH sends no email or WhatsApp.">

@@ -27,6 +27,7 @@ import {
   ActionBar,
   ActivityList,
   ActivityRow,
+  Avatar,
   Banner,
   Button,
   Card,
@@ -83,13 +84,13 @@ function Distribute() {
   const err = !to
     ? 'Choose who gets the coins.'
     : !b && !r
-      ? 'Enter Bounty Coins, Referral Coins, or both.'
+      ? 'Enter bounty coins, referral coins, or both.'
       : b + r > available
         ? `The company wallet has ${coins(available)} coins left.`
         : b > 0 && !canBounty(to)
-          ? `${to.name} can’t post bounty tasks, so can’t get Bounty Coins.`
+          ? `${to.name} can’t post bounty tasks, so can’t get bounty coins.`
           : r > 0 && !canReferral(to)
-            ? `${to.name} can’t post job openings, so can’t get Referral Coins.`
+            ? `${to.name} can’t post job openings, so can’t get referral coins.`
             : null;
   // The website shows this tab to CEO and COO, but the server sends coins only for Super Admin
   // (server.js:5077), so say so before they try.
@@ -139,38 +140,37 @@ function Distribute() {
           <Banner tone="info" title="Only Super Admin can send" message="You can see the balances here, but DASH gives coins only when Super Admin sends them. Ask Super Admin to give coins." />
         ) : null}
 
-        <View style={{ gap: space.md }}>
-          {to ? (
-            <AccountRow
-              icon={UserRound}
-              module="bounty"
-              title={to.name}
-              sub={`${roleLabel(to.role)}${to.employeeNumber ? ` · ${to.employeeNumber}` : ''}`}
-              onChange={() => setPick(true)}
-              actionAccessibilityLabel="Choose someone else"
-            />
-          ) : (
-            <Button title="Choose who gets the coins" variant="ghost" icon={<UserRound />} onPress={() => setPick(true)} />
-          )}
+        {/* Who first (Payno's account row with a Change pill), then the amounts in one card. */}
+        <AccountRow
+          left={to ? <Avatar name={to.name} size={44} ring={false} /> : undefined}
+          icon={to ? undefined : UserRound}
+          module="bounty"
+          title={to ? to.name : 'Who gets the coins'}
+          sub={to ? `${roleLabel(to.role)}${to.employeeNumber ? ` · ${to.employeeNumber}` : ''}` : 'A task poster or HR person'}
+          actionLabel={to ? 'Change' : 'Choose'}
+          onChange={() => setPick(true)}
+          actionAccessibilityLabel={to ? 'Choose someone else' : 'Choose who gets the coins'}
+        />
+        <Card style={{ gap: space.md }}>
           <CoinsField
-            label="Bounty Coins"
+            label="Bounty coins"
             value={bounty}
             onChange={setBounty}
-            hint={to && !canBounty(to) ? `${to.name} can’t post bounty tasks, so can’t get Bounty Coins.` : 'They fund bounty tasks.'}
+            hint={to && !canBounty(to) ? `${to.name} can’t post bounty tasks, so can’t get bounty coins.` : 'They fund bounty tasks.'}
             error={to && b > 0 && !canBounty(to) ? `${to.name} can’t post bounty tasks.` : null}
           />
           <CoinsField
-            label="Referral Coins"
+            label="Referral coins"
             value={referral}
             onChange={setReferral}
-            hint={to && !canReferral(to) ? `${to.name} can’t post job openings, so can’t get Referral Coins.` : 'They fund referral bonuses on job openings.'}
+            hint={to && !canReferral(to) ? `${to.name} can’t post job openings, so can’t get referral coins.` : 'They fund referral bonuses on job openings.'}
             error={to && r > 0 && !canReferral(to) ? `${to.name} can’t post job openings.` : null}
           />
           <TextField label="Reason (optional)" value={reason} onChangeText={setReason} maxLength={200} placeholder="e.g. Q3 task budget" />
-        </View>
+        </Card>
 
         {creatorsQ.isLoading ? (
-          <SkeletonList rows={3} />
+          <SkeletonList rows={3} avatar tone="surface" />
         ) : rows.length ? (
           <ActivityList title="Balances">
             {rows.map((c) => (
@@ -214,8 +214,8 @@ function Distribute() {
         note="Coins move now. No message is sent. You can cancel it from the Ledger while the coins are unused.">
         <SummaryCard
           rows={[
-            { key: 'b', label: 'Bounty Coins', value: b ? coins(b) : '—' },
-            { key: 'r', label: 'Referral Coins', value: r ? coins(r) : '—' },
+            { key: 'b', label: 'Bounty coins', value: b ? coins(b) : '—' },
+            { key: 'r', label: 'Referral coins', value: r ? coins(r) : '—' },
             { key: 'why', label: 'Reason', value: reason.trim() || '—' },
           ]}
           total={{ label: 'Left to give', value: `${coins(Math.max(0, available - b - r))} coins` }}
@@ -226,7 +226,7 @@ function Distribute() {
         visible={!!done}
         onClose={() => setDone(null)}
         title="Coins given"
-        subtitle={done ? `${done.name} got ${[done.b ? `${coins(done.b)} Bounty Coins` : '', done.r ? `${coins(done.r)} Referral Coins` : ''].filter(Boolean).join(' and ')}.` : undefined}
+        subtitle={done ? `${done.name} got ${[done.b ? `${coins(done.b)} bounty coins` : '', done.r ? `${coins(done.r)} referral coins` : ''].filter(Boolean).join(' and ')}.` : undefined}
         secondaryLabel="Open ledger"
         onSecondary={() => {
           setDone(null);
@@ -256,7 +256,7 @@ function Distribute() {
         {open ? (
           <View style={{ gap: space.md }}>
             <SummaryCard
-              title="Bounty Coins"
+              title="Bounty coins"
               rows={[
                 { key: 'a', label: 'Received', value: coins(open.allocated) },
                 { key: 'h', label: 'Held in tasks', value: coins(open.reserved) },
@@ -266,7 +266,7 @@ function Distribute() {
               total={{ label: 'Left to use', value: `${coins(revocableOf(open))} coins` }}
             />
             <SummaryCard
-              title="Referral Coins"
+              title="Referral coins"
               rows={[
                 { key: 'a', label: 'Received', value: coins(open.referralAllocated) },
                 { key: 'h', label: 'Held', value: coins(open.referralReserved) },

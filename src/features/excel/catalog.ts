@@ -31,7 +31,7 @@ export type ImportDef = { key: ImportKey; title: string; subtitle: string; icon:
 
 export const IMPORTS: ImportDef[] = [
   { key: 'employees', title: 'Employees', subtitle: 'Add new people or update details by employee ID', icon: Users, module: 'people', href: '/admin/import/employees' },
-  { key: 'projects', title: 'Projects (Keka codes)', subtitle: 'Add many project codes at once', icon: FolderKanban, module: 'tasks', href: '/admin/import/projects' },
+  { key: 'projects', title: 'Projects', subtitle: 'Add many project codes at once', icon: FolderKanban, module: 'tasks', href: '/admin/import/projects' },
   { key: 'clients', title: 'Clients', subtitle: 'Add your clients from a sheet', icon: Briefcase, module: 'tasks', href: '/admin/import/clients' },
   { key: 'assets', title: 'Assets', subtitle: 'Add equipment, with who has it', icon: Package, module: 'support', href: '/admin/import/assets' },
   { key: 'subscriptions', title: 'Subscriptions', subtitle: 'Past subscriptions and payments', icon: CreditCard, module: 'expenses', href: '/admin/import/subscriptions' },
@@ -56,8 +56,8 @@ export const EXPORTS: ExportDef[] = [
   { key: 'roster', group: 'people', title: 'Employee roster', subtitle: 'Everyone, or only active, not signed up or resigned', icon: BookUser, module: 'people' },
   { key: 'people-timesheet', group: 'people', title: 'Someone’s timesheet', subtitle: 'The same sheet as My timesheet, for one person', icon: FileClock, module: 'timesheets' },
   { key: 'bookings', group: 'people', title: 'Someone’s bookings', subtitle: 'Approved bookings and whether work started', icon: UsersRound, module: 'tasks' },
-  { key: 'reports', group: 'work', title: 'Reports', subtitle: 'People, projects, Keka codes or the month grid', icon: ChartColumn, module: 'tasks' },
-  { key: 'keka', group: 'work', title: 'Keka code time', subtitle: 'Hours, locations and requests on one code', icon: Hash, module: 'tasks' },
+  { key: 'reports', group: 'work', title: 'Reports', subtitle: 'People, projects, project codes or the month grid', icon: ChartColumn, module: 'tasks' },
+  { key: 'keka', group: 'work', title: 'Project code time', subtitle: 'Hours, locations and requests on one code', icon: Hash, module: 'tasks' },
   { key: 'payroll', group: 'money', title: 'Payroll register', subtitle: 'Everyone’s pay for one month', icon: BadgeIndianRupee, module: 'pay' },
   { key: 'subscriptions', group: 'money', title: 'Subscriptions', subtitle: 'Subscriptions, payments and spend by department', icon: CreditCard, module: 'expenses' },
   { key: 'vendors', group: 'money', title: 'Vendor master', subtitle: 'Approved vendors (no bank details)', icon: Store, module: 'vendor' },
@@ -65,7 +65,7 @@ export const EXPORTS: ExportDef[] = [
   { key: 'assets', group: 'it', title: 'Asset register', subtitle: 'All, assigned, waiting for acknowledgement or warranty ending', icon: Package, module: 'support' },
   { key: 'servicedesk', group: 'it', title: 'Service desk', subtitle: 'Tickets and requests you can see', icon: LifeBuoy, module: 'support' },
   { key: 'devices', group: 'it', title: 'Device monitoring', subtitle: 'Who is linked in TM360 and their devices', icon: MonitorSmartphone, module: 'security' },
-  { key: 'tm360', group: 'it', title: 'TM360 activity for one person', subtitle: 'Summary, apps, sites, blocked items and location', icon: MonitorSmartphone, module: 'security' },
+  { key: 'tm360', group: 'it', title: 'TM360 activity', subtitle: 'One person: summary, apps, sites, blocked items and location', icon: MonitorSmartphone, module: 'security' },
   { key: 'audit', group: 'company', title: 'Activity audit', subtitle: 'Who did what, with before and after', icon: ScrollText, module: 'security' },
 ];
 

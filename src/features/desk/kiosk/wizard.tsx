@@ -62,6 +62,7 @@ import { firstName } from '@/lib/format';
 import { themedStyles } from '@/theme/themed';
 import { moduleTone, palette, radius, space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   ActionBar,
   ActionRow,
   Avatar,
@@ -397,7 +398,7 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
         ) : (
           <Text variant="body" muted align="center" style={styles.hint}>
             {!typed
-              ? 'Start typing the name of the person you are visiting.'
+              ? 'Matching names show here as you type.'
               : searching
                 ? 'Searching…'
                 : hosts.isError
@@ -511,7 +512,7 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
           hint="You get the answer on WhatsApp."
         />
         <View style={styles.group}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Purpose of visit
           </Text>
           {/* Wrapped, not a sideways scroll: all six reasons stay in sight on a 320 dp phone. */}
@@ -674,8 +675,8 @@ export function KioskHeader({ companyName, onAskExit }: { companyName: string; o
   return (
     <View style={styles.header}>
       <View style={styles.flex}>
-        <Text variant="micro" color={palette.primaryText} style={styles.eyebrow}>
-          VISITOR CHECK-IN
+        <Text variant="labelStrong" color={palette.primaryText} numberOfLines={1}>
+          Visitor check-in
         </Text>
         <Text variant="heading" numberOfLines={1}>
           {companyName || 'Welcome'}
@@ -823,7 +824,6 @@ export function KioskLinkDead({ companyName, onAskExit }: { companyName: string;
 const styles = themedStyles(() => ({
   flex: { flex: 1, minWidth: 0 },
   header: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, paddingTop: space.xs, paddingBottom: space.sm },
-  eyebrow: { letterSpacing: 1.6 },
   exit: { paddingHorizontal: space.sm, paddingVertical: space.xs, borderRadius: radius.pill, backgroundColor: palette.track },
   heading: { gap: space.xs, paddingTop: space.sm, paddingBottom: space.xs },
   back: { flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf: 'flex-start', minHeight: 32 },

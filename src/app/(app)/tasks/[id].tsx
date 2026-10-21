@@ -41,6 +41,7 @@ import { useTaskFlow } from '@/features/tasks/use-task-flow';
 import { hmLabel, phoneLabel, stampLabel } from '@/features/visitors/format';
 import { palette, radius, space, type as typeScale } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   AccountRow,
   ActionBar,
   ActionRow,
@@ -91,7 +92,7 @@ function contactsOf(who: string, phone?: unknown, email?: unknown): Contact[] {
 function TextCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Card tone="frostStrong" style={styles.textCard}>
-      <Text variant="labelStrong" muted numberOfLines={1}>
+      <Text variant="labelStrong" muted numberOfLines={1} style={FIELD_LABEL_INSET}>
         {title}
       </Text>
       {children}

@@ -13,7 +13,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { StatusBar } from 'expo-status-bar';
 import { BatteryCharging, Lock, MonitorSmartphone, Play, RefreshCcw, ShieldCheck, Ticket, WifiOff } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { BackHandler, View } from 'react-native';
+import { BackHandler } from 'react-native';
 
 import { checkInUrl, kioskBase, kioskCheckLink, KioskError, useDeskQr } from '@/api/desk';
 import { canRunDesk, canSeeKiosk } from '@/features/desk/access';
@@ -22,8 +22,8 @@ import { Art, KioskHeader, KioskLinkDead, KioskWizard, Result } from '@/features
 import { DESK_ROUTES } from '@/features/desk/routes';
 import { useAccess } from '@/lib/use-access';
 import { themedStyles } from '@/theme/themed';
-import { palette, radius, space } from '@/theme/tokens';
-import { ActionBar, Banner, Button, ErrorState, NavHeader, Screen, Skeleton, SummaryCard, SummaryHero, Text } from '@/ui';
+import { radius, space } from '@/theme/tokens';
+import { ActionBar, Banner, Button, ErrorState, LabelledSection, ListCard, ListRow, ModuleBadge, NavHeader, Screen, Skeleton, SummaryCard, SummaryHero, Text } from '@/ui';
 
 type Phase = 'intro' | 'running' | 'dead';
 
@@ -111,14 +111,14 @@ export default function KioskScreen() {
           { label: 'Clears itself', value: '15 seconds after each visitor' },
         ]}
       />
-      <View style={styles.tips}>
-        <Text variant="labelStrong" muted>
-          Before you start
-        </Text>
-        <Tip icon={Lock} title="Pin the app" text="Android: Settings › Security › App pinning. iPhone: Settings › Accessibility › Guided Access. Then visitors can’t leave the kiosk." />
-        <Tip icon={BatteryCharging} title="Keep it charging" text="The screen stays on while the kiosk runs, so keep the phone on its charger." />
-        <Tip icon={Ticket} title="Invite codes" text="Guests with a code from their host check in without waiting for an answer." />
-      </View>
+      {/* The tips sat straight on the canvas; they are one frosted card of rows like every other list. */}
+      <LabelledSection title="Before you start">
+        <ListCard>
+          <Tip icon={Lock} title="Pin the app" text="Android: Settings › Security › App pinning. iPhone: Settings › Accessibility › Guided Access. Then visitors can’t leave the kiosk." />
+          <Tip icon={BatteryCharging} title="Keep it charging" text="The screen stays on while the kiosk runs, so keep the phone on its charger." />
+          <Tip icon={Ticket} title="Invite codes" text="Guests with a code from their host check in without waiting for an answer." />
+        </ListCard>
+      </LabelledSection>
       <Banner tone="info" icon={ShieldCheck} message="For a lobby tablet that runs all day, the DASH Visitors tablet app is still the best setup. This is great as a backup." />
     </Screen>
   );
@@ -130,18 +130,8 @@ function KeepAwake() {
   return null;
 }
 
-function Tip({ icon: Icon, title, text }: { icon: typeof Lock; title: string; text: string }) {
-  return (
-    <View style={styles.tip}>
-      <Icon size={20} strokeWidth={1.8} color={palette.primaryText} />
-      <View style={styles.tipText}>
-        <Text variant="bodyStrong">{title}</Text>
-        <Text variant="label" muted>
-          {text}
-        </Text>
-      </View>
-    </View>
-  );
+function Tip({ icon, title, text }: { icon: typeof Lock; title: string; text: string }) {
+  return <ListRow size="lg" left={<ModuleBadge module="visitors" icon={icon} />} title={title} subtitle={text} numberOfLines={2} subtitleLines={5} />;
 }
 
 /** The running kiosk: checks the link first (the web wizard's first call), retrying every 10 s offline. */
@@ -185,8 +175,5 @@ function RunningKiosk(props: { base: string; companyName: string; linkUrl: strin
 }
 
 const styles = themedStyles(() => ({
-  tips: { gap: space.md },
-  tip: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
-  tipText: { flex: 1, minWidth: 0, gap: 2 },
   loading: { paddingTop: space.xxxl },
 }));

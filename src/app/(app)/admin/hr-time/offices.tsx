@@ -63,7 +63,8 @@ export default function OfficesScreen() {
   const [policyKey, setPolicyKey] = useState<number | null>(null);
   const header = (
     <NavHeader
-      title="Offices and clock-in"
+      // "Offices and clock-in" (the hub row) is cut short beside the + on a 320 dp phone.
+      title="Offices"
       actions={allowed ? [{ icon: Plus, label: 'Add office', onPress: () => setEdit({ office: null, key: Date.now() }) }] : undefined}
     />
   );
@@ -251,7 +252,7 @@ function OfficeSheet({ office, others, onClose }: { office: OfficeLocation | nul
         <PillField label="Address (optional)" value={address} onChangeText={setAddress} maxLength={200} placeholder="Shown to people when they clock in" />
 
         <View style={styles.group}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={styles.fieldLabel}>
             Where it is
           </Text>
           <Button
@@ -288,7 +289,7 @@ function OfficeSheet({ office, others, onClose }: { office: OfficeLocation | nul
         </View>
 
         <View style={styles.group}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={styles.fieldLabel}>
             Circle size
           </Text>
           <Segmented
@@ -437,6 +438,7 @@ const LABEL: Record<string, string> = {
 };
 
 const styles = themedStyles(() => ({
+  fieldLabel: { paddingHorizontal: space.xxs },
   group: { gap: space.xs },
   point: { paddingVertical: space.xs },
   toggles: { paddingVertical: space.xs, paddingHorizontal: space.xs, gap: 0 },

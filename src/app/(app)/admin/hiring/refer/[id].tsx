@@ -10,7 +10,7 @@ import { BriefcaseBusiness, Gift, UserPlus } from 'lucide-react-native';
 
 import { useJobImage } from '@/api/hiring';
 import { useNow, useTodayIst } from '@/features/attendance/use-now';
-import { bonusOf, citiesOf, coins, isOpen, jobRef, positionsOf } from '@/features/hiring/model';
+import { bonusOf, citiesOf, coins, employmentTypeLabel, isOpen, jobRef, positionsOf } from '@/features/hiring/model';
 import { useHiring } from '@/features/hiring/use-hiring';
 import { ago } from '@/features/inbox/format';
 import { dateLabel } from '@/lib/dates';
@@ -59,7 +59,7 @@ export default function ReferJobScreen() {
     { key: 'dept', label: 'Department', value: job.department },
     { key: 'exp', label: 'Experience', value: job.experienceRequired },
     { key: 'pkg', label: 'Package', value: job.package },
-    { key: 'type', label: 'Type', value: job.employmentType },
+    { key: 'type', label: 'Type', value: employmentTypeLabel(job.employmentType) || null },
     { key: 'by', label: 'Apply by', value: job.applicationDeadline ? dateLabel(job.applicationDeadline, today) : '' },
     { key: 'id', label: 'Job ID', value: jobRef(job.id), hint: job.createdAt ? `Posted ${ago(job.createdAt, now)}` : null },
   ].filter((r) => !!r.value);

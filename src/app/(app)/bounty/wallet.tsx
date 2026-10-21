@@ -12,7 +12,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Gift, ReceiptText } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
-import { View } from 'react-native';
 
 import { BOUNTY_REDEEM_MIN, type BountyRedemption, type BountyTxn, useBountyTransactions, useBountyWallet, useMyBountyRedemptions } from '@/api/bounty';
 import { useSession } from '@/auth/session';
@@ -23,7 +22,7 @@ import { useBountyLabels } from '@/features/bounty/hooks';
 import { asArray, coins, earnedThisMonth, num, redemptionState } from '@/features/bounty/logic';
 import { CreatorFundsCard, RewardRow, UseCoinsSheet, useRevealCoupon } from '@/features/bounty/wallet';
 import { palette } from '@/theme/tokens';
-import { ActionBar, ActivityList, Banner, Button, Card, EmptyState, ErrorState, NavHeader, Screen, SectionHeader, SkeletonList } from '@/ui';
+import { ActionBar, ActivityList, Banner, Button, Card, EmptyState, ErrorState, NavHeader, Screen } from '@/ui';
 
 const TITLE = 'My coins';
 const REWARDS_PREVIEW = 3;
@@ -150,29 +149,23 @@ function MyCoins() {
 
         {isCreator ? <CreatorFundsCard wallet={wallet} /> : null}
 
-        {txnsQ.isLoading ? (
-          <View style={{ gap: 4 }}>
-            <SectionHeader title="Coin history" />
-            <SkeletonList rows={3} avatar />
-          </View>
-        ) : txnsQ.error && !Array.isArray(txnsQ.data) ? (
-          <View style={{ gap: 4 }}>
-            <SectionHeader title="Coin history" />
-            <Card>
+        {/* One ActivityList for every state, so loading, error and rows share the same header and card. */}
+        <ActivityList
+          title="Coin history"
+          loading={txnsQ.isLoading}
+          onSeeAll={!allTxns && txns.length > HISTORY_PREVIEW ? () => setAllTxns(true) : undefined}
+          seeAllAccessibilityLabel={`See all ${txns.length} coin movements`}
+          empty={
+            txnsQ.error && !Array.isArray(txnsQ.data) ? (
               <ErrorState message={txnsQ.error.message} onRetry={() => void txnsQ.refetch()} />
-            </Card>
-          </View>
-        ) : (
-          <ActivityList
-            title="Coin history"
-            onSeeAll={!allTxns && txns.length > HISTORY_PREVIEW ? () => setAllTxns(true) : undefined}
-            seeAllAccessibilityLabel={`See all ${txns.length} coin movements`}
-            empty={<EmptyState icon={<ReceiptText color={palette.textMuted} />} title="No coins yet" message="Coins you earn and use show up here." />}>
-            {(allTxns ? txns : txns.slice(0, HISTORY_PREVIEW)).map((t) => (
-              <BountyTxnRow key={t.id} txn={t} userId={userId} />
-            ))}
-          </ActivityList>
-        )}
+            ) : (
+              <EmptyState icon={<ReceiptText color={palette.textMuted} />} title="No coins yet" message="Coins you earn and use show up here." />
+            )
+          }>
+          {(allTxns ? txns : txns.slice(0, HISTORY_PREVIEW)).map((t) => (
+            <BountyTxnRow key={t.id} txn={t} userId={userId} />
+          ))}
+        </ActivityList>
       </Screen>
       <UseCoinsSheet visible={sheet} onClose={() => setSheet(false)} redeemable={redeemable} />
     </>

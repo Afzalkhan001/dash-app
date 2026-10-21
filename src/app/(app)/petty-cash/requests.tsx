@@ -14,10 +14,12 @@ import { FilterPill } from '@/features/petty-cash/filter-pill';
 import { PettyRequestsCard } from '@/features/petty-cash/lists';
 import { amount, list, myRequests, type RequestGroup, requestGroup, roleSeesPettyCash } from '@/features/petty-cash/logic';
 import { plural } from '@/lib/format';
-import { palette } from '@/theme/tokens';
-import { Button, EmptyState, ErrorState, NavHeader, Screen, SkeletonList, SummaryHero } from '@/ui';
+import { palette, radius } from '@/theme/tokens';
+import { Button, EmptyState, ErrorState, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero } from '@/ui';
 
 type Filter = 'all' | RequestGroup;
+// The summary hero's height (label, figure, info chip, line), for its loading placeholder.
+const HERO_H = 236;
 const FILTERS: Filter[] = ['all', 'waiting', 'approved', 'paid', 'rejected'];
 const FILTER_LABEL: Record<Filter, string> = { all: 'All requests', waiting: 'Waiting', approved: 'Approved, not paid', paid: 'Paid', rejected: 'Rejected' };
 
@@ -44,7 +46,8 @@ export default function PettyCashRequestsScreen() {
         <EmptyState icon={<Wallet color={palette.textMuted} />} title="Petty cash isn’t available" message="It isn’t part of your role in DASH." />
       ) : !data ? (
         overviewQ.isLoading ? (
-          <SkeletonList rows={5} avatar />
+          // The hero's placeholder in the hero's slot; the rows' placeholder follows in the list's slot.
+          <Skeleton height={HERO_H} radius={radius.xxl} />
         ) : (
           <ErrorState message={overviewQ.error?.message || 'Could not load your requests.'} onRetry={() => void overviewQ.refetch()} />
         )
@@ -66,6 +69,7 @@ export default function PettyCashRequestsScreen() {
           action={<Button title="Request money" variant="accent" size="md" onPress={() => router.replace('/petty-cash/new')} />}
         />
       )}
+      {allowed && !data && overviewQ.isLoading ? <SkeletonList rows={5} avatar /> : null}
       {allowed && data && mine.length ? (
         <PettyRequestsCard
           data={data}

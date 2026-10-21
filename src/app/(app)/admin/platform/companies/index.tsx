@@ -129,7 +129,7 @@ export default function CompaniesScreen() {
 
   return (
     <Screen
-      header={<NavHeader title="Companies" actions={canAdd ? [{ icon: Plus, label: 'Register a company', onPress: openForm }] : undefined} />}
+      header={<NavHeader title="Companies" />}
       onRefresh={() => Promise.all([tenantsQ.refetch(), usersQ.refetch(), ...(canAdd ? [invitesQ.refetch()] : [])])}>
       {tenantsQ.data ? (
         <SummaryHero
@@ -159,7 +159,7 @@ export default function CompaniesScreen() {
                   title={name}
                   subtitle={companyEmail(t) || 'No Super Admin email'}
                   meta={[seatLine, t.bountyEnabled !== false ? 'Bounty on' : 'Bounty off'].filter(Boolean).join(' · ')}
-                  right={<StatusPill label={suspended ? 'Suspended' : 'Active'} tone={suspended ? 'failed' : 'done'} />}
+                  below={suspended ? <StatusPill label="Suspended" tone="failed" /> : undefined}
                   chevron
                   onPress={() => router.push(`/admin/platform/companies/${encodeURIComponent(t.id)}`)}
                   accessibilityLabel={`${name}, ${suspended ? 'suspended' : 'active'}${seatLine ? `, ${seatLine}` : ''}`}

@@ -27,11 +27,11 @@ import {
   ConfirmSheet,
   EmptyState,
   ErrorState,
+  LabelledSection,
   NavHeader,
   Screen,
   SkeletonList,
   SuccessSheet,
-  Text,
   TextField,
   toast,
 } from '@/ui';
@@ -151,30 +151,28 @@ function RoomForm({ initial }: { initial: ItRoom | null }) {
         <TextField label="Floor" value={floor} onChangeText={setFloor} placeholder="e.g. 3rd floor" error={tried ? errs.floor : null} />
       </Card>
 
-      <Card style={styles.group}>
-        <Text variant="labelStrong" muted>
-          Photos
-        </Text>
-        <PhotoStrip
-          photos={photos}
-          onChange={(next) => {
-            setPhotos(next);
-            setPhotosChanged(true);
-          }}
-        />
-      </Card>
+      <LabelledSection title="Photos">
+        <Card style={styles.group}>
+          <PhotoStrip
+            photos={photos}
+            onChange={(next) => {
+              setPhotos(next);
+              setPhotosChanged(true);
+            }}
+          />
+        </Card>
+      </LabelledSection>
 
-      <Card style={styles.group}>
-        <Text variant="labelStrong" muted>
-          What it has
-        </Text>
-        <ChipRow wrap bleed="none">
-          {[...ROOM_AMENITIES, ...extras].map((x) => {
-            const on = amenities.includes(x);
-            return <Chip key={x} label={x} selected={on} onPress={() => setAmenities(on ? amenities.filter((y) => y !== x) : [...amenities, x])} />;
-          })}
-        </ChipRow>
-      </Card>
+      <LabelledSection title="What it has">
+        <Card style={styles.group}>
+          <ChipRow wrap bleed="none">
+            {[...ROOM_AMENITIES, ...extras].map((x) => {
+              const on = amenities.includes(x);
+              return <Chip key={x} label={x} selected={on} onPress={() => setAmenities(on ? amenities.filter((y) => y !== x) : [...amenities, x])} />;
+            })}
+          </ChipRow>
+        </Card>
+      </LabelledSection>
 
       <Card style={styles.group}>
         <TextField label="Internal notes (optional)" value={notes} onChangeText={setNotes} placeholder="Only IT Admin sees these" multiline maxLength={500} counter />

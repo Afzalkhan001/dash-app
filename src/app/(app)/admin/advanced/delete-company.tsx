@@ -12,7 +12,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Building2, Search, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { View } from 'react-native';
 
 import type { Tenant } from '@/api/me';
 import { companyEmail, companyName, companyStatus } from '@/api/platform';
@@ -22,10 +21,11 @@ import { GateFallback, plural, TypeToConfirm, typedMatches } from '@/features/ad
 import { usePlatformGate } from '@/features/platform/gate';
 import { palette } from '@/theme/tokens';
 import {
+  AccountRow,
+  ActionBar,
   Avatar,
   Banner,
   Button,
-  Card,
   ConfirmSheet,
   EmptyState,
   ErrorState,
@@ -108,7 +108,7 @@ export default function DeleteCompanyScreen() {
                   left={<Avatar name={companyName(x)} size={40} ring={false} />}
                   title={companyName(x)}
                   subtitle={dataQ.data ? `${plural(c.users, 'person', 'people')} · ${plural(c.projects, 'project')}` : companyEmail(x) || 'No Super Admin email'}
-                  right={companyStatus(x) === 'suspended' ? <StatusPill label="Suspended" tone="failed" /> : undefined}
+                  below={companyStatus(x) === 'suspended' ? <StatusPill label="Suspended" tone="failed" /> : undefined}
                   chevron
                   onPress={() => {
                     setPicked(x.id);
@@ -148,21 +148,31 @@ export default function DeleteCompanyScreen() {
   };
 
   return (
-    <Screen header={<NavHeader title="Delete a company" />} onRefresh={() => Promise.all([tenantsQ.refetch(), dataQ.refetch()])}>
-      <Card padded style={{ gap: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Avatar name={name} size={48} ring={false} />
-          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-            <Text variant="heading" numberOfLines={2}>
-              {name}
-            </Text>
-            <Text variant="caption" muted numberOfLines={1}>
-              {companyEmail(t) || 'No Super Admin email'}
-            </Text>
-          </View>
-        </View>
-        <Button title="Pick another company" variant="accent" size="md" onPress={() => setPicked(null)} />
-      </Card>
+    <Screen
+      header={<NavHeader title="Delete a company" />}
+      onRefresh={() => Promise.all([tenantsQ.refetch(), dataQ.refetch()])}
+      footer={
+        <ActionBar note={own ? 'You can’t delete the company you are signed in to.' : !counted ? 'Counting what this company has…' : null}>
+          <Button
+            title="Delete this company"
+            variant="danger"
+            icon={<Trash2 />}
+            disabled={!counted || own}
+            onPress={() => {
+              del.reset();
+              setTyped('');
+              setConfirming(true);
+            }}
+          />
+        </ActionBar>
+      }>
+      <AccountRow
+        left={<Avatar name={name} size={44} ring={false} />}
+        title={name}
+        sub={companyEmail(t) || 'No Super Admin email'}
+        onChange={() => setPicked(null)}
+        actionAccessibilityLabel="Pick another company"
+      />
 
       <Banner
         tone="danger"
@@ -181,24 +191,13 @@ export default function DeleteCompanyScreen() {
             { key: 'users', label: 'People who sign in', value: plural(c.users, 'person', 'people') },
             { key: 'invites', label: 'Invitations', value: plural(c.invites, 'invitation') },
             { key: 'depts', label: 'Departments', value: plural(c.departments, 'department') },
-            { key: 'projects', label: 'Projects (Keka codes)', value: plural(c.projects, 'project') },
+            { key: 'projects', label: 'Projects', value: plural(c.projects, 'project') },
             { key: 'rest', label: 'Also', value: 'Bookings, tasks, requests, rooms, assets, posts' },
           ]}
         />
       )}
 
       {own ? <Banner tone="warning" message="This is the company you are signed in to. Deleting it would delete your own login, so it can’t be done here." /> : null}
-      <Button
-        title="Delete this company"
-        variant="destructive"
-        icon={<Trash2 />}
-        disabled={!counted || own}
-        onPress={() => {
-          del.reset();
-          setTyped('');
-          setConfirming(true);
-        }}
-      />
 
       <ConfirmSheet
         visible={confirming}

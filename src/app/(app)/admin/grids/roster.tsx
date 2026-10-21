@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { type RosterRecord, useDepartments, useRoster } from '@/api/people';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { GridView } from '@/features/grids/data-grid';
-import { GridGateFallback, gridCsvColumns, RowSheet, ShareCsvButton, useGridGate, useZoom } from '@/features/grids/grid-ui';
+import { afterSheet, GridGateFallback, gridCsvColumns, RowSheet, ShareCsvButton, useGridGate, useZoom } from '@/features/grids/grid-ui';
 import { deptOf, filterRoster, rosterColumns, type RosterFilter } from '@/features/grids/model';
 import { themedStyles } from '@/theme/themed';
 import { moduleTone } from '@/theme/tokens';
@@ -38,7 +38,7 @@ export default function RosterGrid() {
 
   const top = (
     <>
-      <PillField icon={Search} value={query} onChangeText={setQuery} placeholder="Search name, email, number, team" accessibilityLabel="Search employees" autoCorrect={false} />
+      <PillField icon={Search} value={query} onChangeText={setQuery} placeholder="Search by name or email" accessibilityLabel="Search employees" autoCorrect={false} />
       <ChipRow>
         <Chip label="Active" count={count('active')} selected={filter === 'active'} onPress={() => setFilter('active')} />
         <Chip label="Not signed up" count={count('invited')} selected={filter === 'invited'} onPress={() => setFilter('invited')} />
@@ -83,7 +83,7 @@ export default function RosterGrid() {
           onPress={() => {
             const key = open?.key;
             setOpen(null);
-            if (key) router.push(`/admin/people/${encodeURIComponent(key)}`);
+            if (key) afterSheet(() => router.push(`/admin/people/${encodeURIComponent(key)}`));
           }}
         />
       </RowSheet>

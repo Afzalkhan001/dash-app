@@ -4,9 +4,28 @@
 
 import * as WebBrowser from 'expo-web-browser';
 import { Image } from 'expo-image';
-import { Download, ExternalLink, FileText, Image as ImageIcon, Plus, Trash2, Video } from 'lucide-react-native';
+import {
+  BadgeCheck,
+  Building2,
+  Coins,
+  Download,
+  ExternalLink,
+  FileText,
+  Gift,
+  HandCoins,
+  Image as ImageIcon,
+  Lock,
+  LockOpen,
+  type LucideIcon,
+  Plus,
+  Scale,
+  Trash2,
+  Undo2,
+  UserPlus,
+  Video,
+} from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Switch, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 
 import type { BountySubmissionFile, BountySubmissionType, BountyTask } from '@/api/bounty';
 import { type AdminClaim, fetchClaimFileLink } from '@/api/bountyadmin';
@@ -15,39 +34,34 @@ import { openFileSource } from '@/features/bounty/files';
 import { asArray, claimsOf, coins, deadlineLabel, headlineReward, num, submissionTypeOf, taskStatusMeta } from '@/features/bounty/logic';
 import { themedStyles } from '@/theme/themed';
 import { moduleTone, palette, space } from '@/theme/tokens';
-import { ActivityRow, Button, Card, IconButton, isDarkScheme, ListCard, ListRow, ModuleBadge, Text, TextField } from '@/ui';
+import { FIELD_LABEL_INSET, ActivityRow, Button, Card, IconButton, ListCard, ListRow, ModuleBadge, Text, TextField } from '@/ui';
 
 import { digitsOnly, newPhase, type PhaseDraft, phaseLine, waitingCount } from './logic';
+
+/** One line icon per ledger movement type, so a long ledger reads at a glance (top-up, given, held…). */
+const LEDGER_ICON: Record<string, LucideIcon> = {
+  COMPANY_CREDIT: Building2,
+  COIN_DISTRIBUTION: HandCoins,
+  COIN_RETURN: Undo2,
+  BOUNTY_RESERVE: Lock,
+  BOUNTY_RELEASE: LockOpen,
+  BOUNTY_REWARD_TRANSFER: BadgeCheck,
+  REDEMPTION: Gift,
+  ADJUSTMENT: Scale,
+  REFERRAL_COIN_DISTRIBUTION: HandCoins,
+  REFERRAL_RESERVE: Lock,
+  REFERRAL_RELEASE: LockOpen,
+  REFERRAL_BONUS_TRANSFER: UserPlus,
+};
+export const ledgerIcon = (type?: string | null): LucideIcon => LEDGER_ICON[String(type || '')] ?? Coins;
 
 const withScheme = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
 // ── Inputs ───────────────────────────────────────────────────────────────────
-/** One switch as a row: the whole row is the switch for touch and screen readers. */
-export function SwitchRow({ title, subtitle, value, onChange, disabled }: { title: string; subtitle?: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
-  const offTrack = isDarkScheme() ? palette.hairline : palette.surfaceSunken;
-  return (
-    <Pressable
-      onPress={() => onChange(!value)}
-      disabled={disabled}
-      accessibilityRole="switch"
-      accessibilityLabel={title}
-      accessibilityHint={subtitle}
-      accessibilityState={{ checked: value, disabled: !!disabled }}
-      style={({ pressed }) => [styles.switchRow, pressed && styles.pressed, disabled && styles.dim]}>
-      <ListRow
-        title={title}
-        subtitle={subtitle}
-        numberOfLines={2}
-        subtitleLines={3}
-        right={
-          <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Switch value={value} disabled={disabled} trackColor={{ false: offTrack, true: palette.accentDeep }} thumbColor={palette.onAccent} ios_backgroundColor={offTrack} />
-          </View>
-        }
-      />
-    </Pressable>
-  );
-}
+
+/** One switch as a list row: the kit's SwitchRow. */
+export { SwitchRow } from '@/ui';
+
 
 /** A whole-number coins field ("coins" after the figure). */
 export function CoinsField({
@@ -236,7 +250,7 @@ export function SubmissionView({ taskId, claim, type }: { taskId: string; claim:
         : null}
       {claim.submitNote ? (
         <View style={styles.note}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Their note
           </Text>
           <Text variant="body" selectable>

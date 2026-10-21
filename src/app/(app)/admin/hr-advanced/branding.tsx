@@ -186,6 +186,7 @@ const styles = themedStyles(() => ({
   // Fixed on purpose: the website's white page and its dark sidebar, whatever the app's theme.
   light: { backgroundColor: lightPalette.surface },
   dark: { backgroundColor: lightPalette.ink },
-  emptyStrip: { backgroundColor: palette.surfaceSunken, borderStyle: 'dashed' },
+  // An empty slot reads as a drop zone: frosted, with a dashed rim — not a flat grey block.
+  emptyStrip: { backgroundColor: palette.frost, borderStyle: 'dashed', borderColor: palette.textFaint },
   img: { width: '100%', height: 60 },
 }));

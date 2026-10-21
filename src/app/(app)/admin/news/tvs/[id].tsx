@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { useAnnouncements } from '@/api/announcements';
 import { type TvCommand, useBranches, useTvCommand, useTvDevices, useTvLogs, useTvPlaylists, useUnpairTv } from '@/api/newsroom';
 import { useNow, useTodayIst } from '@/features/attendance/use-now';
-import { agoLabel, playlistName, TV_INACTIVITY, TV_REMOTE, tvOnline, tvPlatformLabel, tvUsablePosts } from '@/features/newsroom/format';
+import { agoLabel, playlistName, TV_INACTIVITY, TV_REMOTE, tvLogLine, tvOnline, tvPlatformLabel, tvUsablePosts } from '@/features/newsroom/format';
 import { useNewsroomAccess } from '@/features/newsroom/gate';
 import { ShowNowSheet, TvSettingsSheet } from '@/features/newsroom/tv-sheets';
 import { stampLabel } from '@/lib/dates';
@@ -118,7 +118,7 @@ export default function TvScreen() {
       <SummaryCard
         rows={[
           { key: 'status', label: 'Status', value: on ? 'Online' : 'Offline', status: on ? 'done' : 'failed' },
-          { key: 'now', label: 'Showing now', value: d.currentAnnouncementId ? (current ? current.title || '(untitled)' : 'A post') : '—' },
+          { key: 'now', label: 'Showing now', value: d.currentAnnouncementId ? (current ? current.title || 'Untitled post' : 'A post') : '—' },
           { key: 'pl', label: 'Playlist', value: playlistName(d, lists) },
           { key: 'seen', label: 'Last signal', value: agoLabel(d.lastSeenAt, now) },
           { key: 'sync', label: 'Last sync', value: agoLabel(d.lastSyncAt, now) },
@@ -150,29 +150,34 @@ export default function TvScreen() {
       </LabelledSection>
 
       <LabelledSection title="Recent log">
-        <Card>
-          {logs.isPending ? (
-            <SkeletonList rows={3} />
-          ) : logs.isError ? (
-            <Text variant="caption" muted>
-              The log could not be loaded.
-            </Text>
-          ) : (logs.data ?? []).length ? (
-            <EventTimeline
-              events={(logs.data ?? []).slice(0, 15).map((l, i) => ({
-                key: `${l.created_at}-${i}`,
-                label: l.event_type,
-                detail: l.message || null,
-                at: stampLabel(l.created_at, today),
-                tone: /error|fail|offline/i.test(l.event_type) ? 'bad' : 'neutral',
-              }))}
-            />
-          ) : (
-            <Text variant="caption" muted>
-              No log lines yet.
-            </Text>
-          )}
-        </Card>
+        {logs.isPending ? (
+          <SkeletonList rows={3} tone="surface" />
+        ) : (
+          <Card>
+            {logs.isError ? (
+              <Text variant="caption" muted>
+                The log could not be loaded.
+              </Text>
+            ) : (logs.data ?? []).length ? (
+              <EventTimeline
+                events={(logs.data ?? []).slice(0, 15).map((l, i) => {
+                  const line = tvLogLine(l.event_type, l.message);
+                  return {
+                    key: `${l.created_at}-${i}`,
+                    label: line.label,
+                    detail: line.detail,
+                    at: stampLabel(l.created_at, today),
+                    tone: /error|fail|offline/i.test(l.event_type) ? 'bad' : 'neutral',
+                  };
+                })}
+              />
+            ) : (
+              <Text variant="caption" muted>
+                No log lines yet.
+              </Text>
+            )}
+          </Card>
+        )}
       </LabelledSection>
 
       <Button variant="danger" title="Unpair this TV" icon={<Unlink />} onPress={() => setConfirm(true)} />

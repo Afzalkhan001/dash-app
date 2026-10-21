@@ -7,7 +7,7 @@
 //   3. Contact: a SummaryCard of phone, email, blood group;
 //   4. Work: a SummaryCard of employee no., job role (when it differs from the title), role in DASH
 //      (when the title isn't already it), location and the joining date; my reporting manager is an
-//      AccountRow under it ("View" opens their profile) when the org chart knows them — found by the
+//      chevron row under it (opens their profile) when the org chart knows them — found by the
 //      chart's rules from my own record, so it works for HR, Super Admin and the other logins that are
 //      not on the directory; then "My team" (my manager, peers and direct reports → /team) for anyone
 //      who is a person on a team and whose company has People switched on;
@@ -191,7 +191,7 @@ export default function MyProfileScreen() {
     { key: 'job', label: 'Job role', value: jobRole && jobRole !== title ? jobRole : '' },
     // What I can do in DASH (Employee, Manager, HR…); left out when the title above already says it.
     { key: 'role', label: 'Role in DASH', value: roleName && roleName !== title ? roleName : '' },
-    // A manager the chart can't open is a plain row; one it can is the AccountRow under the card.
+    // A manager the chart can't open is a plain row; one it can is the chevron row under the card.
     { key: 'manager', label: 'Reporting manager', value: managerLink ? '' : managerName },
     { key: 'location', label: 'Location', value: String(p.location || p.city || '') },
     { key: 'joined', label: 'Joined', value: joined },
@@ -202,26 +202,32 @@ export default function MyProfileScreen() {
     { key: 'ifsc', label: 'IFSC code', value: ifsc || NOT_ADDED, valueColor: ifsc ? undefined : muted },
   ];
 
+  // My manager and My team: one card of chevron rows (like the rows on My team), not two cards with a
+  // "View" pill each.
   const teamRow = showTeam ? (
-    <AccountRow
-      icon={Users}
+    <ActivityRow
+      key="team"
       module="people"
+      icon={Users}
       title="My team"
-      sub={teamSize ? `${plural(teamSize, 'person', 'people')} · ${teamWho}` : 'Your manager, peers and direct reports'}
-      actionLabel="View"
+      subtitle={teamSize ? `${plural(teamSize, 'person', 'people')} · ${teamWho}` : 'Your manager, peers and direct reports'}
+      chevron
       onPress={() => router.push('/team')}
-      hint="Opens My team"
+      accessibilityHint="Opens My team"
     />
   ) : null;
 
   const managerRow = managerLink ? (
-    <AccountRow
-      left={<PersonAvatar person={managerLink} size={44} ring={false} />}
+    <ActivityRow
+      key="manager"
+      left={<PersonAvatar person={managerLink} size={40} ring={false} />}
       title={managerName}
-      sub="Reporting manager"
-      actionLabel="View"
+      subtitle="Reporting manager"
+      titleLines={1}
+      chevron
       onPress={() => router.push(`/people/${encodeURIComponent(managerLink.id)}`)}
-      hint="Opens their profile"
+      accessibilityLabel={`${managerName}, reporting manager`}
+      accessibilityHint="Opens their profile"
     />
   ) : null;
 
@@ -256,8 +262,12 @@ export default function MyProfileScreen() {
         {work.length || managerRow || teamRow ? (
           <View key="work" style={styles.group}>
             {work.length ? <SummaryCard title="Work" rows={work} /> : null}
-            {managerRow}
-            {teamRow}
+            {managerRow || teamRow ? (
+              <ActivityList>
+                {managerRow}
+                {teamRow}
+              </ActivityList>
+            ) : null}
           </View>
         ) : null}
 

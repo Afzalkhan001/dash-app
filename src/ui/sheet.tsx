@@ -4,8 +4,9 @@
 // closes it — or, with `dirty`, first asks before discarding changes.
 // MenuSheet is the overflow menu ("•••" → a list of actions).
 
-import { type LucideIcon, X } from 'lucide-react-native';
-import { type ReactNode, useEffect } from 'react';
+import { Check, type LucideIcon, X } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -98,6 +99,17 @@ export function Sheet({
     ]);
   };
 
+  // With a pinned footer, a body that scrolls fades out above the footer until its end is reached, so
+  // content under the swipe / button (a typed confirmation, the end of a card) visibly continues.
+  const [box, setBox] = useState({ view: 0, content: 0, y: 0 });
+  const more = !!footer && scroll && hasMore(box);
+  // Re-render only when "is there more below" flips, not on every scroll frame.
+  const track = (patch: Partial<typeof box>) => setBox((b) => {
+    const next = { ...b, ...patch };
+    return hasMore(next) === hasMore(b) && patch.y != null ? b : next;
+  });
+  const sheetBg = isDarkScheme() ? palette.surface : palette.canvasTop;
+
   const float = !!floatingClose;
   const bottomPad = float ? Math.max(insets.bottom - FLOAT_INSET, 0) + space.md : insets.bottom + space.sm;
   const maxHeight = Math.round(height * 0.92);
@@ -126,13 +138,20 @@ export function Sheet({
         </View>
       ) : null}
       {scroll ? (
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          contentContainerStyle={[styles.body, !footer && { paddingBottom: bottomPad }]}
-          showsVerticalScrollIndicator={false}>
-          {children}
-        </ScrollView>
+        <View style={styles.scrollWrap}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            contentContainerStyle={[styles.body, !footer && { paddingBottom: bottomPad }]}
+            showsVerticalScrollIndicator={!!footer && more}
+            scrollEventThrottle={32}
+            onLayout={footer ? (e) => track({ view: Math.round(e.nativeEvent.layout.height) }) : undefined}
+            onContentSizeChange={footer ? (_w, h) => track({ content: Math.round(h) }) : undefined}
+            onScroll={footer ? (e) => track({ y: Math.round(e.nativeEvent.contentOffset.y) }) : undefined}>
+            {children}
+          </ScrollView>
+          {more ? <LinearGradient colors={[withAlpha(sheetBg, 0), sheetBg]} style={styles.moreFade} pointerEvents="none" /> : null}
+        </View>
       ) : (
         <View style={[styles.body, !footer && { paddingBottom: bottomPad }]}>{children}</View>
       )}
@@ -165,6 +184,11 @@ export function Sheet({
   );
 }
 
+/** A scrolling sheet body still has content below its visible part. */
+function hasMore(b: { view: number; content: number; y: number }) {
+  return b.view > 0 && b.content > b.view + 4 && b.y + b.view < b.content - 4;
+}
+
 export type MenuItem = {
   key: string;
   label: string;
@@ -173,10 +197,13 @@ export type MenuItem = {
   hint?: string;
   tone?: 'default' | 'danger';
   disabled?: boolean;
+  /** The current choice in a picker menu: a ✓ on the right (and "selected" for screen readers). */
+  selected?: boolean;
 };
 
 /**
- * Overflow menu in a sheet, opened by a MoreHorizontal IconButton. 1–7 items, destructive last.
+ * Overflow menu in a sheet, opened by a MoreHorizontal IconButton. 1–7 items, destructive last. As a
+ * picker (a filter, a sort) mark the current item `selected` (a ✓) — never "(showing)" in the label.
  * Pressing an item closes the sheet, then runs `onPress` 280 ms later (after the close animation).
  */
 export function MenuSheet({
@@ -214,6 +241,8 @@ export function MenuSheet({
               subtitle={it.hint}
               subtitleLines={2}
               disabled={it.disabled}
+              selected={it.selected}
+              right={it.selected ? <Check size={20} color={palette.primaryText} strokeWidth={2.2} /> : undefined}
               onPress={() => {
                 onClose();
                 setTimeout(it.onPress, 280);
@@ -244,6 +273,8 @@ const styles = themedStyles(() => ({
   handle: { width: 36, height: 5, borderRadius: 3, backgroundColor: withAlpha(palette.ink, 0.14) },
   head: { paddingHorizontal: layout.sheetPad, paddingBottom: space.sm, gap: 2 },
   body: { paddingHorizontal: layout.sheetPad, paddingBottom: space.md, gap: space.md },
+  scrollWrap: { flexShrink: 1, minHeight: 0 },
+  moreFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: space.xxl },
   footer: { paddingHorizontal: layout.sheetPad, paddingTop: space.sm, gap: space.sm },
   // floatingClose: the × rides above an inset card rounded on every corner.
   floatWrap: { flexShrink: 1, marginHorizontal: FLOAT_INSET, marginBottom: FLOAT_INSET },

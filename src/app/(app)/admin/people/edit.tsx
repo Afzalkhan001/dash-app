@@ -300,7 +300,7 @@ function EmployeeForm({ row, rows, depts }: { row: RosterRecord | null; rows: Ro
     const v = form[k];
     return (
       <View style={styles.field}>
-        <Text variant="label" muted>
+        <Text variant="labelStrong" muted style={styles.fieldLabel}>
           {label}
         </Text>
         <AccountRow
@@ -513,6 +513,8 @@ const styles = themedStyles(() => ({
   card: { gap: space.md },
   field: { gap: space.xs },
   clear: { alignSelf: 'flex-start' },
+  // Lines up with the TextField / PillField labels (labelStrong, 4 dp in).
+  fieldLabel: { paddingHorizontal: space.xxs },
   photoCard: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   photoText: { flex: 1, minWidth: 0, gap: 2 },
   gap: { marginTop: space.sm },

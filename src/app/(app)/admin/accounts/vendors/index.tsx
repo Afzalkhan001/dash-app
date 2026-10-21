@@ -16,12 +16,13 @@ import { type AccountsVendorRow, useAccountsVendors, type VendorListFilters } fr
 import { DASH_URL } from '@/config';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { canSeeRegistrations, canSeeVendorMaster } from '@/features/accounts/access';
+import { DeskRow } from '@/features/accounts/ui';
 import { panAadhaarLabel, vendorStatusMeta } from '@/features/accounts/vendor-format';
 import { shortDate } from '@/features/petty-cash/logic';
 import { useAccess } from '@/lib/use-access';
 import { palette, space } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
-import { AccountRow, ActivityList, ActivityRow, Button, DateField, EmptyState, ErrorState, NavHeader, PillField, PillSelector, Screen, Segmented, SelectField, Sheet, SkeletonList, toast } from '@/ui';
+import { AccountRow, ActivityList, Button, DateField, EmptyState, ErrorState, NavHeader, PillField, PillSelector, Screen, Segmented, SelectField, Sheet, SkeletonList, toast } from '@/ui';
 
 type Tab = 'waiting' | 'corrections' | 'approved' | 'rejected' | 'all';
 const TAB_STATUS: Record<Tab, string> = { waiting: 'pending_verification', corrections: 'correction_required', approved: 'approved', rejected: 'rejected', all: 'all' };
@@ -78,11 +79,12 @@ export default function VendorsScreen() {
   return (
     <Screen header={<NavHeader title="Vendors" />} onRefresh={() => listQ.refetch()}>
       {regs ? (
-        <AccountRow icon={Link2} module="vendor" title="Registration link" sub={`${DASH_URL.replace(/^https?:\/\//, '')}/vendor`} actionLabel="Share" onPress={() => void share()} hint="Opens the share sheet with the vendor sign-up link" />
+        // U+200B lets the link break after the slash instead of mid-word.
+        <AccountRow icon={Link2} module="vendor" title="Registration link" sub={`${DASH_URL.replace(/^https?:\/\//, '')}/\u200Bvendor`} actionLabel="Share" onPress={() => void share()} hint="Opens the share sheet with the vendor sign-up link" />
       ) : null}
       {tabs.length > 1 ? <Segmented options={tabs} value={tab} onChange={setTab} /> : null}
       <View style={styles.searchRow}>
-        <PillField icon={Search} placeholder="Name, vendor ID, PAN, phone…" value={q} onChangeText={setQ} autoCorrect={false} autoCapitalize="none" returnKeyType="search" containerStyle={styles.search} accessibilityLabel="Search vendors" />
+        <PillField icon={Search} placeholder="Search vendors" value={q} onChangeText={setQ} autoCorrect={false} autoCapitalize="none" returnKeyType="search" containerStyle={styles.search} accessibilityLabel="Search vendors" accessibilityHint="Searches name, vendor ID, contact, PAN, GSTIN and email" />
         <PillSelector icon={SlidersHorizontal} label={filterCount ? `Filters · ${filterCount}` : 'Filters'} onPress={() => setOpen(true)} accessibilityHint="Opens the filters" />
       </View>
 
@@ -99,15 +101,14 @@ export default function VendorsScreen() {
             const st = vendorStatusMeta(v.status);
             const facts = [v.gstStatus === 'registered' ? 'GST' : v.gstStatus === 'not_registered' ? 'No GST' : null, v.msmeRegistered ? 'MSME' : null, v.panAadhaar === 'not_linked' ? panAadhaarLabel('not_linked') : null].filter(Boolean);
             return (
-              <ActivityRow
+              <DeskRow
                 key={v.id}
                 module="vendor"
                 icon={Store}
                 title={v.legalEntityName || v.tradeName || v.contactNumber}
                 subtitle={[v.vendorCode, v.contactPerson].filter(Boolean).join(' · ') || v.contactNumber}
                 note={[...facts, v.submittedAt ? `Sent ${shortDate(v.submittedAt, today)}` : null].filter(Boolean).join(' · ') || null}
-                status={{ label: st.label, tone: st.tone }}
-                chevron
+                status={tab === 'all' ? { label: st.label, tone: st.tone } : null}
                 onPress={() => router.push({ pathname: '/admin/accounts/vendors/[id]', params: { id: v.id } })}
               />
             );

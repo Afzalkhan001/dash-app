@@ -13,7 +13,6 @@ import { useState } from 'react';
 import { type SalaryStructure, useSalaryActions, useSalaryStructures, useStructurePreview } from '@/api/payroll';
 import { calcWords, errorText, GateFallback, moneyTyping, rupeesOf, usePayrollGate, usePayView } from '@/features/payroll/ui';
 import { inr } from '@/lib/format';
-import { palette } from '@/theme/tokens';
 import { ActivityList, ActivityRow, Banner, Button, ConfirmSheet, NavHeader, PillField, Screen, Sheet, SummaryCard, Text, toast } from '@/ui';
 
 export default function StructuresScreen() {
@@ -31,15 +30,15 @@ export default function StructuresScreen() {
       {q.error && !q.data ? (
         <Banner tone="danger" title="Couldn’t load structures" message={errorText(q.error)} action={{ label: 'Retry', onPress: () => void q.refetch() }} />
       ) : null}
-      <ActivityList title="Active structures" loading={q.isPending} empty={q.error ? 'Couldn’t load.' : 'No structures yet. Create one with Create or edit.'}>
+      <ActivityList title="Active structures" loading={q.isPending} empty={q.error ? 'Couldn’t load the structures.' : 'No structures yet. Tap “Create or edit” to add the first one.'}>
         {list.map((s) => (
           <ActivityRow
             key={s.id}
             module="pay"
             icon={Layers}
             title={s.name}
-            subtitle={[s.description, s.components.map((c) => c.code).join(' · ')].filter(Boolean).join('\n')}
-            subtitleLines={3}
+            subtitle={s.description || null}
+            note={`${s.components.length} ${s.components.length === 1 ? 'part' : 'parts'}: ${s.components.map((c) => c.code).join(' · ')}`}
             chevron
             onPress={() => setOpenId(s.id)}
             accessibilityHint="Shows its parts and lets you try a CTC"
@@ -83,7 +82,7 @@ function StructureSheet({ structure, onClose }: { structure: SalaryStructure; on
         onClose={onClose}
         title={structure.name}
         subtitle={structure.description || undefined}
-        footer={<Button title="Retire structure" variant="danger" icon={<Archive size={18} color={palette.dangerInk} />} onPress={() => setRetiring(true)} />}>
+        footer={<Button title="Retire structure" variant="danger" icon={<Archive />} onPress={() => setRetiring(true)} />}>
         <SummaryCard
           title="Parts"
           rows={structure.components.map((c) => ({
@@ -94,7 +93,7 @@ function StructureSheet({ structure, onClose }: { structure: SalaryStructure; on
           }))}
         />
         <PillField
-          label="Try a CTC"
+          label="Try an annual salary (CTC)"
           value={ctc}
           onChangeText={(v) => setCtc(moneyTyping(v))}
           keyboardType="decimal-pad"
@@ -109,7 +108,7 @@ function StructureSheet({ structure, onClose }: { structure: SalaryStructure; on
             total={{ label: 'Gross pay', value: money.inr(preview.data.gross) }}
           />
         ) : preview.error ? (
-          <Banner tone="danger" title="That CTC doesn’t fit" message={errorText(preview.error)} />
+          <Banner tone="danger" title="That salary doesn’t fit" message={errorText(preview.error)} />
         ) : null}
       </Sheet>
       <ConfirmSheet

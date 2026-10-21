@@ -24,7 +24,7 @@ import { View } from 'react-native';
 
 import type { ExpenseHead } from '@/api/petty-cash';
 import { palette, space } from '@/theme/tokens';
-import { Button, FieldMessage, haptic, ListCard, ListRow, SelectTiles, Sheet, Skeleton, Text } from '@/ui';
+import { FIELD_LABEL_INSET, Button, FieldMessage, haptic, ListCard, ListRow, SelectTiles, Sheet, Skeleton, Text } from '@/ui';
 
 const MORE = '__more__';
 
@@ -86,7 +86,7 @@ export function ExpenseTypeTiles({
 
   return (
     <View style={{ gap: space.xs }}>
-      <Text variant="labelStrong" muted numberOfLines={1}>
+      <Text variant="labelStrong" muted numberOfLines={1} style={FIELD_LABEL_INSET}>
         {label}
       </Text>
       {loading ? (

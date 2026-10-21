@@ -22,7 +22,7 @@ import { hoursLabel, reviewsDoc, scheduleDoc, type ScheduleItem, timesheetDoc, t
 import { deptsIRun, managerReports, userInDepts } from '@/features/work/access';
 import { codeOf } from '@/features/work/model';
 import { useWorkTeam } from '@/features/work/use-team';
-import { dayLabel, hmLabel, istDateOf, timeOf } from '@/lib/dates';
+import { dateLabel, dayLabel, hmLabel, istDateOf, timeOf } from '@/lib/dates';
 import { addDaysYmd } from '@/lib/ist';
 import { plural } from '@/lib/format';
 import { letterheadOf } from '@/lib/pdf';
@@ -57,7 +57,7 @@ export function ReviewsPdfScreen({ person }: { person?: string }) {
 
   return (
     <DocScreen
-      title="Pending reviews PDF"
+      title="Reviews owed PDF"
       icon={ClipboardList}
       module="tasks"
       heroLabel={chosen ? `Owed by ${chosen.name}` : 'Reviews owed'}
@@ -68,7 +68,7 @@ export function ReviewsPdfScreen({ person }: { person?: string }) {
       error={all.isError && !all.data ? all.error?.message || 'Couldn’t load the bookings.' : null}
       onRetry={() => void all.refetch()}
       onRefresh={() => Promise.all([all.refetch(), users.refetch()])}
-      empty={!byEmp.length ? { title: 'No pending reviews', message: 'Every booking has been approved and rated.' } : null}
+      empty={!byEmp.length ? { title: 'No reviews owed', message: 'Every booking has been approved and rated.' } : null}
       note="The PDF is only made on this phone. Nobody is messaged."
       controls={
         byEmp.length ? (
@@ -154,7 +154,7 @@ export function SchedulePdfScreen() {
       title="Tomorrow’s schedule"
       icon={CalendarDays}
       module="tasks"
-      heroLabel={label}
+      heroLabel={`Tomorrow, ${dateLabel(tomorrow, today)}`}
       value={loading ? undefined : items.length}
       unit={items.length === 1 ? 'item' : 'items'}
       sub={deptName ? `Department: ${deptName}` : manager ? 'Your team' : 'The department you run'}

@@ -147,6 +147,8 @@ const styles = themedStyles(() => ({
     paddingVertical: IOS ? 16 : 13,
     paddingRight: space.sm,
     ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
+    // Web: the pill draws its own focus ring, so drop the browser's rectangle inside it.
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
   },
   inputNoIcon: { paddingLeft: space.xxs },
   trailing: { flexShrink: 0, marginRight: space.xs, alignItems: 'center', justifyContent: 'center' },

@@ -14,7 +14,8 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { companyName, type HrModule, useHrTenantAccess, useSetHrTenantAccess, useUpdateCompany } from '@/api/platform';
-import { canSeeCompanyFeatures, FEATURE_GROUPS, FEATURE_REGISTRY, featureOn, featurePatch, featuresOff } from '@/features/platform/access';
+import { hrModuleLabel } from '@/features/company/format';
+import { canSeeCompanyFeatures, FEATURE_GROUPS, FEATURE_REGISTRY, featureOn, featurePatch, featuresOff, hrModuleDesc } from '@/features/platform/access';
 import { usePlatformGate } from '@/features/platform/gate';
 import { CompanyPicker, ToggleRow } from '@/features/platform/ui';
 import { plural } from '@/lib/format';
@@ -99,8 +100,9 @@ export default function CompanyFeaturesScreen() {
   };
   const flipModule = (m: HrModule, next: boolean) => {
     if (!hr) return;
-    if (!next) return setOff({ kind: 'module', id: m.id, label: m.label });
-    saveHr(true, [...hr.modules.filter((x) => x !== m.id), m.id], `m:${m.id}`, `${m.label} on for ${name}`);
+    const label = hrModuleLabel(m.id, m.label);
+    if (!next) return setOff({ kind: 'module', id: m.id, label });
+    saveHr(true, [...hr.modules.filter((x) => x !== m.id), m.id], `m:${m.id}`, `${label} on for ${name}`);
   };
 
   const confirmOff = () => {
@@ -128,7 +130,7 @@ export default function CompanyFeaturesScreen() {
     <Screen header={<NavHeader title="Company features" />} onRefresh={() => Promise.all([tenantsQ.refetch(), hrQ.refetch()])}>
       {tenantsQ.data ? (
         tenants.length ? (
-          <>
+          <View style={{ gap }}>
             <View style={{ alignItems: 'flex-start' }}>
               <CompanyPicker tenants={tenants} value={cid} onChange={setChosen} />
             </View>
@@ -142,12 +144,12 @@ export default function CompanyFeaturesScreen() {
             />
 
             <View style={{ gap: gap - 8 }}>
-              <SectionHeader title="HR" overline="The company’s Super Admin then turns it on per department" />
+              <SectionHeader title="HR" overline="Its Super Admin then picks departments" />
               {hr ? (
                 <ListCard>
                   <ToggleRow
-                    title="HR (HRMS)"
-                    subtitle={hr.enabled ? plural(hr.modules.length, 'module') + ' on' : 'Off: no HR features at all'}
+                    title="HR"
+                    subtitle={hr.enabled ? plural(hr.modules.length, 'HR feature') + ' on' : 'Off: no HR features at all'}
                     value={hr.enabled}
                     busy={busy === 'hr'}
                     onChange={flipHr}
@@ -166,8 +168,8 @@ export default function CompanyFeaturesScreen() {
                         .map((m) => (
                           <ToggleRow
                             key={m.id}
-                            title={m.label}
-                            subtitle={m.available ? m.desc : `Coming soon. ${m.desc}`}
+                            title={hrModuleLabel(m.id, m.label)}
+                            subtitle={m.available ? hrModuleDesc(m.id, m.desc) : `Coming soon. ${hrModuleDesc(m.id, m.desc)}`}
                             value={hr.modules.includes(m.id)}
                             disabled={!m.available}
                             busy={busy === `m:${m.id}` || busy === 'hr'}
@@ -196,7 +198,7 @@ export default function CompanyFeaturesScreen() {
                 </ListCard>
               </View>
             ))}
-          </>
+          </View>
         ) : (
           <EmptyState icon={<Building2 />} title="No companies yet" message="Register a company first, in Companies." />
         )

@@ -9,10 +9,13 @@ import { router } from 'expo-router';
 import { useStatutory } from '@/api/payroll';
 import { errorText, GateFallback, usePayrollGate } from '@/features/payroll/ui';
 import { inr } from '@/lib/format';
-import { Banner, NavHeader, Screen, SkeletonList, SummaryCard, type SummaryItem, Text } from '@/ui';
+import { Banner, ErrorState, NavHeader, Screen, SkeletonList, SummaryCard, type SummaryItem, Text } from '@/ui';
 
 const money = (v: number | null | undefined) => (v == null ? 'Not set' : inr(v, { decimals: !Number.isInteger(v) }));
 const pct = (v: number | null | undefined) => (v == null ? 'Not set' : `${v}%`);
+/** Monthly gross range of a professional-tax slab: "Up to ₹15,000", "₹15,000.01 to ₹20,000", "₹20,000.01 and above". */
+const slabRange = (min: number | null | undefined, max: number | null | undefined) =>
+  max == null ? `${money(min)} and above` : !min ? `Up to ${money(max)}` : `${money(min)} to ${money(max)}`;
 const rounding = (v: string | null | undefined) => (v === 'nearest' ? 'Nearest rupee' : v === 'up' ? 'Up to the next rupee' : 'Not set');
 
 export default function StatutoryScreen() {
@@ -30,11 +33,12 @@ export default function StatutoryScreen() {
   if (q.error || !q.data) {
     return (
       <Screen header={header}>
-        <Banner tone="danger" title="Couldn’t load" message={errorText(q.error)} action={{ label: 'Retry', onPress: () => void q.refetch() }} />
+        <ErrorState message={errorText(q.error)} onRetry={() => void q.refetch()} />
       </Screen>
     );
   }
   const { statutory: s, missing } = q.data;
+  const ptStates = [...new Set(s.pt.slabs.map((x) => x.state))];
   const off: SummaryItem[] = [{ label: 'Status', value: 'Off', status: 'neutral' }];
   const regimeRows = (k: 'new' | 'old'): SummaryItem[] => {
     const r = s.tds.regimes[k];
@@ -54,17 +58,13 @@ export default function StatutoryScreen() {
 
   return (
     <Screen header={header} onRefresh={() => q.refetch()}>
+      {/* One notice: whether payroll can run, with the way to change the values. */}
       <Banner
-        tone="warning"
-        title="Your company’s own values"
-        message="No rates or slabs are built in: they are your company’s values, to be confirmed with your CA."
-        action={{ label: 'Edit', onPress: () => router.push('/admin/hr-advanced/statutory') }}
+        tone={missing.length ? 'danger' : 'success'}
+        title={missing.length ? 'Payroll can’t run until these are filled in' : 'Ready for payroll'}
+        message={missing.length ? missing.join(', ') : 'Every switched-on section has its values.'}
+        action={{ label: 'Edit values', onPress: () => router.push('/admin/hr-advanced/statutory') }}
       />
-      {missing.length ? (
-        <Banner tone="danger" title="Payroll can’t run until these are filled in" message={missing.join(', ')} />
-      ) : (
-        <Banner tone="success" title="Complete" message="Every switched-on section has its values." />
-      )}
 
       <SummaryCard
         title="Provident Fund"
@@ -100,9 +100,11 @@ export default function StatutoryScreen() {
           s.pt.enabled
             ? [
                 { label: 'Status', value: 'On', status: 'done' },
+                // One state (the usual case) gets its own row, so each slab label is just the gross range.
+                ...(ptStates.length === 1 ? [{ label: 'State', value: ptStates[0] }] : []),
                 ...s.pt.slabs.map((x, i) => ({
                   key: `pt-${i}`,
-                  label: `${x.state} · ${money(x.minGross)}${x.maxGross == null ? ' and above' : ` to ${money(x.maxGross)}`}`,
+                  label: `${ptStates.length === 1 ? '' : `${x.state} · `}${slabRange(x.minGross, x.maxGross)}`,
                   value: money(x.amount),
                 })),
               ]
@@ -119,7 +121,7 @@ export default function StatutoryScreen() {
       {s.tds.mode === 'slab' ? <SummaryCard title="New regime (a year)" rows={regimeRows('new')} /> : null}
       {s.tds.mode === 'slab' ? <SummaryCard title="Old regime (a year)" rows={regimeRows('old')} /> : null}
       <Text variant="caption" muted align="center">
-        Not calculated: surcharge and marginal relief. Check high earners by hand.
+        No rates or slabs are built in: these are your company’s own values. Confirm them with your CA. Surcharge and marginal relief are not calculated, so check high earners by hand.
       </Text>
     </Screen>
   );

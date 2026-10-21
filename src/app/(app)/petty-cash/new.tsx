@@ -33,6 +33,7 @@ import { ExpenseTypeTiles } from '@/features/petty-cash/type-tiles';
 import { firstName } from '@/lib/format';
 import { palette, space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   ActionBar,
   AmountEntry,
   amountValue,
@@ -247,7 +248,7 @@ export default function NewPettyCashRequestScreen() {
 
         {canAskForTeammate ? (
           <View style={{ gap: space.xs }}>
-            <Text variant="labelStrong" muted numberOfLines={1}>
+            <Text variant="labelStrong" muted numberOfLines={1} style={FIELD_LABEL_INSET}>
               Who is it for?
             </Text>
             <SelectTiles<'self' | 'team'>
@@ -335,7 +336,7 @@ export default function NewPettyCashRequestScreen() {
             variant="text"
             icon={<Plus />}
             onPress={() => setRows((rs) => [...rs, nextRow(rs)])}
-            style={{ alignSelf: 'center' }}
+            style={styles.addRow}
           />
         ) : null}
 
@@ -451,6 +452,7 @@ export default function NewPettyCashRequestScreen() {
 }
 
 const styles = themedStyles(() => ({
+  addRow: { alignSelf: 'center' },
   flex: { flex: 1, minWidth: 0 },
   lineHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 44 },
   // A hairline between one expense line and the next.

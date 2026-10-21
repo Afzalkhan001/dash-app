@@ -11,6 +11,7 @@ import { canBook } from '@/features/booking/access';
 import { bookingLooksCancelled, isMine, needsReview, splitMine } from '@/features/booking/model';
 import { BookingRow, useMe, useProfTypes } from '@/features/booking/ui';
 import { useAccess } from '@/lib/use-access';
+import { themedStyles } from '@/theme/themed';
 import { palette } from '@/theme/tokens';
 import { ActivityList, Button, Chip, ChipRow, EmptyState, ErrorState, NavHeader, PillField, Screen, SkeletonList } from '@/ui';
 
@@ -79,18 +80,28 @@ export default function BookingHistoryScreen() {
       />
       <ChipRow>
         {TYPES.map((t) => (
-          <Chip key={t.key} label={t.label} selected={type === t.key} onPress={() => {
+          <Chip
+            key={t.key}
+            label={t.label}
+            selected={type === t.key}
+            onPress={() => {
               setType(t.key);
               setLimit(PAGE);
-            }} />
+            }}
+          />
         ))}
       </ChipRow>
       <ChipRow>
         {STATUSES.map((t) => (
-          <Chip key={t.key} label={t.label} selected={status === t.key} onPress={() => {
+          <Chip
+            key={t.key}
+            label={t.label}
+            selected={status === t.key}
+            onPress={() => {
               setStatus(t.key);
               setLimit(PAGE);
-            }} />
+            }}
+          />
         ))}
       </ChipRow>
       {all.isError && !all.data ? (
@@ -100,13 +111,25 @@ export default function BookingHistoryScreen() {
       ) : rows.length ? (
         <ActivityList>
           {rows.slice(0, limit).map((b) => (
-            <BookingRow key={b.id} b={b} today={today} types={types} onPress={() => router.push(`/admin/booking/${encodeURIComponent(b.id)}`)} />
+            <BookingRow
+              key={b.id}
+              b={b}
+              today={today}
+              types={types}
+              // One status picked: every row would say the same thing.
+              hideStatus={status !== 'all' && status !== 'review'}
+              onPress={() => router.push(`/admin/booking/${encodeURIComponent(b.id)}`)}
+            />
           ))}
         </ActivityList>
       ) : (
         <EmptyState icon={<History color={palette.textMuted} strokeWidth={1.8} />} title="No bookings here" message={past.length ? 'Nothing matches these filters.' : 'Past bookings show up here.'} />
       )}
-      {rows.length > limit ? <Button title="Show more" variant="text" onPress={() => setLimit((n) => n + PAGE)} style={{ alignSelf: 'center' }} /> : null}
+      {rows.length > limit ? <Button title={`Show more (${rows.length - limit})`} variant="text" size="md" onPress={() => setLimit((n) => n + PAGE)} style={styles.more} /> : null}
     </Screen>
   );
 }
+
+const styles = themedStyles(() => ({
+  more: { alignSelf: 'center' },
+}));

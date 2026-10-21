@@ -1,6 +1,6 @@
 // One announcement in full: its image, title and message, the call-to-action link, and the file
-// for spreadsheet / presentation / video announcements (saved to the phone and opened from the
-// share sheet — videos play on the website). Auto-posted birthdays and work anniversaries get
+// for spreadsheet / presentation announcements (saved to the phone and opened from the share sheet).
+// A video plays right in the post (features/announcements/video, loaded on tap) and can still be saved. Auto-posted birthdays and work anniversaries get
 // their celebration card and a way to the colleague's profile.
 //
 // Payno detail (docs/REFERENCE-COMPONENTS.md): NavHeader with the share action for pictures; the
@@ -27,6 +27,7 @@ import {
   postedLabel,
   shareAnnouncementFile,
 } from '@/features/announcements/parts';
+import { AnnouncementVideo } from '@/features/announcements/video';
 import { useNow } from '@/features/attendance/use-now';
 import { usePeople } from '@/features/people/directory';
 import { firstName } from '@/lib/format';
@@ -173,6 +174,7 @@ export default function AnnouncementScreen() {
       {a && celebration ? <Celebration key="article" a={a} now={now} /> : null}
 
       {a && isImage && media.value !== '' ? <AnnouncementImage key="media" ann={a} /> : null}
+      {a && isVideo ? <AnnouncementVideo key="video" ann={a} /> : null}
       {a && !celebration ? (
         <Card key="article" tone="frostStrong" style={styles.article}>
           {posted ? (
@@ -212,7 +214,7 @@ export default function AnnouncementScreen() {
           icon={isVideo ? Video : a.type === 'excel' ? FileSpreadsheet : Presentation}
           module="news"
           title={isVideo ? 'Video' : a.fileName || (a.type === 'excel' ? 'Spreadsheet' : 'Presentation')}
-          sub={isVideo ? 'Plays on the DASH website, or save it to your phone.' : 'Save it, or open it in another app.'}
+          sub={isVideo ? 'Plays above. Save it to keep it on your phone.' : 'Save it, or open it in another app.'}
         />
       ) : null}
 

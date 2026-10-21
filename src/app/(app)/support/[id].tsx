@@ -15,6 +15,7 @@ import { categoryOf, dayTime, isCancellable, isOpenStatus, priorityLabel, raised
 import { phoneLabel } from '@/features/visitors/format';
 import { palette, radius, space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   AccountRow,
   ActionBar,
   Banner,
@@ -231,7 +232,7 @@ export default function SupportRequestDetail() {
           <SummaryCard rows={details} hideEmpty />
           {body ? (
             <Card tone="frostStrong" style={styles.body}>
-              <Text variant="labelStrong" muted>
+              <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
                 {isItem ? 'Why you need it' : 'Details'}
               </Text>
               <Text variant="body" selectable>

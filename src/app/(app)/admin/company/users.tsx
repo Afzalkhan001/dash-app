@@ -249,7 +249,9 @@ export default function CompanyUsersScreen() {
                   key={`${r.signed ? 'u' : 'w'}-${r.id}`}
                   person={{ name: r.name || r.email }}
                   title={r.name || r.email}
-                  subtitle={`${roleLabel(r.role)} · ${r.email}`}
+                  subtitle={roleLabel(r.role)}
+                  note={r.name ? r.email : undefined}
+                  subtitleLines={1}
                   status={r.signed ? { label: 'Signed up', tone: 'done' } : { label: 'Not signed up', tone: 'pending' }}
                   onPress={() => openRow(r)}
                   accessibilityHint="Opens their details"

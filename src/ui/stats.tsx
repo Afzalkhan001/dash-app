@@ -149,17 +149,18 @@ function figureParts(value: string | number, decimals?: number): { int: string; 
 
 // Start size by length (then adjustsFontSizeToFit, down to 70 %), so "₹1,24,500" fits a two-up tile
 // at 320 dp. Light weight only at 24 px and up.
-function figureStyle(chars: number): TextStyle {
+function figureStyle(chars: number, compact: boolean): TextStyle {
   if (chars <= 5) return { fontSize: 40, lineHeight: 46, letterSpacing: -1 };
-  if (chars <= 8) return { fontSize: 32, lineHeight: 38, letterSpacing: -0.8 };
+  // 6–8 characters ("3h 45m", "₹23,450") start at 28 on a compact phone, so a two-up tile at 320 dp fits them whole.
+  if (chars <= 8) return compact ? { fontSize: 28, lineHeight: 34, letterSpacing: -0.6 } : { fontSize: 32, lineHeight: 38, letterSpacing: -0.8 };
   if (chars <= 10) return { fontSize: 26, lineHeight: 32, letterSpacing: -0.5 };
   return { fontSize: 24, lineHeight: 30, letterSpacing: -0.4 };
 }
 
 function LightStatTile({ label, value, unit, caption, footer, valueColor, module, icon, onPress, style, prefix, decimals, delta }: StatTileProps) {
-  const { cardPad } = useLayout();
+  const { cardPad, compact } = useLayout();
   const parts = figureParts(value, decimals);
-  const fig = figureStyle(parts.int.length + parts.dec.length + (prefix ? 1 : 0));
+  const fig = figureStyle(parts.int.length + parts.dec.length + (prefix ? 1 : 0), compact);
   const supTop = Math.round((fig.fontSize ?? 40) * 0.12);
   const spec: DeltaSpec | null = delta == null ? null : typeof delta === 'number' ? deltaFromValue(delta) : delta;
   const figureText = `${prefix ?? ''}${parts.int}${parts.dec}${unit ? ` ${unit}` : ''}`;
@@ -303,13 +304,19 @@ const BASIS: Record<2 | 3 | 4, ViewStyle['flexBasis']> = { 2: '47%', 3: '30%', 4
 /**
  * Wrapping grid of StatTiles (gap 12).
  *   <StatGrid columns={2}>{tiles}</StatGrid>
- * Effective columns: 2 when compact or when any value is longer than 4 characters; otherwise `columns`.
+ * Effective columns: 2 when compact or when any value is longer than 4 characters; otherwise `columns`,
+ * stepping down (4 → 3 → 2) while a label's longest word wouldn't fit a tile whole ("In progress").
  */
 export function StatGrid({ columns = 2, children, style }: { columns?: 2 | 3 | 4; children: ReactNode; style?: StyleProp<ViewStyle> }) {
-  const { compact } = useLayout();
+  const l = useLayout();
   const tiles = Children.toArray(children).filter(isValidElement) as ReactElement<StatTileProps>[];
   const long = tiles.some((t) => String(t.props.value ?? '').length > 4);
-  const cols: 2 | 3 | 4 = compact || long ? 2 : columns;
+  // label 13 px ≈ 7.3 dp per character; a tile's text width = its share of the row minus its padding.
+  const fs = Math.min(Math.max(l.fontScale, 1), 1.3);
+  const longest = Math.max(0, ...tiles.map((t) => Math.max(0, ...String(t.props.label ?? '').split(/\s+/).map((w) => w.length))));
+  const labelsFit = (n: number) => longest * 7.3 * fs <= (l.width - l.gutter * 2 - space.sm * (n - 1)) / n - l.cardPad * 2;
+  let cols: 2 | 3 | 4 = l.compact || long ? 2 : columns;
+  while (cols > 2 && !labelsFit(cols)) cols = (cols - 1) as 2 | 3;
   return (
     <View style={[styles.grid, style]}>
       {tiles.map((t, i) => cloneElement(t, { key: t.key ?? i, style: [t.props.style, { flexGrow: 1, flexBasis: BASIS[cols], minWidth: 0 }] }))}

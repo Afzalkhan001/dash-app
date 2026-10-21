@@ -23,6 +23,7 @@ import { useAccess } from '@/lib/use-access';
 import { radius, space } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
 import {
+  FIELD_LABEL_INSET,
   AccountRow,
   ActionBar,
   Banner,
@@ -147,7 +148,7 @@ function ProjectForm({ editId }: { editId: string | null }) {
         <TextField label="Meta 2" value={m2} onChangeText={setM2} placeholder="e.g. NIM" autoCapitalize="characters" autoCorrect={false} />
         <TextField label="Meta 3" value={m3} onChangeText={setMeta3} placeholder="e.g. EXPL" autoCorrect={false} />
         <View style={styles.preview} accessible accessibilityLabel={code ? `Project code will be ${code}` : 'Fill Meta 1 to 3 to make the code'}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Project code
           </Text>
           {code ? <Chip label={code} selected /> : <Text variant="label" muted>Made from Meta 1, 2 and 3</Text>}
@@ -157,7 +158,7 @@ function ProjectForm({ editId }: { editId: string | null }) {
 
       <Card style={styles.fields}>
         <View style={styles.part}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Project owner
           </Text>
           <AccountRow
@@ -183,7 +184,7 @@ function ProjectForm({ editId }: { editId: string | null }) {
         </View>
         <DateField label="Date" value={date} onChange={setDate} placeholder="Pick a date" />
         <View style={styles.part}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Status
           </Text>
           <Segmented

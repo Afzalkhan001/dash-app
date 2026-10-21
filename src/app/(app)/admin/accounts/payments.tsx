@@ -38,7 +38,7 @@ export default function AccountsPaymentsScreen() {
 
   const note = (stage: Stage, i: (typeof rows)[number]) => {
     const p = paymentInfo(i);
-    if (stage === 'ready') return i.own ? 'Yours — someone else has to pay it' : !mayAct(desk.gates, i.type) ? 'View only — Accounts pays it' : `Approved · ${shortDate(i.movedAt, today)}`;
+    if (stage === 'ready') return i.own ? 'Yours — someone else pays it' : !mayAct(desk.gates, i.type) ? 'View only — Accounts pays it' : `Approved · ${shortDate(i.movedAt, today)}`;
     if (stage === 'processing') return `Started ${shortDate(p.startedAt, today)} · waiting for ${p.whoConfirms}`;
     if (stage === 'not_received') return p.response?.note ? `“${p.response.note}”` : `${p.whoConfirms} said it didn’t arrive`;
     return `Confirmed by ${p.response?.byName || p.whoConfirms}${p.response?.at ? ` · ${shortDate(p.response.at, today)}` : ''}`;
@@ -69,9 +69,9 @@ export default function AccountsPaymentsScreen() {
       {desk.loading && !desk.items.length ? (
         <SkeletonList rows={4} avatar />
       ) : rows.length ? (
-        <ActivityList title={STAGE_META[stage].label}>
+        <ActivityList title={plural(rows.length, 'payment')}>
           {rows.slice(0, shown).map((it) => (
-            <ItemRow key={it.key} item={it} today={today} note={note(stage, it)} onPress={() => router.push({ pathname: '/admin/accounts/item/[type]/[id]', params: { type: it.type, id: it.id } })} />
+            <ItemRow key={it.key} item={it} today={today} note={note(stage, it)} hideStage onPress={() => router.push({ pathname: '/admin/accounts/item/[type]/[id]', params: { type: it.type, id: it.id } })} />
           ))}
         </ActivityList>
       ) : !desk.error ? (

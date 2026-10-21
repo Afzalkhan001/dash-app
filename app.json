@@ -5,7 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": ["dashmobile", "com.tamadamedia.dashmobile"],
+    "scheme": [
+      "dashmobile",
+      "com.tamadamedia.dashmobile"
+    ],
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": {
@@ -132,7 +135,8 @@
           "defaultChannel": "default"
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": false,

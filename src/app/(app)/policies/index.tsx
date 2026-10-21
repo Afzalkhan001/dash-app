@@ -21,7 +21,7 @@ import { useTodayIst } from '@/features/attendance/use-now';
 import { canManagePolicies } from '@/features/hrtime/access';
 import { istDate } from '@/features/policies/format';
 import { useAccess } from '@/lib/use-access';
-import { palette } from '@/theme/tokens';
+import { palette, radius } from '@/theme/tokens';
 import {
   ActivityList,
   EmptyState,
@@ -31,10 +31,14 @@ import {
   NavHeader,
   RadialArc,
   Screen,
+  Skeleton,
   SkeletonList,
   StatusPill,
   SummaryHero,
 } from '@/ui';
+
+// The hero's height (label row, the 168 dp arc and its legend), for its loading placeholder.
+const HERO_H = 292;
 
 function PolicyRow({ policy: p, today, onPress }: { policy: PolicySummary; today: string; onPress: () => void }) {
   const title = (typeof p.title === 'string' && p.title.trim()) || 'Untitled policy';
@@ -85,7 +89,8 @@ export default function PoliciesScreen() {
   if (access.loading || hrPending) {
     return (
       <Screen header={header}>
-        <SkeletonList rows={5} tone="surface" />
+        <Skeleton height={HERO_H} radius={radius.xxl} />
+        <SkeletonList rows={5} avatar tone="surface" />
       </Screen>
     );
   }
@@ -127,6 +132,9 @@ export default function PoliciesScreen() {
             accessibilityLabel={`${confirmed} of ${asking} policies read and confirmed, ${toRead.length} to read`}
           />
         </SummaryHero>
+      ) : q.isPending ? (
+        // The hero's placeholder, so the lists don't jump down when the figures land.
+        <Skeleton key="hero" height={HERO_H} radius={radius.xxl} />
       ) : null}
 
       {q.isPending ? (

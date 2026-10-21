@@ -125,7 +125,7 @@ function ProjectDetail() {
           { key: 'm2', label: 'Meta 2', value: str(p.meta2) },
           { key: 'm3', label: 'Meta 3', value: str(p.meta3) },
           { key: 'owner', label: 'Project owner', value: str(p.costCodeOwner) },
-          { key: 'emp', label: 'Owner’s employee number', value: str(p.empNo) },
+          { key: 'emp', label: 'Employee number', value: str(p.empNo) },
           { key: 'date', label: 'Date', value: isYmd(date) ? dateLabel(date, today) : date },
         ]}
         hideEmpty

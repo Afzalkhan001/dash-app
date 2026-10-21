@@ -67,6 +67,9 @@ export const fmtDays = (n: number | null | undefined) => {
   if (!Number.isFinite(v)) return '—';
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 };
+/** Paise on a hero figure only while it still fits beside the eye (under ₹1,00,000, regular phones). */
+export const heroDecimals = (n: number | null | undefined, compact: boolean) => (!compact && Math.abs(Number(n) || 0) < 100000 ? 2 : 0);
+
 export const noun = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many);
 
 /** Rupees from a field ("1,20,000.50" → 120000.5), or null when it isn't money with ≤ 2 decimals. */

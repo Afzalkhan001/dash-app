@@ -12,10 +12,16 @@ import { useTodayIst } from '@/features/attendance/use-now';
 import { coins, dateTimeLabel, redemptionStatusMeta } from '@/features/bounty/logic';
 import { AdminGate, useBountyAdmin } from '@/features/bountyadmin/gate';
 import { palette } from '@/theme/tokens';
-import { ActivityList, ActivityRow, Banner, Card, EmptyState, ErrorState, NavHeader, Screen, Segmented, SkeletonList } from '@/ui';
+import { ActivityList, ActivityRow, Banner, Button, Card, Chip, ChipRow, EmptyState, ErrorState, NavHeader, Screen, SkeletonList } from '@/ui';
 
 const TITLE = 'Use-coins requests';
 type Show = 'pending' | 'approved' | 'declined' | 'all';
+const FILTERS: { key: Show; label: string }[] = [
+  { key: 'pending', label: 'Waiting' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'declined', label: 'Declined' },
+  { key: 'all', label: 'All' },
+];
 
 export default function RedemptionsScreen() {
   const { ready, gates } = useBountyAdmin();
@@ -39,18 +45,20 @@ function Redemptions() {
   return (
     <Screen header={<NavHeader title={TITLE} />} onRefresh={() => q.refetch()}>
       {!g.decideRedemptions ? <Banner tone="info" title="View only" message="Approving is switched off for your role in Company settings." /> : null}
-      <Segmented
-        options={[
-          { key: 'pending', label: 'Waiting', badge: pending || undefined },
-          { key: 'approved', label: 'Approved' },
-          { key: 'declined', label: 'Declined' },
-          { key: 'all', label: 'All' },
-        ]}
-        value={show}
-        onChange={setShow}
-      />
+      {/* Four filters, one with a count: chips, so "Waiting 2" never squeezes into a quarter-width segment. */}
+      <ChipRow>
+        {FILTERS.map((f) => (
+          <Chip
+            key={f.key}
+            label={f.label}
+            count={f.key === 'pending' && pending ? pending : undefined}
+            selected={show === f.key}
+            onPress={() => setShow(f.key)}
+          />
+        ))}
+      </ChipRow>
       {q.isLoading ? (
-        <SkeletonList rows={3} />
+        <SkeletonList rows={3} avatar tone="surface" />
       ) : q.error && !q.data ? (
         <Card>
           <ErrorState message={q.error.message} onRetry={() => void q.refetch()} />
@@ -75,7 +83,8 @@ function Redemptions() {
           <EmptyState
             icon={<Gift color={palette.textMuted} />}
             title={show === 'pending' ? 'Nothing waiting' : 'Nothing here'}
-            message={show === 'pending' ? 'When someone asks to use their coins, it shows up here and in your Inbox.' : undefined}
+            message={show === 'pending' ? 'When someone asks to use their coins, it shows up here and in your Inbox.' : 'No requests with this status yet.'}
+            action={show !== 'all' && all.length ? <Button title="Show all requests" variant="accent" size="md" onPress={() => setShow('all')} /> : undefined}
           />
         </Card>
       )}

@@ -33,6 +33,8 @@ import { TourTarget } from '@/ui/tour/target';
 
 import { themedStyles } from '@/theme/themed';
 const IOS = Platform.OS === 'ios';
+/** Web: let a value with no break points (an email, a URL) wrap anywhere instead of running past the card. Phones already do. */
+const BREAK_ANYWHERE = Platform.OS === 'web' ? ({ overflowWrap: 'anywhere' } as object) : null;
 // Token reads live in functions (called from the themedStyles factory or at render), never in
 // module-level constants, so they follow the light / dark switch.
 /** The frosted rim: a bright edge on iOS, a hairline on Android. */
@@ -247,7 +249,7 @@ function PersonTile({ item, frame }: { item: AvatarTileItem; frame: StyleProp<Vi
         {dot ? <View style={[styles.avatarDot, { backgroundColor: dot }]} /> : null}
       </View>
       <View style={styles.personText}>
-        <Text variant="label" color={palette.ink} align="center" numberOfLines={2} maxFontSizeMultiplier={1.35} style={styles.medium}>
+        <Text variant="label" color={palette.ink} align="center" numberOfLines={2} maxFontSizeMultiplier={1.35} style={[styles.medium, styles.personName]}>
           {item.name}
         </Text>
         {item.sub ? (
@@ -759,6 +761,8 @@ export function AccountRow({
   accessibilityLabel,
   actionAccessibilityLabel,
   hint,
+  subLines,
+  subEllipsize = 'tail',
   style,
 }: {
   title: string;
@@ -773,6 +777,10 @@ export function AccountRow({
   /** Spoken label of the pill (defaults to "Change <title>"). */
   actionAccessibilityLabel?: string;
   hint?: string;
+  /** Lines for `sub` (default 2). */
+  subLines?: 1 | 2;
+  /** How a cut `sub` is shortened: 'tail' (default) or 'middle' — for URLs and file names, which keep both ends. */
+  subEllipsize?: 'tail' | 'middle';
   style?: StyleProp<ViewStyle>;
 }) {
   const l = useLayout();
@@ -806,7 +814,7 @@ export function AccountRow({
         {title}
       </Text>
       {sub ? (
-        <Text variant="label" muted tabular numberOfLines={2}>
+        <Text variant="label" muted tabular numberOfLines={subLines ?? (subEllipsize === 'middle' ? 1 : 2)} ellipsizeMode={subEllipsize}>
           {sub}
         </Text>
       ) : null}
@@ -911,6 +919,8 @@ export function SummaryCard({
   const huge = shouldStack(l, { text: 'huge' });
   const narrow = shouldStack(l, { below: 'narrow' });
   const list = (Array.isArray(rows) ? rows : []).filter((r) => r && r.label && (!hideEmpty || (r.value != null && r.value !== '')));
+  // The text width inside the card (a screen-level card; a sheet is a little wider, which only helps).
+  const inner = l.width - l.gutter * 2 - l.cardPad * 2;
   return (
     <View style={[styles.summary, frost, { padding: l.cardPad }, style]}>
       {title || right ? (
@@ -926,24 +936,45 @@ export function SummaryCard({
         </View>
       ) : null}
       {list.map((r, i) => (
-        <SummaryLine key={r.key ?? `${r.label}-${i}`} item={r} huge={huge} narrow={narrow} />
+        <SummaryLine key={r.key ?? `${r.label}-${i}`} item={r} huge={huge} narrow={narrow} inner={inner} fontScale={l.fontScale} />
       ))}
       {total ? (
         <>
           <View style={styles.dashWrap}>
             <View style={styles.dash} />
           </View>
-          <SummaryLine item={{ label: total.label, value: total.value, hint: total.hint }} huge={huge} narrow={narrow} total />
+          <SummaryLine item={{ label: total.label, value: total.value, hint: total.hint }} huge={huge} narrow={narrow} inner={inner} fontScale={l.fontScale} total />
         </>
       ) : null}
     </View>
   );
 }
 
-function SummaryLine({ item, huge, narrow, total }: { item: SummaryItem; huge: boolean; narrow: boolean; total?: boolean }) {
+function SummaryLine({
+  item,
+  huge,
+  narrow,
+  inner,
+  fontScale,
+  total,
+}: {
+  item: SummaryItem;
+  huge: boolean;
+  narrow: boolean;
+  inner: number;
+  fontScale: number;
+  total?: boolean;
+}) {
   const text = formatValue(item.value);
-  // Inline while the value fits the 60 % value column (a date like "Mon, 3 Nov 2026" stays inline at 320 dp).
-  const inline = !huge && (item.status ? true : text.length <= (narrow ? 16 : 24));
+  // Inline while the value fits the value column (up to 60 %; a date like "Mon, 3 Nov 2026" stays inline
+  // at 320 dp) and the label's longest word still fits the room the value leaves (no "Reimbursemen/ts").
+  // The label takes whatever the value doesn't need, so a short value never leaves the label wrapping.
+  const fs = Math.min(Math.max(fontScale, 1), 1.6);
+  const valueW = item.status ? text.length * 6.6 * fs + 34 : text.length * 8.4 * fs;
+  const labelRoom = inner - space.sm - Math.min(inner * 0.6, valueW);
+  const longestWord = Math.max(0, ...item.label.split(/\s+/).map((w) => w.length));
+  const labelFits = longestWord * 7.4 * fs <= labelRoom;
+  const inline = !huge && labelFits && (item.status ? true : text.length <= (narrow ? 16 : 24));
   const label = (
     <Text variant={total ? 'bodyStrong' : 'label'} color={total ? palette.ink : palette.textMuted} numberOfLines={inline ? 2 : undefined} style={inline ? styles.sumKey : null}>
       {item.label}
@@ -959,7 +990,7 @@ function SummaryLine({ item, huge, narrow, total }: { item: SummaryItem; huge: b
       selectable
       align={inline ? 'right' : 'left'}
       numberOfLines={inline ? 3 : undefined}
-      style={styles.medium}>
+      style={[styles.medium, BREAK_ANYWHERE]}>
       {text}
     </Text>
   );
@@ -1194,6 +1225,9 @@ const styles = themedStyles(() => ({
     paddingHorizontal: space.xs,
   },
   personText: { alignItems: 'center', gap: 2, alignSelf: 'stretch' },
+  // Two name lines are always reserved, so a two-word name that wraps and a one-line name with an
+  // ellipsised role give tiles of the same height in one row.
+  personName: { minHeight: 36 },
   avatarDot: {
     position: 'absolute',
     right: -1,
@@ -1295,8 +1329,9 @@ const styles = themedStyles(() => ({
   summary: { borderRadius: radius.xl, gap: space.sm },
   sumInline: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
   sumStacked: { gap: 2 },
-  sumKey: { flex: 0.4, minWidth: 0, paddingTop: 2 },
-  sumValue: { flex: 0.6, minWidth: 0, alignItems: 'flex-end', gap: 2 },
+  // The value column takes what it needs (up to 60 %); the label gets the rest.
+  sumKey: { flex: 1, minWidth: 0, paddingTop: 2 },
+  sumValue: { flexShrink: 1, maxWidth: '60%', minWidth: 0, alignItems: 'flex-end', gap: 2 },
   sumValueStacked: { alignItems: 'flex-start', gap: 2 },
   dashWrap: { height: 1, overflow: 'hidden', marginVertical: space.xxs },
   dash: { height: 2, borderWidth: 1, borderColor: palette.hairline, borderStyle: 'dashed', borderRadius: 1 },

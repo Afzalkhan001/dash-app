@@ -23,6 +23,7 @@ import { postTypeLabel, tvUsablePosts } from '@/features/newsroom/format';
 import { dateLabel } from '@/lib/dates';
 import { palette } from '@/theme/tokens';
 import {
+  ActionBar,
   Banner,
   Button,
   Card,
@@ -30,7 +31,6 @@ import {
   DateField,
   EmptyState,
   ErrorState,
-  FieldPair,
   IconButton,
   ListCard,
   ListRow,
@@ -169,7 +169,14 @@ export default function PlaylistScreen() {
   const choices = usable.filter((a) => !q || (a.title ?? '').toLowerCase().includes(q));
 
   return (
-    <Screen header={header(isNew ? 'New playlist' : d.name || 'Playlist', !isNew)} onRefresh={() => Promise.all([listQ.refetch(), postsQ.refetch(), tvsQ.refetch()])}>
+    <Screen
+      header={header(isNew ? 'New playlist' : 'Playlist', !isNew)}
+      onRefresh={() => Promise.all([listQ.refetch(), postsQ.refetch(), tvsQ.refetch()])}
+      footer={
+        <ActionBar note={!d.name.trim() ? 'Give the playlist a name to save it.' : 'TVs on this playlist update within a minute. Nobody is messaged.'}>
+          <Button title={isNew ? 'Create playlist' : 'Save playlist'} loading={busy} disabled={!dirty || !d.name.trim()} onPress={save} />
+        </ActionBar>
+      }>
       <Card padded style={{ gap: 12 }}>
         <TextField label="Name" value={d.name} onChangeText={(v) => edit({ name: v })} maxLength={80} placeholder="General announcements" />
         <TextField label="Description (optional)" value={d.description} onChangeText={(v) => edit({ description: v })} maxLength={300} multiline />
@@ -224,21 +231,17 @@ export default function PlaylistScreen() {
                     {gone ? <StatusPill label="Expired or removed" tone="failed" /> : null}
                   </View>
                 </View>
-                <FieldPair>
-                  <TextField
-                    label="Seconds on screen"
-                    value={r.seconds}
-                    onChangeText={(v) => setRow(i, { seconds: v.replace(/\D/g, '').slice(0, 3) })}
-                    keyboardType="number-pad"
-                    error={r.seconds && !secondsOk(r.seconds) ? '3 to 300' : null}
-                  />
-                  <Button title="Change post" variant="accent" size="md" icon={<Repeat />} onPress={() => setPicker({ index: i })} />
-                </FieldPair>
-                <FieldPair>
-                  <DateField label="First day (optional)" value={r.startDate} onChange={(v) => setRow(i, { startDate: v })} />
-                  <DateField label="Last day (optional)" value={r.endDate} onChange={(v) => setRow(i, { endDate: v })} minimumDate={r.startDate ?? undefined} />
-                </FieldPair>
-                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <TextField
+                  label="Seconds on screen"
+                  value={r.seconds}
+                  onChangeText={(v) => setRow(i, { seconds: v.replace(/\D/g, '').slice(0, 3) })}
+                  keyboardType="number-pad"
+                  error={r.seconds && !secondsOk(r.seconds) ? '3 to 300' : null}
+                />
+                <DateField label="First day (optional)" value={r.startDate} onChange={(v) => setRow(i, { startDate: v })} />
+                <DateField label="Last day (optional)" value={r.endDate} onChange={(v) => setRow(i, { endDate: v })} minimumDate={r.startDate ?? undefined} />
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
+                  <Button title="Change post" variant="ghost" size="sm" icon={<Repeat />} onPress={() => setPicker({ index: i })} style={{ marginRight: 'auto' }} />
                   {r.startDate || r.endDate ? (
                     <Button title="Clear days" variant="ghost" size="sm" onPress={() => setRow(i, { startDate: null, endDate: null })} />
                   ) : null}
@@ -260,10 +263,6 @@ export default function PlaylistScreen() {
       </View>
 
       {error ? <Banner tone="danger" message={error} /> : null}
-      <Button title={isNew ? 'Create playlist' : 'Save playlist'} loading={busy} disabled={!dirty || !d.name.trim()} onPress={save} />
-      <Text variant="caption" muted align="center">
-        TVs on this playlist update within a minute. Nobody is messaged.
-      </Text>
 
       <Sheet visible={!!picker} onClose={() => setPicker(null)} title={picker?.index == null ? 'Add a post' : 'Change the post'}>
         <PillField icon={Search} placeholder="Search posts" value={search} onChangeText={setSearch} accessibilityLabel="Search posts" />

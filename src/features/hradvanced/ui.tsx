@@ -53,7 +53,7 @@ export function TypeToConfirm({ phrase, value, onChange, what }: { phrase: strin
 export function FieldGroup({ title, children, hint }: { title: string; children: ReactNode; hint?: string | null }) {
   return (
     <View style={styles.group}>
-      <Text variant="labelStrong" muted>
+      <Text variant="labelStrong" muted style={styles.fieldLabel}>
         {title}
       </Text>
       {children}
@@ -67,6 +67,7 @@ export function FieldGroup({ title, children, hint }: { title: string; children:
 }
 
 const styles = themedStyles(() => ({
+  fieldLabel: { paddingHorizontal: space.xxs },
   typed: { gap: space.xs },
   group: { gap: space.sm },
 }));

@@ -27,6 +27,7 @@ import { useAccess } from '@/lib/use-access';
 import { themedStyles } from '@/theme/themed';
 import { palette, radius, space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   ActionBar,
   ActionRow,
   Banner,
@@ -173,7 +174,7 @@ export default function ScanPassScreen() {
       <Screen
         header={<NavHeader title="Scan a pass" onBack={restart} />}
         footer={
-          <ActionBar note={photo ? undefined : 'A photo is needed to check an invited guest in.'}>
+          <ActionBar>
             {photo ? (
               <ActionRow context="bar">
                 <Button variant="ghost" title="Retake" icon={<RotateCcw />} onPress={() => setLive(true)} disabled={busy} />
@@ -194,7 +195,7 @@ export default function ScanPassScreen() {
           <Card style={styles.noPhoto}>
             <UserRound size={40} color={palette.textFaint} strokeWidth={1.5} />
             <Text variant="label" muted align="center">
-              Take a quick photo of the guest. Their host sees it with the arrival message.
+              A photo is needed to check them in. Their host sees it with the arrival message.
             </Text>
           </Card>
         )}
@@ -233,19 +234,20 @@ export default function ScanPassScreen() {
         module="visitors"
         label="Invited guests"
         figure={<Text variant="title">Scan their pass</Text>}
-        sub="Point the camera at the QR on the guest’s visitor pass. Invited guests are let in at once."
+        sub="Point the camera at the QR on their visitor pass. Invited guests go straight in."
         action={{ title: 'Open the scanner', icon: <ScanLine />, onPress: () => { setMsg(null); setScanning(true); } }}
       />
       {qr.isError && !qr.data ? <ErrorState message={qr.error?.message ?? ''} onRetry={() => void qr.refetch()} /> : null}
       <Card style={styles.typeCard}>
         <View style={styles.typeHead}>
           <Keyboard size={18} color={palette.textMuted} strokeWidth={1.8} />
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Or type the 6-digit code
           </Text>
         </View>
         <OtpBoxes value={code} onChange={(v) => { setCode(v); setMsg(null); }} onComplete={(c) => void lookUp(c)} error={msg?.tone === 'danger'} disabled={busy || !base} accessibilityLabel="Invite code" />
-        <Button title={busy ? 'Checking…' : 'Find the invite'} loading={busy} disabled={code.length !== 6 || !base} onPress={() => void lookUp(code)} />
+        {/* The boxes look the code up by themselves when full; this is the fallback, so it stays secondary to the scanner. */}
+        <Button variant="ghost" title={busy ? 'Checking…' : 'Find the invite'} loading={busy} disabled={code.length !== 6 || !base} onPress={() => void lookUp(code)} />
       </Card>
       {banner}
       <Text variant="caption" muted>

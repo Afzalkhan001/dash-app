@@ -12,7 +12,7 @@ import { type Shift, useAllShifts } from '@/api/attendance';
 import { useShiftActions, useShiftPeople } from '@/api/hrtime';
 import { daysLabel, errorText, GateFallback, intOf, NumberField, useHrTimeGate, WeekdayChips, noun } from '@/features/hrtime/ui';
 import { durationLabel, hmLabel } from '@/lib/dates';
-import { moduleTone } from '@/theme/tokens';
+import { moduleTone, radius } from '@/theme/tokens';
 import {
   ActionRow,
   ActivityList,
@@ -28,8 +28,10 @@ import {
   PillField,
   Screen,
   Sheet,
+  Skeleton,
   SkeletonList,
   SummaryCard,
+  SummaryHero,
   Text,
   TimeField,
   toast,
@@ -51,9 +53,27 @@ export default function ManageShiftsScreen() {
   const list = (Array.isArray(shifts.data) ? shifts.data : []).filter((s) => s && s.id);
   const onShift = (id: string) => (people.data ?? []).filter((p) => p.shift_id === id).length;
   const counted = !!people.data;
+  const everyone = (people.data ?? []).length;
+  const onAny = (people.data ?? []).filter((p) => p.shift_id).length;
 
   return (
     <Screen header={header} onRefresh={() => Promise.all([shifts.refetch(), people.refetch()])}>
+      {shifts.isPending ? (
+        <Skeleton height={176} radius={radius.xxl} />
+      ) : list.length ? (
+        <SummaryHero
+          icon={Clock}
+          module="shifts"
+          label="Hours other than the company’s"
+          value={list.length}
+          unit={noun(list.length, 'shift')}
+          sub={
+            counted
+              ? `${onAny} ${noun(onAny, 'person', 'people')} on a shift · ${everyone - onAny} on company hours`
+              : 'Everyone else keeps the company’s hours'
+          }
+        />
+      ) : null}
       {shifts.isPending ? (
         <SkeletonList rows={3} avatar tone="surface" />
       ) : shifts.error && !list.length ? (
@@ -68,7 +88,7 @@ export default function ManageShiftsScreen() {
           />
         </Card>
       ) : (
-        <ActivityList title={`${list.length} ${noun(list.length, 'shift')}`}>
+        <ActivityList title="All shifts">
           {list.map((s) => {
             const n = onShift(s.id);
             return (

@@ -8,7 +8,7 @@ import type { LucideIcon } from 'lucide-react-native';
 
 import { GridGateFallback, useGridGate } from '@/features/grids/grid-ui';
 import type { ModuleKey } from '@/theme/tokens';
-import { ListCard, ListRow, ModuleBadge, NavHeader, Screen, SummaryHero, Text } from '@/ui';
+import { ActivityList, ActivityRow, NavHeader, Screen, SummaryHero } from '@/ui';
 
 type Item = { key: string; title: string; sub: string; href: string; icon: LucideIcon; module: ModuleKey; on: boolean };
 
@@ -31,16 +31,7 @@ export default function GridsHub() {
   const count = people.length + money.length;
 
   const row = (i: Item) => (
-    <ListRow
-      key={i.key}
-      size="lg"
-      left={<ModuleBadge module={i.module} icon={i.icon} />}
-      title={i.title}
-      subtitle={i.sub}
-      subtitleLines={2}
-      chevron
-      onPress={() => router.push(i.href as never)}
-    />
+    <ActivityRow key={i.key} module={i.module} icon={i.icon} title={i.title} subtitle={i.sub} chevron onPress={() => router.push(i.href as never)} />
   );
 
   return (
@@ -49,11 +40,12 @@ export default function GridsHub() {
         icon={Table2}
         module="people"
         label="Tables from the DASH website"
-        figure={<Text variant="title">{`${count} ${count === 1 ? 'table' : 'tables'}`}</Text>}
-        sub="Swipe a table sideways for more columns. Use − and + at the top for smaller or bigger text. Tap a row for all its details."
+        value={count}
+        unit={count === 1 ? 'table' : 'tables'}
+        sub="Swipe a table sideways for more columns. Tap a row for all its details."
       />
-      {people.length ? <ListCard title="People & HR">{people.map(row)}</ListCard> : null}
-      {money.length ? <ListCard title="Money">{money.map(row)}</ListCard> : null}
+      {people.length ? <ActivityList title="People & HR">{people.map(row)}</ActivityList> : null}
+      {money.length ? <ActivityList title="Money">{money.map(row)}</ActivityList> : null}
     </Screen>
   );
 }

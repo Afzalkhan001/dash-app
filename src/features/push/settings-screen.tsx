@@ -38,7 +38,7 @@ import { useAccess } from '@/lib/use-access';
 import { themedStyles } from '@/theme/themed';
 import type { ModuleKey } from '@/theme/tokens';
 import { palette, radius, space } from '@/theme/tokens';
-import { Banner, Button, haptic, ListCard, ListRow, ModuleBadge, NavHeader, Screen, Section, Sheet, Skeleton, StatusPill, Text, toast } from '@/ui';
+import { Banner, Button, haptic, ListCard, ListRow, ModuleBadge, NavHeader, Screen, Section, Sheet, shouldStack, Skeleton, StatusPill, Text, toast, useLayout } from '@/ui';
 
 const KIND_LOOK: Record<PushKind | 'default', { icon: LucideIcon; module: ModuleKey }> = {
   approvals: { icon: ClipboardCheck, module: 'tasks' },
@@ -113,6 +113,8 @@ function DemoSamples() {
   const permission = usePushState((s) => s.permission);
   const support = pushSupport();
   const [sending, setSending] = useState<string | null>(null);
+  // On a narrow phone or with large text the Send button goes under the text, so the title isn't squeezed.
+  const stack = shouldStack(useLayout(), { below: 'compact' });
   const needsPermission = support === 'demo' && permission !== 'granted';
   const send = async (s: PushSample) => {
     setSending(s.id);
@@ -142,6 +144,7 @@ function DemoSamples() {
                 subtitle={s.body}
                 subtitleLines={2}
                 numberOfLines={2}
+                stackRight={stack}
                 right={<Button size="sm" variant="ghost" title="Send" icon={<Send />} loading={sending === s.id} disabled={needsPermission || (!!sending && sending !== s.id)} onPress={() => void send(s)} />}
               />
             );

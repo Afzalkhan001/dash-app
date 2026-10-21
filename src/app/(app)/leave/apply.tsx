@@ -73,6 +73,7 @@ import { hrHas } from '@/lib/access';
 import { dayLabel } from '@/lib/dates';
 import { moduleTone, palette, radius, space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   ActionBar,
   Banner,
   Button,
@@ -490,7 +491,7 @@ export default function ApplyLeaveScreen() {
 
       {isLeave ? (
         <View style={styles.part}>
-          <Text variant="labelStrong" muted accessibilityRole="header">
+          <Text variant="labelStrong" muted accessibilityRole="header" style={FIELD_LABEL_INSET}>
             Leave type
           </Text>
           {typesQ.isLoading ? (
@@ -537,7 +538,7 @@ export default function ApplyLeaveScreen() {
 
         {showHalf ? (
           <View style={styles.part}>
-            <Text variant="labelStrong" muted>
+            <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
               Duration
             </Text>
             <Segmented options={HALF_OPTIONS} value={halfDay} onChange={chooseHalf} />

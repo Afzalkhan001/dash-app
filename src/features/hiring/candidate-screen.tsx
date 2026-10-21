@@ -271,8 +271,8 @@ export function CandidateScreen({ id }: { id: string }) {
   const FirstIcon = first ? ACTION_COPY[first].icon : UserCheck;
   const footer = first ? (
     <ActionBar note={first === 'approve' && posterIsMe && bonus ? `You have ${coins(available)} to give as referral bonuses.` : null}>
+      {/* Row order is secondary first, primary last (DESIGN A6): stacked, the primary goes on top. */}
       <ActionRow context="bar">
-        <Button title={ACTION_COPY[first].label} icon={<FirstIcon />} onPress={() => begin(first)} />
         {second ? (
           actions.length > 2 ? (
             <Button title="More" variant="ghost" icon={<MoreHorizontal />} onPress={() => setMenu(true)} />
@@ -280,6 +280,7 @@ export function CandidateScreen({ id }: { id: string }) {
             <Button title={ACTION_COPY[second].label} variant="ghost" onPress={() => begin(second)} />
           )
         ) : null}
+        <Button title={ACTION_COPY[first].label} icon={<FirstIcon />} onPress={() => begin(first)} />
       </ActionRow>
     </ActionBar>
   ) : undefined;

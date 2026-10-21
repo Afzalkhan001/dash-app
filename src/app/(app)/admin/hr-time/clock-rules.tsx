@@ -9,6 +9,8 @@
 //   remote   Always remote     — "Permanent WFH capture scheme"
 // Office ticks apply to Office only / Office or field; none ticked means every office. More than 20
 // people at once goes through ConfirmSheet + SwipeToConfirm. Nobody is messaged.
+// Pills: grey for the company default, brand (info) for any rule of their own, as Who works which
+// shift does. Rules are not good or bad, so never green, amber or red.
 
 import { Building2, Home, MapPin, Navigation, UserCog } from 'lucide-react-native';
 import { useState } from 'react';
@@ -25,8 +27,8 @@ import { ActionRow, Banner, Button, ConfirmSheet, ListRow, NavHeader, SelectTile
 const RULES: Record<ClockMode, { label: string; web: string; tone: StatusTone }> = {
   default: { label: 'Company default', web: 'Follows the company policy', tone: 'neutral' },
   geofence: { label: 'Office only', web: 'General capture scheme', tone: 'info' },
-  flexible: { label: 'Office or field', web: 'Field capture scheme', tone: 'pending' },
-  remote: { label: 'Always remote', web: 'Permanent WFH capture scheme', tone: 'done' },
+  flexible: { label: 'Office or field', web: 'Field capture scheme', tone: 'info' },
+  remote: { label: 'Always remote', web: 'Permanent WFH capture scheme', tone: 'info' },
 };
 const ICONS = { default: Building2, geofence: MapPin, flexible: Navigation, remote: Home };
 const BIG = 20;
@@ -147,7 +149,7 @@ function RuleSheet({
         />
         {needsOffices ? (
           <View style={styles.group}>
-            <Text variant="labelStrong" muted>
+            <Text variant="labelStrong" muted style={styles.fieldLabel}>
               Which offices
             </Text>
             {offices.length ? (
@@ -193,5 +195,6 @@ function RuleSheet({
 }
 
 const styles = themedStyles(() => ({
+  fieldLabel: { paddingHorizontal: space.xxs },
   group: { gap: space.xs },
 }));

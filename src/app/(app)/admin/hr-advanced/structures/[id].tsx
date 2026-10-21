@@ -248,7 +248,7 @@ function CompCard({
     <Card>
       <View style={styles.stack}>
         <View style={styles.cardHead}>
-          <Text variant="bodyStrong" style={styles.flex} numberOfLines={2}>
+          <Text variant="bodyStrong" style={styles.cardTitle} numberOfLines={2}>
             {index + 1}. {c.name.trim() || 'New part'}
           </Text>
           {onRemove ? <Button title="Remove" size="sm" variant="danger" icon={<Trash2 />} onPress={onRemove} accessibilityLabel={`Remove ${c.name || 'this part'}`} /> : null}
@@ -277,8 +277,8 @@ function CompCard({
             Takes whatever is left of the monthly CTC after the other parts.
           </Text>
         )}
-        <ToggleRow label="Taxable" sub="Counts towards income tax" value={c.taxable} onChange={(v) => onChange({ taxable: v })} />
-        <ToggleRow label="Counts for PF" sub="Part of the wage Provident Fund is worked out on" value={c.pf_wage} onChange={(v) => onChange({ pf_wage: v })} />
+        <ToggleRow flush label="Taxable" sub="Counts towards income tax" value={c.taxable} onChange={(v) => onChange({ taxable: v })} />
+        <ToggleRow flush label="Counts for PF" sub="Part of the wage Provident Fund is worked out on" value={c.pf_wage} onChange={(v) => onChange({ pf_wage: v })} />
         {showErrors || (c.code && c.name) ? <FieldMessage error={err} /> : null}
       </View>
     </Card>
@@ -290,5 +290,7 @@ const styles = themedStyles(() => ({
   pair: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   code: { width: 120, flexGrow: 1 },
   flex: { flex: 1, minWidth: 160 },
-  cardHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  // The part's name takes what is left beside Remove (2 lines), so Remove never drops to its own line.
+  cardTitle: { flex: 1 },
 }));

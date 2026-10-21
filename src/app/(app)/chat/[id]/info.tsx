@@ -40,6 +40,7 @@ import {
   ConfirmSheet,
   ErrorState,
   haptic,
+  IconBadge,
   LabelledSection,
   ListCard,
   ListRow,
@@ -271,11 +272,10 @@ export default function ChatInfoScreen() {
           {error ? <Banner tone="danger" title="Couldn’t do that" message={error} /> : null}
           {detail?.leftAt ? <Banner tone="info" title="You left this group" message="You can still read and export what was said before you left." /> : null}
 
+          {/* The type and the member count are in the hero and the section title: said once. */}
           <SummaryCard
             rows={[
-              { label: 'Type', value: group ? 'Group' : 'Direct message' },
               { label: 'Started', value: dateLabel(detail?.created_at, today) },
-              { label: 'Members', value: String(current.length) },
               ...(group && mine ? [{ label: 'You are', value: detail?.leftAt ? `Left on ${dateLabel(detail.leftAt, today)}` : ROLE[mine.role] ?? 'Member' }] : []),
             ]}
           />
@@ -306,7 +306,11 @@ export default function ChatInfoScreen() {
           <LabelledSection title="Export">
             <ListCard tone="surface">
               <ListRow
-                left={<Download size={22} color={palette.primaryText} strokeWidth={1.8} />}
+                left={
+                  <IconBadge bg={palette.primarySoft}>
+                    <Download size={20} color={palette.primaryText} strokeWidth={1.8} />
+                  </IconBadge>
+                }
                 title={exporting ? 'Preparing…' : 'Export chat'}
                 subtitle="Excel, text or CSV of the messages you can read. DASH records each export."
                 subtitleLines={3}
@@ -381,12 +385,13 @@ export default function ChatInfoScreen() {
         onClose={() => setLeaving(false)}
         title={`Leave ${title}?`}
         subtitle="You keep the history up to now, but you can’t post again unless someone adds you back."
+        from={{ title: user?.name || 'You', subtitle: 'Leaves the group', avatar: { name: user?.name || 'You' } }}
+        to={{ title, subtitle: plural(current.length, 'member'), avatar: { name: title } }}
         confirmLabel="Swipe to leave"
         onConfirm={leave}
         loading={busy}
-        note="Only the member list changes. Nothing is posted in the chat, and no email or WhatsApp is sent.">
-        <SummaryCard rows={[{ label: 'Group', value: title }, { label: 'Members', value: String(current.length) }]} />
-      </ConfirmSheet>
+        note="Only the member list changes. Nothing is posted in the chat, and no email or WhatsApp is sent."
+      />
     </Screen>
   );
 }

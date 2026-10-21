@@ -51,8 +51,8 @@ export default function ImportExportHub() {
               ) : null}
             </ActivityList>
           ) : null}
-          {groups.map(({ g, rows }) => (
-            <ActivityList key={g} title={EXPORT_GROUP_TITLE[g]} overline="Download as Excel">
+          {groups.map(({ g, rows }, gi) => (
+            <ActivityList key={g} title={EXPORT_GROUP_TITLE[g]} overline={gi === 0 ? 'Download as Excel' : undefined}>
               {rows.map((e) => (
                 <ActivityRow
                   key={e.key}

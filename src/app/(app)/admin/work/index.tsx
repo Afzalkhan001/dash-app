@@ -6,8 +6,8 @@
 import { type Href, useRouter } from 'expo-router';
 import { BriefcaseBusiness, ClipboardCheck, ClipboardList, ClipboardPlus, UsersRound } from 'lucide-react-native';
 
-import { useTeamTasks } from '@/api/work';
-import { canReviewWork, canSeeClients, canSeeProjects, canSeeTeamTasks } from '@/features/work/access';
+import { useAllClients, useTeamTasks } from '@/api/work';
+import { canReviewWork, canSeeClients, canSeeProjects, canSeeTeamTasks, isMyClient } from '@/features/work/access';
 import { WorkGate } from '@/features/work/gate';
 import { isMyTeamTask, matchesFilter } from '@/features/work/model';
 import { useWorkTeam } from '@/features/work/use-team';
@@ -33,6 +33,10 @@ function WorkHub() {
   const teamOn = canSeeTeamTasks(a);
   const reviewOn = canReviewWork(a);
   const tasksQ = useTeamTasks('active', teamOn || reviewOn);
+  // Without Team tasks the hero is the person's clients (the same read the Clients screen makes).
+  const clientsHero = !teamOn && canSeeClients(a);
+  const clientsQ = useAllClients(clientsHero);
+  const myClients = (Array.isArray(clientsQ.data) ? clientsQ.data : []).filter((c) => isMyClient(c, a.user)).length;
   const me = scope.me;
   const tasks = me ? (tasksQ.data ?? []).filter((t) => !!t && isMyTeamTask(t, { id: me.id, name: me.name }, scope.teamNames)) : [];
   const open = tasks.filter((t) => matchesFilter(t, 'active', today, scope.adminType)).length;
@@ -50,7 +54,7 @@ function WorkHub() {
   ];
 
   return (
-    <Screen header={<NavHeader title="Work" />} onRefresh={() => Promise.all([tasksQ.refetch(), scope.refetch()])}>
+    <Screen header={<NavHeader title="Work" />} onRefresh={() => Promise.all([tasksQ.refetch(), scope.refetch(), clientsHero ? clientsQ.refetch() : null])}>
       {teamOn && tasksQ.data ? (
         <SummaryHero
           icon={ClipboardList}
@@ -61,6 +65,17 @@ function WorkHub() {
           onArrowPress={go('/admin/work/tasks')}
           arrowLabel="Open Team tasks"
           info={waiting ? { label: 'Waiting for your review', value: String(waiting), onPress: go('/inbox?type=task') } : undefined}
+        />
+      ) : clientsHero && clientsQ.data ? (
+        <SummaryHero
+          icon={UsersRound}
+          module="tasks"
+          label="Your clients"
+          value={myClients}
+          unit={myClients === 1 ? 'client' : 'clients'}
+          onArrowPress={go('/admin/work/clients')}
+          arrowLabel="Open Clients"
+          sub={myClients ? 'Only you see the clients you add.' : 'Add the clients you work with, to call or email them from here.'}
         />
       ) : null}
       <CategoryGrid items={items} />

@@ -79,7 +79,8 @@ export default function MobileLogin() {
           <GoogleButton onError={setError} disabled={busy} />
           {DEMO_ENABLED ? (
             <>
-              <Button variant="text" title="Try a demo role" icon={<Users />} onPress={() => setChoosingRole(true)} disabled={busy} />
+              {/* Centred like every other text link under the form ("New here? Create your account"). */}
+              <Button variant="text" title="Try a demo role" icon={<Users />} onPress={() => setChoosingRole(true)} disabled={busy} style={{ alignSelf: 'center' }} />
               <DemoRolePicker visible={choosingRole} onClose={() => setChoosingRole(false)} onChoose={chooseDemoRole} />
             </>
           ) : null}

@@ -18,15 +18,16 @@ import { useState } from 'react';
 import { useAssets, useAssetWrites } from '@/api/itdesk';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { ASSIGNABLE_ROLES, canSeeAssets } from '@/features/itdesk/access';
-import { ACK_WORDS, ackState, ASSET_CONDITIONS, type AssignCandidate, assetIcon, assignPool, conditionTone, conditionWords, holderOf, isAssigned } from '@/features/itdesk/format';
+import { ACK_WORDS, ackState, ASSET_CONDITIONS, type AssignCandidate, assetIcon, assignPool, conditionIcon, conditionTone, conditionWords, holderOf, isAssigned } from '@/features/itdesk/format';
 import { useAssetDirectory } from '@/features/itdesk/ui';
 import { PersonPicker } from '@/features/shared/person-picker';
 import { dateLabel, stampLabel } from '@/lib/dates';
-import { firstName, inr } from '@/lib/format';
+import { firstName } from '@/lib/format';
 import { useAccess } from '@/lib/use-access';
 import { themedStyles } from '@/theme/themed';
 import { palette, space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   ActionBar,
   ActionRow,
   Banner,
@@ -120,9 +121,9 @@ export default function AssetDetailScreen() {
 
   const fail = (what: string) => (e: Error) => toast.show(`Couldn’t ${what}: ${e.message}`, 'danger');
 
+  // Condition is the footer's own button, so the menu holds only what the footer doesn't.
   const menuItems = [
-    { key: 'cond', label: 'Change condition', icon: Wrench, onPress: () => openCondition() },
-    ...(ack === 'waiting' ? [{ key: 'resend', label: 'Send the acknowledgement link again', icon: Send, onPress: () => setResending(true) }] : []),
+    ...(ack === 'waiting' ? [{ key: 'resend', label: 'Send the link again', hint: 'Email and WhatsApp', icon: Send, onPress: () => setResending(true) }] : []),
     ...(noName ? [{ key: 'link', label: 'Fix the employee name', icon: Link2, onPress: () => setPicking('link') }] : []),
     { key: 'delete', label: 'Delete asset', icon: Trash2, tone: 'danger' as const, onPress: () => setDeleting(true) },
   ];
@@ -161,8 +162,9 @@ export default function AssetDetailScreen() {
         label={[a.category, a.assetType].filter(Boolean).join(' · ') || 'Asset'}
         value={a.price}
         currency="₹"
-        decimals={0}
-        info={assigned ? { label: holder ? `With ${holder}` : `Employee ${a.assignedToEmpNo}`, value: ACK_WORDS[ack].label } : { label: 'In stock' }}
+        decimals={2}
+        // The waiting banner below says "waiting" in full, so the chip doesn't say it again.
+        info={assigned ? { label: holder ? `With ${holder}` : `Employee ${a.assignedToEmpNo}`, value: ack === 'waiting' ? undefined : ACK_WORDS[ack].label } : { label: 'In stock' }}
         sub={assigned && a.assignmentDate ? `Given on ${dateLabel(a.assignmentDate, today)}` : a.returnedAt ? `Back since ${dateLabel(a.returnedAt, today)}` : undefined}
       />
 
@@ -185,7 +187,7 @@ export default function AssetDetailScreen() {
 
       {a.description ? (
         <Card style={styles.note}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Description
           </Text>
           <Text variant="body">{a.description}</Text>
@@ -203,17 +205,15 @@ export default function AssetDetailScreen() {
           { key: 'ws', label: 'Warranty', value: a.warrantyStatus || '—', status: a.warrantyStatus === 'Active' ? 'done' : a.warrantyStatus === 'Expired' ? 'failed' : null },
           { key: 'we', label: 'Warranty ends', value: a.warrantyExpiry ? dateLabel(a.warrantyExpiry, today) : '—' },
           { key: 'cond', label: 'Condition', value: conditionWords(a.condition), status: a.condition ? conditionTone(a.condition) : null },
-          { key: 'price', label: 'Value', value: inr(a.price) },
-          { key: 'emp', label: 'Employee number', value: a.assignedToEmpNo || '—' },
-          { key: 'who', label: 'With', value: assigned ? holder || 'No name found' : 'In stock' },
-          { key: 'on', label: 'Given on', value: a.assignmentDate ? dateLabel(a.assignmentDate, today) : '—' },
+          // Value, who has it and when it was given are in the hero above; said once.
+          ...(assigned ? [{ key: 'emp', label: 'Employee number', value: a.assignedToEmpNo }] : []),
           ...(a.ackToken || a.acknowledged ? [{ key: 'ack', label: 'Acknowledged', value: a.acknowledged ? (a.acknowledgedAt ? stampLabel(a.acknowledgedAt, today) : 'Yes') : 'Not yet', status: a.acknowledged ? ('done' as const) : ('pending' as const) }] : []),
           ...(a.returnNote ? [{ key: 'ret', label: 'Last return note', value: a.returnNote }] : []),
         ]}
       />
 
       <Card style={styles.note}>
-        <Text variant="labelStrong" muted>
+        <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
           Who has had it
         </Text>
         {events.length ? <EventTimeline events={events} /> : <Text variant="body" muted>No one has had it yet.</Text>}
@@ -336,7 +336,7 @@ export default function AssetDetailScreen() {
             }
           />
         }>
-        <SelectTiles value={cond} onChange={setCond} accessibilityLabel="Condition" options={condOptions.map((c) => ({ value: c, label: conditionWords(c) }))} />
+        <SelectTiles value={cond} onChange={setCond} accessibilityLabel="Condition" options={condOptions.map((c) => ({ value: c, label: conditionWords(c), icon: conditionIcon(c) }))} />
       </Sheet>
 
       <ConfirmSheet

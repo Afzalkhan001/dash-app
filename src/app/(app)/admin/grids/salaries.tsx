@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { type SalaryPerson, useSalaryPeople } from '@/api/payroll';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { GridView } from '@/features/grids/data-grid';
-import { GridGateFallback, gridCsvColumns, RowSheet, ShareCsvButton, useGridGate, useZoom } from '@/features/grids/grid-ui';
+import { afterSheet, GridGateFallback, gridCsvColumns, RowSheet, ShareCsvButton, useGridGate, useZoom } from '@/features/grids/grid-ui';
 import { filterSalaries, salaryColumns } from '@/features/grids/model';
 import { isSelf } from '@/features/payroll/access';
 import { usePayView } from '@/features/payroll/ui';
@@ -40,7 +40,7 @@ export default function SalariesGrid() {
 
   const top = (
     <>
-      <PillField icon={Search} value={query} onChangeText={setQuery} placeholder="Search by name, team or structure" accessibilityLabel="Search people" autoCorrect={false} />
+      <PillField icon={Search} value={query} onChangeText={setQuery} placeholder="Search by name or team" accessibilityLabel="Search people" autoCorrect={false} />
       {noSalary ? (
         <ChipRow>
           <Chip label="Everyone" selected={!unset} onPress={() => setUnset(false)} />
@@ -85,7 +85,7 @@ export default function SalariesGrid() {
             onPress={() => {
               const id = open.id;
               setOpen(null);
-              router.push(`/admin/payroll/salaries/${id}`);
+              afterSheet(() => router.push(`/admin/payroll/salaries/${id}`));
             }}
           />
         ) : open ? (

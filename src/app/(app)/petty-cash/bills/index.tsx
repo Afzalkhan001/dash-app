@@ -14,10 +14,12 @@ import { FilterPill } from '@/features/petty-cash/filter-pill';
 import { PettyBillsCard, PettyExcessBanner } from '@/features/petty-cash/lists';
 import { amount, list, roleSeesPettyCash } from '@/features/petty-cash/logic';
 import { plural } from '@/lib/format';
-import { palette } from '@/theme/tokens';
-import { EmptyState, ErrorState, NavHeader, Screen, SkeletonList, SummaryHero } from '@/ui';
+import { palette, radius } from '@/theme/tokens';
+import { EmptyState, ErrorState, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero } from '@/ui';
 
 type Filter = 'all' | 'extra' | 'rejected';
+// The summary hero's height (label, figure, info chip, line, Add bills), for its loading placeholder.
+const HERO_H = 300;
 const FILTER_LABEL: Record<Filter, string> = { all: 'All bills', extra: 'Extra claims', rejected: 'Rejected' };
 const groupOf = (b: PettyCashSubmission): Filter => (b.status === 'rejected' ? 'rejected' : b.excessRequestId ? 'extra' : 'all');
 
@@ -49,7 +51,8 @@ export default function PettyCashBillsScreen() {
         <EmptyState icon={<Wallet color={palette.textMuted} />} title="Petty cash isn’t available" message="It isn’t part of your role in DASH." />
       ) : !data ? (
         overviewQ.isLoading ? (
-          <SkeletonList rows={5} avatar />
+          // The hero's placeholder in the hero's slot; the rows' placeholder follows in the list's slot.
+          <Skeleton height={HERO_H} radius={radius.xxl} />
         ) : (
           <ErrorState message={overviewQ.error?.message || 'Could not load your bills.'} onRetry={() => void overviewQ.refetch()} />
         )
@@ -65,7 +68,9 @@ export default function PettyCashBillsScreen() {
           action={{ title: 'Add bills', icon: <Camera />, onPress: addBills }}
         />
       )}
-      {ready ? <PettyExcessBanner excess={data.excess} /> : null}
+      {allowed && !data && overviewQ.isLoading ? <SkeletonList rows={5} avatar /> : null}
+      {/* Only mounted when it shows: an empty Screen child would still take a gap. */}
+      {ready && list(data.excess).some((x) => !!x && typeof x === 'object') ? <PettyExcessBanner excess={data.excess} /> : null}
       {ready && hasBills ? (
         <PettyBillsCard
           data={data}

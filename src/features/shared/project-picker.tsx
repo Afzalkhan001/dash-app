@@ -15,8 +15,8 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { activeProjects, type Project } from '@/api/reimbursements';
-import { type ModuleKey, palette, radius, space, statusTone } from '@/theme/tokens';
-import { AccountRow, FieldMessage, haptic, hitSlopFor, isDarkScheme, Sheet, Skeleton, Text, TextField, useSurface, withAlpha } from '@/ui';
+import { type ModuleKey, palette, radius, space } from '@/theme/tokens';
+import { FIELD_LABEL_INSET, AccountRow, FieldMessage, haptic, hitSlopFor, isDarkScheme, Sheet, Skeleton, Text, TextField, useSurface, withAlpha } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 export const projectLabel = (p?: Project | null) => (p ? (p.kekaCode ? `${p.kekaCode} — ${p.name || ''}` : p.name || '') : '');
@@ -102,7 +102,7 @@ export function ProjectPicker({
   return (
     <View style={styles.wrap}>
       {label ? (
-        <Text variant="labelStrong" muted numberOfLines={2}>
+        <Text variant="labelStrong" muted numberOfLines={2} style={FIELD_LABEL_INSET}>
           {label}
         </Text>
       ) : null}
@@ -238,7 +238,7 @@ const styles = themedStyles(() => ({
     borderColor: palette.glassLine,
     marginBottom: space.xs,
   },
-  optionOn: { backgroundColor: palette.primarySoft, borderColor: statusTone.info.border },
+  optionOn: { backgroundColor: palette.primarySoft, borderColor: withAlpha(palette.primaryText, 0.35) },
   optionName: { flex: 1, minWidth: 0 },
   recentLabel: { paddingHorizontal: space.sm, paddingBottom: space.xxs },
 }));

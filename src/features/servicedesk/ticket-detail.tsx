@@ -45,6 +45,7 @@ import { canDeleteTickets } from '@/features/adminadvanced/access';
 import { useAccess } from '@/lib/use-access';
 import { palette, radius, space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   AccountRow,
   ActionBar,
   ActionRow,
@@ -419,7 +420,7 @@ export function TicketDetail({ id }: { id: string; via?: 'desk' | 'inbox' }) {
           <SummaryCard title="Details" rows={details(t)} hideEmpty />
           {s(t.desc) || s(t.reason) ? (
             <Card tone="frostStrong" style={styles.body}>
-              <Text variant="labelStrong" muted>
+              <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
                 {t.category === 'asset' || t.category === 'admin_request' ? 'Why they need it' : 'What they said'}
               </Text>
               <Text variant="body" selectable>
@@ -469,7 +470,7 @@ export function TicketDetail({ id }: { id: string; via?: 'desk' | 'inbox' }) {
           from={{ title: whatOf(t), subtitle: refOf(t), icon: kindIcon(t), module: 'support' }}
           to={{ title: assignee?.name ?? '', subtitle: assignee?.jobTitle || 'IT & Admin', avatar: { name: assignee?.name ?? '' } }}
           detailsTitle="Request"
-          confirmLabel={approval ? 'Swipe to approve and assign' : 'Swipe to assign'}
+          confirmLabel={approval ? 'Swipe to approve' : 'Swipe to assign'}
           onConfirm={sendAssign}
           loading={assign.isPending}
           note={`${assignee?.name ?? 'They'} get${assignee ? 's' : ''} the task by email and WhatsApp.${approval && reachable ? ` ${firstName(raiser)} is told it’s approved.` : ''}`}>
@@ -568,7 +569,7 @@ export function TicketDetail({ id }: { id: string; via?: 'desk' | 'inbox' }) {
           from={statusFrom}
           to={statusTo}
           detailsTitle={kindLabel(t)}
-          confirmLabel={`Swipe to mark ${statusWords(nextStatus ?? '').toLowerCase()}`}
+          confirmLabel="Swipe to update"
           onConfirm={sendStatus}
           loading={setStatus.isPending}
           note={reachable ? `${firstName(raiser)} gets an email and WhatsApp about this change.` : `${firstName(raiser)} isn’t signed up yet, so gets no message.`}>

@@ -310,9 +310,9 @@ export function parseProjects(book: Workbook, existing: readonly { kekaCode?: st
       issues: [],
     };
     const k = low(row.kekaCode);
-    if (codes.has(k)) row.issues.push({ level: 'warning', text: 'This Keka code is already in the list. Importing adds a second copy.' });
+    if (codes.has(k)) row.issues.push({ level: 'warning', text: 'This project code is already in the list. Importing adds a second copy.' });
     const dup = seen.get(k);
-    if (dup) row.issues.push({ level: 'warning', text: `Same Keka code as row ${dup} of this sheet.` });
+    if (dup) row.issues.push({ level: 'warning', text: `Same project code as row ${dup} of this sheet.` });
     else seen.set(k, row.line);
     if (row.empNo && !people.some((p) => String(p.employeeNumber || p.kekaCode || '').trim() === row.empNo)) {
       row.issues.push({ level: 'warning', text: `No one on the roster has employee number ${row.empNo}.` });

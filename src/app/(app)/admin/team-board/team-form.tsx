@@ -19,6 +19,7 @@ import { useDeptMembers } from '@/features/teamboard/use-board';
 import { radius, space } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
 import {
+  FIELD_LABEL_INSET,
   AccountRow,
   ActionBar,
   Avatar,
@@ -130,7 +131,7 @@ function Fields({ board, header, team }: { board: Board; header: ReactNode; team
         />
         <TextField label="Description" value={description} onChangeText={setDescription} placeholder="Optional" multiline maxLength={1000} />
         <View style={styles.part}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Team lead
           </Text>
           {lead ? (
@@ -144,11 +145,11 @@ function Fields({ board, header, team }: { board: Board; header: ReactNode; team
           ) : (
             <AccountRow icon={UserRoundPlus} module="tasks" title="No lead" sub="Optional" actionLabel="Choose" onPress={() => setLeadOpen(true)} />
           )}
-          {lead ? <Button title="No lead" variant="text" size="md" icon={<UserRoundX />} onPress={() => setLead(null)} style={styles.self} /> : null}
+          {lead ? <Button title="Remove lead" variant="text" size="md" icon={<UserRoundX />} onPress={() => setLead(null)} style={styles.self} /> : null}
         </View>
         {team ? (
           <View style={styles.part}>
-            <Text variant="labelStrong" muted>
+            <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
               Status
             </Text>
             <Segmented
@@ -163,7 +164,7 @@ function Fields({ board, header, team }: { board: Board; header: ReactNode; team
           </View>
         ) : (
           <View style={styles.part}>
-            <Text variant="labelStrong" muted>
+            <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
               Members
             </Text>
             {picked.length ? (

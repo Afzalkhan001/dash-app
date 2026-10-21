@@ -81,6 +81,7 @@ export function ListRow({
   accessibilityLabel,
   accessibilityHint,
   stackRight,
+  selected,
 }: {
   left?: ReactNode;
   title: string;
@@ -109,6 +110,8 @@ export function ListRow({
   accessibilityHint?: string;
   /** Put the right column under the text (left-aligned, wrapping) instead of beside it. */
   stackRight?: boolean;
+  /** The current choice in a pick list (read out as "selected"). */
+  selected?: boolean;
 }) {
   const minHeight = size === 'lg' ? 72 : subtitle || meta ? 64 : 56;
   const hasRight = !!value || !!valueMeta || right != null;
@@ -163,7 +166,7 @@ export function ListRow({
       disabled={disabled}
       accessible
       accessibilityRole="button"
-      accessibilityState={{ disabled: !!disabled }}
+      accessibilityState={{ disabled: !!disabled, selected: selected ?? undefined }}
       accessibilityLabel={accessibilityLabel ?? [title, subtitle, value, valueMeta].filter(Boolean).join(', ')}
       accessibilityHint={accessibilityHint}
       style={({ pressed }) => [styles.pressable, pressed && { backgroundColor: palette.pressedTint }, disabled && { opacity: 0.4 }]}>
@@ -286,7 +289,9 @@ export function GroupedRow({
 }) {
   return (
     <View style={[styles.grouped, tone === 'surface' && WHITE_CARD, first && styles.groupedFirst, last && styles.groupedLast, style]}>
-      {hairline && !first ? <View style={[styles.sep, { marginLeft: inset }]} /> : null}
+      {/* Drawn over the row (absolute), so it adds no sub-pixel height: FlashList on web places rows at
+          rounded offsets, and a fractional row height left 1 px seams of canvas between them. */}
+      {hairline && !first ? <View style={[styles.sep, styles.sepOver, { left: inset }]} pointerEvents="none" /> : null}
       {children}
     </View>
   );
@@ -462,6 +467,13 @@ export type ActivityRowProps = {
   meta?: string | null;
   /** …and/or one StatusPill under it. */
   status?: { label: string; tone: StatusTone } | null;
+  /**
+   * Where the StatusPill goes. 'auto' (default): under the text when the row has no value, or when the
+   * right column would squeeze the text (a long pill or value, a narrow phone); otherwise on the right.
+   */
+  statusPlacement?: 'auto' | 'right' | 'below';
+  /** One extra element under the text (beside the pill when the pill is there too). */
+  below?: ReactNode;
   /** Anything else for the right column (one IconButton at most). */
   right?: ReactNode;
   onPress?: () => void;
@@ -479,8 +491,9 @@ export type ActivityRowProps = {
  * name (2 lines) over a muted subtitle (2 lines), and on the right the amount (a leading "+" = money
  * in, shown in successInk unless `valueColor` says otherwise) over a muted time or a StatusPill. Built on
  * ListRow, so paddings, press tint, the 68 dp separator inset and the single screen-reader stop are
- * the same everywhere. Below 360 dp a row with both a value and a status puts the pill under the
- * text (so the title keeps its width); above 130 % text the whole right column moves under the text.
+ * the same everywhere. The StatusPill sits under the text when the row has no value, and also when
+ * the right column would leave the text less than ~140 dp (a long pill or value, or < 360 dp);
+ * `statusPlacement` overrides that. Above 130 % text the whole right column moves under the text.
  */
 export function ActivityRow({
   left,
@@ -488,6 +501,8 @@ export function ActivityRow({
   icon,
   person,
   status,
+  statusPlacement = 'auto',
+  below,
   right,
   note,
   meta,
@@ -498,9 +513,7 @@ export function ActivityRow({
 }: ActivityRowProps) {
   const l = useLayout();
   // Stack the right column above 130 % text, or already above 115 % on narrow phones (< 360 dp).
-  const stack = shouldStack(l, { below: 'narrow', belowText: 'large', text: 'huge' });
-  // Below 360 dp a row with both a value and a status shows the pill under the text (T5).
-  const pillLeft = !!status && !stack && !!rest.value && shouldStack(l, { below: 'narrow', text: false });
+  const textStack = shouldStack(l, { below: 'narrow', belowText: 'large', text: 'huge' });
   const lead =
     left ??
     (module && icon ? (
@@ -508,6 +521,21 @@ export function ActivityRow({
     ) : person ? (
       <Avatar name={person.name ?? undefined} uri={person.uri} size={40} ring={false} />
     ) : null);
+  // The pill goes under the text when there is no value beside it, or when the right column would
+  // squeeze the text column under ~140 dp (estimated from the label / value length, so no flicker).
+  const fs = Math.min(Math.max(l.fontScale, 1), 1.6);
+  const rightW = Math.max(status ? status.label.length * 6.6 * fs + 30 : 0, rest.value ? rest.value.length * 8.4 * fs : 0);
+  const fixedW = l.width - l.gutter * 2 - space.md * 2 - (lead ? 40 + space.sm : 0) - space.sm - (rest.chevron ? 18 + space.sm : 0);
+  const textW = fixedW - rightW;
+  // Even with the pill moved under the text, a wide figure or time can leave the text a sliver (a 320 dp
+  // phone): then the whole right column goes under the text too.
+  const figureW = Math.max(rest.value ? rest.value.length * 8.4 * fs : 0, meta ? meta.length * 6.6 * fs : 0, right != null ? 44 : 0);
+  const stack = textStack || (figureW > 0 && fixedW - figureW < 120);
+  const pillLeft =
+    !!status &&
+    !stack &&
+    (statusPlacement === 'below' ||
+      (statusPlacement === 'auto' && (!rest.value || textW < 140 || shouldStack(l, { below: 'narrow', text: false }))));
   // The pill keeps its own width when the right column is right-aligned.
   const statusPill = status ? (
     <View>
@@ -535,7 +563,18 @@ export function ActivityRow({
       size="lg"
       left={lead}
       meta={note}
-      below={pillLeft ? statusPill : undefined}
+      below={
+        pillLeft && below != null ? (
+          <View style={styles.belowPair}>
+            {statusPill}
+            {below}
+          </View>
+        ) : pillLeft ? (
+          statusPill
+        ) : (
+          below
+        )
+      }
       valueMeta={meta}
       right={trailing}
       numberOfLines={titleLines}
@@ -556,6 +595,7 @@ const styles = themedStyles(() => ({
   rightStacked: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: space.xs, rowGap: space.xxs, marginTop: 2 },
   rightText: { textAlign: 'right' },
   below: { flexDirection: 'row', marginTop: space.xxs },
+  belowPair: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.xs },
   pressable: { borderRadius: radius.md },
   card: {
     backgroundColor: glassFill(),
@@ -572,6 +612,7 @@ const styles = themedStyles(() => ({
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: space.xs },
   cardHeadRight: { flexDirection: 'row', alignItems: 'center', gap: space.xs, flexShrink: 0 },
   sep: { height: StyleSheet.hairlineWidth, backgroundColor: palette.separator, marginRight: space.md },
+  sepOver: { position: 'absolute', top: 0, right: 0, marginRight: space.md, zIndex: 1 },
   grouped: { backgroundColor: glassFill(), borderLeftWidth: 1, borderRightWidth: 1, borderColor: rim() },
   groupedFirst: { borderTopWidth: 1, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: space.xxs },
   groupedLast: { borderBottomWidth: 1, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl, paddingBottom: space.xxs },

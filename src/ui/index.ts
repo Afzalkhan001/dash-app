@@ -15,6 +15,7 @@ export * from '@/ui/screen';
 export * from '@/ui/sheet';
 export * from '@/ui/stats';
 export * from '@/ui/surface';
+export * from '@/ui/switch-row';
 export * from '@/ui/text';
 export * from '@/ui/timeline';
 export * from '@/ui/toast';

@@ -3,16 +3,15 @@
 // are overdue. Read only.
 
 import { UsersRound } from 'lucide-react-native';
-import { View } from 'react-native';
 
 import { useTrPeople } from '@/api/teamboard';
 import type { Board } from '@/features/teamboard/gate';
-import { plainCount } from '@/features/teamboard/model';
-import { palette, radius, space } from '@/theme/tokens';
-import { themedStyles } from '@/theme/themed';
-import { Avatar, EmptyState, ErrorState, ListCard, ListRow, Skeleton, StatusPill, Text } from '@/ui';
+import { minutesLabel, plainCount } from '@/features/teamboard/model';
+import { palette, radius } from '@/theme/tokens';
+import { Avatar, EmptyState, ErrorState, LabelledSection, ListCard, ListRow, Skeleton, StatusPill } from '@/ui';
 
-const h = (n: number) => `${Math.round(n * 100) / 100}h`;
+// Hours in the app's one duration format (DESIGN §0C): 0.83 → "50m", 14 → "14h", 5.5 → "5h 30m".
+const h = (n: number) => minutesLabel((n || 0) * 60);
 
 export function PeopleTab({ board }: { board: Board }) {
   const q = useTrPeople(board.dept.id);
@@ -23,10 +22,7 @@ export function PeopleTab({ board }: { board: Board }) {
     return <EmptyState icon={<UsersRound color={palette.textMuted} />} title="No team members yet" message="Add people to a team from Projects › Teams." />;
   }
   return (
-    <View style={styles.gap}>
-      <Text variant="label" muted>
-        Workload in {board.dept.name}
-      </Text>
+    <LabelledSection title={`Workload in ${board.dept.name}`}>
       <ListCard>
         {people.map((p) => (
           <ListRow
@@ -52,10 +48,7 @@ export function PeopleTab({ board }: { board: Board }) {
           />
         ))}
       </ListCard>
-    </View>
+    </LabelledSection>
   );
 }
 
-const styles = themedStyles(() => ({
-  gap: { gap: space.sm },
-}));

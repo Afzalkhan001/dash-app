@@ -13,7 +13,9 @@ import { unwrap } from '@/api/client';
 import { canEditPaymentTimeline } from '@/features/accounts/access';
 import { useInvalidateAccounts } from '@/features/accounts/use-items';
 import { useAccess } from '@/lib/use-access';
-import { ActionBar, Button, ConfirmSheet, ErrorState, NavHeader, Screen, SkeletonList, SummaryCard, SummaryHero, TextField, toast } from '@/ui';
+import { space } from '@/theme/tokens';
+import { themedStyles } from '@/theme/themed';
+import { ActionBar, Button, Card, ConfirmSheet, ErrorState, NavHeader, Screen, SkeletonList, SummaryCard, SummaryHero, TextField, toast } from '@/ui';
 
 function Form({ settings }: { settings: BillSettings }) {
   const invalidate = useInvalidateAccounts();
@@ -45,8 +47,10 @@ function Form({ settings }: { settings: BillSettings }) {
         </ActionBar>
       }>
       <SummaryHero icon={CalendarClock} module="vendor" label="Vendor bills are paid within" value={daysOk ? n : undefined} unit={n === 1 ? 'working day' : 'working days'} sub="Told to the person who sent the bill when Accounts approves it." />
-      <TextField label="Working days" value={days} onChangeText={(t) => setDays(t.replace(/\D/g, '').slice(0, 3))} keyboardType="number-pad" error={days && !daysOk ? 'Enter 1 or more' : null} />
-      <TextField label="Message" value={message} onChangeText={setMessage} multiline maxLength={500} counter hint="Write {days} where the number of days should go." />
+      <Card style={styles.fields}>
+        <TextField label="Working days" value={days} onChangeText={(t) => setDays(t.replace(/\D/g, '').slice(0, 3))} keyboardType="number-pad" error={days && !daysOk ? 'Enter 1 or more' : null} />
+        <TextField label="Message" value={message} onChangeText={setMessage} multiline maxLength={500} counter hint="Write {days} where the number of days should go." />
+      </Card>
       <SummaryCard title="What they will read" rows={[{ key: 'p', label: 'Message', value: preview || '—' }]} />
 
       <ConfirmSheet
@@ -76,3 +80,7 @@ export default function PaymentTimelineScreen() {
     );
   return <Form key={`${q.data.payment_timeline_days}|${q.data.payment_message}`} settings={q.data} />;
 }
+
+const styles = themedStyles(() => ({
+  fields: { gap: space.md },
+}));

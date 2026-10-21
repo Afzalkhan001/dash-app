@@ -2,24 +2,26 @@
 // asset screens read (GET /users + GET /whitelist) for names, the assign pool and the Fix link.
 
 import type { LucideIcon } from 'lucide-react-native';
-import { Pressable, Switch, View } from 'react-native';
+import { View } from 'react-native';
 
 import { useInvitees } from '@/api/itdesk';
 import { usePickablePeople } from '@/features/shared/person-picker';
 import { themedStyles } from '@/theme/themed';
 import { type ModuleKey, palette, radius, space } from '@/theme/tokens';
-import { isDarkScheme, ListRow, ModuleBadge, Text } from '@/ui';
+import { ActivityRow, type ActivityRowProps, SwitchRow, Text } from '@/ui';
+
+/**
+ * A status row (no figure): the kit's ActivityRow, which now puts the pill under the text itself
+ * whenever there is no value (DESIGN §0C). Kept under this name for the IT desk screens.
+ */
+export function StatusRow(props: ActivityRowProps) {
+  return <ActivityRow {...props} />;
+}
 
 /** One switch as a list row: the whole row is the control (touch and screen readers). */
 export function ToggleRow({
-  title,
-  subtitle,
-  value,
-  onChange,
-  disabled,
-  busy,
-  icon,
-  module,
+  bleed,
+  ...rest
 }: {
   title: string;
   subtitle?: string;
@@ -29,32 +31,10 @@ export function ToggleRow({
   busy?: boolean;
   icon?: LucideIcon;
   module?: ModuleKey;
+  /** Inside a padded card or sheet among fields: line the title up with the field labels. */
+  bleed?: boolean;
 }) {
-  const offTrack = isDarkScheme() ? palette.hairline : palette.surfaceSunken;
-  const off = !!disabled || !!busy;
-  return (
-    <Pressable
-      onPress={() => onChange(!value)}
-      disabled={off}
-      accessibilityRole="switch"
-      accessibilityLabel={title}
-      accessibilityHint={subtitle}
-      accessibilityState={{ checked: value, disabled: off, busy: !!busy }}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed, disabled && styles.dim]}>
-      <ListRow
-        left={icon && module ? <ModuleBadge module={module} icon={icon} /> : undefined}
-        title={title}
-        subtitle={subtitle}
-        numberOfLines={2}
-        subtitleLines={3}
-        right={
-          <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Switch value={value} disabled={off} trackColor={{ false: offTrack, true: palette.accentDeep }} thumbColor={palette.onAccent} ios_backgroundColor={offTrack} />
-          </View>
-        }
-      />
-    </Pressable>
-  );
+  return <SwitchRow {...rest} flush={bleed} />;
 }
 
 /**
@@ -96,6 +76,7 @@ export function useAssetDirectory(enabled = true) {
 
 const styles = themedStyles(() => ({
   row: { borderRadius: radius.md },
+  bleed: { marginHorizontal: -space.md },
   pressed: { backgroundColor: palette.pressedTint },
   dim: { opacity: 0.55 },
   badge: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },

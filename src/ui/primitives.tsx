@@ -30,7 +30,7 @@ import { themedStyles } from '@/theme/themed';
 import { hitSlopFor, useLayout } from '@/ui/layout';
 import { PressableScale, useCountUp } from '@/ui/motion';
 import { isDarkScheme, withAlpha } from '@/ui/surface';
-import { Text } from '@/ui/text';
+import { Text, useTextFitScale } from '@/ui/text';
 
 const IOS = Platform.OS === 'ios';
 // Theme colours are read when these run (render time / a themedStyles factory), never frozen at load.
@@ -225,11 +225,14 @@ export function Button({
   ...rest
 }: ButtonProps) {
   const [pressed, setPressed] = useState(false);
-  const c = buttonLook(variant);
   const s = BUTTON_SIZE[size];
   const isText = variant === 'text';
   const blocked = !!(disabled || loading);
   const dimmed = !!disabled && !loading;
+  // Dark mode: a 40 % vermilion (or red) fill on near-black turns muddy brown with unreadable text, so a
+  // disabled FILLED button there becomes a neutral veil with faint text instead (no opacity).
+  const quiet = dimmed && isDarkScheme() && (variant === 'primary' || variant === 'ink' || variant === 'destructive');
+  const c = quiet ? { bg: palette.track, fg: palette.textFaint, border: palette.glassLine, pressed: palette.track } : buttonLook(variant);
   return (
     <PressableScale
       accessibilityRole="button"
@@ -252,7 +255,7 @@ export function Button({
         { minHeight: s.minHeight, paddingHorizontal: s.padX, backgroundColor: pressed && !isText ? c.pressed : c.bg, borderColor: c.border },
         isText && styles.textButton,
         (variant === 'accent' || variant === 'ghost') && !dimmed ? iosShadow() : null,
-        dimmed && { opacity: 0.4 },
+        dimmed && !quiet && { opacity: 0.4 },
         isText && pressed && { opacity: 0.6 },
         style,
       ]}>
@@ -415,7 +418,16 @@ const LIGHT_ON_DARK = /^(#fff\b|#ffffff\b|white$|rgba?\(\s*255\s*,\s*255\s*,\s*2
  * squash a 15 px unit ("days", "coins") and the ₹ against the digits.
  */
 function Span({ color, size, family, children }: { color?: string; size?: number; family?: string; children: ReactNode }) {
-  return <RNText style={{ color, fontSize: size, fontFamily: family, letterSpacing: size ? 0 : undefined }}>{children}</RNText>;
+  // A run with its own size follows the parent's web shrink-to-fit (useTextFitScale is 1 on phones).
+  const fit = useTextFitScale();
+  const px = size ? Math.round(size * fit * 10) / 10 : undefined;
+  return <RNText style={{ color, fontSize: px, fontFamily: family, letterSpacing: size ? 0 : undefined }}>{children}</RNText>;
+}
+
+/** The font size a figure really renders at: a `style` fontSize (e.g. type.numeral) wins over the variant's. */
+function resolvedSize(variant: FigureVariant, style: StyleProp<TextStyle>): number {
+  const flat = StyleSheet.flatten(style) as TextStyle | undefined;
+  return typeof flat?.fontSize === 'number' ? flat.fontSize : typeScale[variant].fontSize;
 }
 
 type FigureVariant = 'display' | 'hero' | 'title' | 'heading' | 'bodyStrong' | 'body';
@@ -453,7 +465,7 @@ export function Amount({
   const n = splitNumber(animate ? shown : value, decimals);
   const exact = splitNumber(value, decimals);
   const dark = onDark ?? (!!color && LIGHT_ON_DARK.test(color));
-  const size = typeScale[variant].fontSize;
+  const size = resolvedSize(variant, style);
   const big = size >= 24;
   const curColor = dark ? palette.onPrimaryMuted : palette.textMuted;
   const decColor = mutedColor ?? (dark ? palette.onPrimaryFaint : big ? palette.textFaint : palette.textMuted);
@@ -504,7 +516,7 @@ export function Metric({
   const n = splitNumber(animate ? shown : value, decimals);
   const exact = splitNumber(value, decimals);
   const dark = onDark ?? (!!color && LIGHT_ON_DARK.test(color));
-  const big = typeScale[variant].fontSize >= 24;
+  const big = resolvedSize(variant, style) >= 24;
   const unitStyle = big ? typeScale.body : typeScale.label;
   return (
     <Text
@@ -535,7 +547,8 @@ export function StatusPill({ label, tone, style }: { label: string; tone: Status
   return (
     <View style={[styles.pill, { backgroundColor: t.bg, borderColor: t.border }, style]}>
       <View style={[styles.pillDot, { backgroundColor: t.dot }]} />
-      <Text variant="caption" color={t.fg} numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ fontFamily: font.semibold }}>
+      {/* Shrinks (ellipsis) inside a narrow column instead of spilling over the text beside it. */}
+      <Text variant="caption" color={t.fg} numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ fontFamily: font.semibold, flexShrink: 1 }}>
         {label}
       </Text>
     </View>
@@ -867,6 +880,7 @@ const styles = themedStyles(() => ({
     borderWidth: 1,
     alignSelf: 'flex-start',
     flexShrink: 0,
+    maxWidth: '100%',
   },
   pillDot: { width: 6, height: 6, borderRadius: 3 },
   delta: { flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf: 'flex-start', flexShrink: 0 },

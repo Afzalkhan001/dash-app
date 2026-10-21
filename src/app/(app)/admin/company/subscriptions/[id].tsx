@@ -100,7 +100,6 @@ export default function SubscriptionDetailScreen() {
       <SummaryCard
         rows={[
           { key: 'status', label: 'Status', value: st.label, status: st.tone },
-          ...(rt ? [{ key: 'renew', label: 'Renewal', value: rt.label, status: rt.tone }] : []),
           { key: 'next', label: 'Next renewal', value: s.renewalDate ? dateLabel(s.renewalDate, today) : '—' },
           { key: 'usd', label: 'Amount in US$', value: s.amountUsd ? `US$${s.amountUsd}` : '—' },
           ...(oneTime ? [] : [{ key: 'year', label: 'A year', value: inr(s.yearlyInr, { decimals: false }) }]),

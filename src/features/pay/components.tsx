@@ -17,7 +17,7 @@ import { amountOrNull, monthName } from '@/features/pay/format';
 import { usePayMoney, usePrivacyAction } from '@/features/pay/privacy';
 import { themedStyles } from '@/theme/themed';
 import { font, moduleTone, palette, radius, space, type as typeScale } from '@/theme/tokens';
-import { ActivityRow, Banner, EmptyState, MAX_FONT_SCALE, NavHeader, Skeleton, SkeletonList, Text, useLayout } from '@/ui';
+import { FIELD_LABEL_INSET, ActivityRow, Banner, EmptyState, MAX_FONT_SCALE, NavHeader, Skeleton, SkeletonList, Text, useLayout } from '@/ui';
 
 // ── Hero figure ──────────────────────────────────────────────────────────────
 /** The privacy mask in a light hero's figure line: a small muted ₹ and spaced faint dots. */
@@ -135,7 +135,7 @@ export function PaySkeleton({ hero = true, card = false, rows = 3 }: { hero?: bo
 export function TextBlock({ label, text }: { label: string; text: string }) {
   return (
     <View style={styles.textBlock}>
-      <Text variant="labelStrong" muted>
+      <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
         {label}
       </Text>
       <Text variant="body" selectable>

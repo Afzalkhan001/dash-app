@@ -13,8 +13,8 @@ import { useMyReferrals } from '@/api/hiring';
 import { earnedFrom, isOpen } from '@/features/hiring/model';
 import { JobRow } from '@/features/hiring/ui';
 import { useHiring } from '@/features/hiring/use-hiring';
-import { palette } from '@/theme/tokens';
-import { EmptyState, ErrorState, ListCard, NavHeader, Screen, SectionHeader, SkeletonList, SummaryHero, Text } from '@/ui';
+import { palette, radius } from '@/theme/tokens';
+import { EmptyState, ErrorState, ListCard, NavHeader, Screen, SectionHeader, Skeleton, SkeletonList, SummaryHero, Text } from '@/ui';
 
 export default function ReferScreen() {
   const router = useRouter();
@@ -44,16 +44,20 @@ export default function ReferScreen() {
         />
       }
       onRefresh={() => Promise.all([h.jobs.refetch(), mine.refetch()])}>
-      <SummaryHero
-        key="hero"
-        icon={Gift}
-        module="bounty"
-        label="Coins earned from referrals"
-        value={earned}
-        unit={earned === 1 ? 'coin' : 'coins'}
-        sub="Refer someone you know. When they join and stay 3 months, you get the position’s bonus."
-        info={{ label: 'My referrals', value: String(myCount), onPress: () => router.push('/admin/hiring/refer/mine'), accessibilityLabel: `My referrals, ${myCount}` }}
-      />
+      {mine.isPending ? (
+        <Skeleton key="hero" height={210} radius={radius.xxl} />
+      ) : (
+        <SummaryHero
+          key="hero"
+          icon={Gift}
+          module="bounty"
+          label="Coins earned from referrals"
+          value={earned}
+          unit={earned === 1 ? 'coin' : 'coins'}
+          sub="Refer someone you know. When they join and stay 3 months, you get the position’s bonus."
+          info={{ label: 'My referrals', value: String(myCount), onPress: () => router.push('/admin/hiring/refer/mine'), accessibilityLabel: `My referrals, ${myCount}` }}
+        />
+      )}
       <SectionHeader key="head" title="Open positions" />
       {h.jobs.isError && !h.jobs.data ? (
         <ErrorState key="list" message={h.jobs.error?.message ?? 'The open positions could not be loaded.'} onRetry={() => void h.jobs.refetch()} />

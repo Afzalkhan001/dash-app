@@ -19,7 +19,7 @@ export function workspaceRows(access: Access): WorkspaceRow[] {
       key: 'insights.reports',
       section: 'work',
       label: 'Reports',
-      subtitle: reportScopeOf(u) === 'global' ? 'Hours by person, project and Keka code' : 'Your team’s hours by person and project',
+      subtitle: reportScopeOf(u) === 'global' ? 'Hours by person, project and project code' : 'Your team’s hours by person and project',
       href: '/admin/insights/reports',
       icon: BarChart3,
       module: 'timesheets',

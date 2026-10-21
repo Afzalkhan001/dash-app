@@ -24,9 +24,11 @@ import { useTodayIst } from '@/features/attendance/use-now';
 import { useAccess } from '@/lib/use-access';
 import { moduleTone, space } from '@/theme/tokens';
 import {
+  FIELD_LABEL_INSET,
   ActionBar,
   Banner,
   Button,
+  Card,
   ConfirmSheet,
   DateField,
   EmptyState,
@@ -175,7 +177,8 @@ export default function RequestFixScreen() {
           </ActionBar>
         }>
         {err ? <Banner tone="danger" title="Couldn’t send the request" message={err} /> : null}
-        <View style={styles.field}>
+        {/* The same shape as Apply leave: the day in a card, the choice as tiles, then the times and the reason in one card. */}
+        <Card style={styles.field}>
           <DateField
             label="Day"
             value={f.work_date || null}
@@ -186,10 +189,10 @@ export default function RequestFixScreen() {
           <Text variant="caption" muted numberOfLines={2}>
             {recorded}
           </Text>
-        </View>
+        </Card>
         <View style={styles.field}>
           {/* Labelled like the kit's fields. */}
-          <Text variant="labelStrong" muted numberOfLines={2}>
+          <Text variant="labelStrong" muted numberOfLines={2} style={FIELD_LABEL_INSET}>
             What needs fixing
           </Text>
           <SelectTiles<What>
@@ -203,30 +206,32 @@ export default function RequestFixScreen() {
             ]}
           />
         </View>
-        <View style={styles.field}>
-          {what === 'both' ? (
-            <FieldPair>
+        <Card style={styles.fields}>
+          <View style={styles.field}>
+            {what === 'both' ? (
+              <FieldPair>
+                <TimeField label="Clock in" value={f.in_time || null} placeholder="Clock in" onChange={(v) => setTime('in_time', v)} />
+                <TimeField label="Clock out" value={f.out_time || null} placeholder="Clock out" onChange={(v) => setTime('out_time', v)} />
+              </FieldPair>
+            ) : what === 'in' ? (
               <TimeField label="Clock in" value={f.in_time || null} placeholder="Clock in" onChange={(v) => setTime('in_time', v)} />
+            ) : (
               <TimeField label="Clock out" value={f.out_time || null} placeholder="Clock out" onChange={(v) => setTime('out_time', v)} />
-            </FieldPair>
-          ) : what === 'in' ? (
-            <TimeField label="Clock in" value={f.in_time || null} placeholder="Clock in" onChange={(v) => setTime('in_time', v)} />
-          ) : (
-            <TimeField label="Clock out" value={f.out_time || null} placeholder="Clock out" onChange={(v) => setTime('out_time', v)} />
-          )}
-          {inTime || outTime ? (
-            <Button title="Clear times" variant="text" size="sm" onPress={() => setF((x) => ({ ...x, in_time: '', out_time: '' }))} style={styles.start} />
-          ) : null}
-        </View>
-        <TextField
-          label="Reason"
-          value={f.reason}
-          onChangeText={(t) => setF((x) => ({ ...x, reason: t }))}
-          placeholder="e.g. Forgot to clock out after a client visit"
-          maxLength={500}
-          multiline
-          counter
-        />
+            )}
+            {inTime || outTime ? (
+              <Button title="Clear times" variant="text" size="sm" onPress={() => setF((x) => ({ ...x, in_time: '', out_time: '' }))} style={styles.start} />
+            ) : null}
+          </View>
+          <TextField
+            label="Reason"
+            value={f.reason}
+            onChangeText={(t) => setF((x) => ({ ...x, reason: t }))}
+            placeholder="e.g. Forgot to clock out after a client visit"
+            maxLength={500}
+            multiline
+            counter
+          />
+        </Card>
       </Screen>
 
       <ConfirmSheet
@@ -260,5 +265,6 @@ export default function RequestFixScreen() {
 
 const styles = themedStyles(() => ({
   field: { gap: space.xxs },
+  fields: { gap: space.md },
   start: { alignSelf: 'flex-start' },
 }));

@@ -22,7 +22,7 @@ import { View } from 'react-native';
 import { type ProfileRecord, useSaveMyProfile } from '@/api/people';
 import { themedStyles } from '@/theme/themed';
 import { space } from '@/theme/tokens';
-import { ActionRow, Banner, Button, haptic, PillField, Sheet, Text, TextField, toast } from '@/ui';
+import { FIELD_LABEL_INSET, ActionRow, Banner, Button, haptic, PillField, Sheet, Text, TextField, toast } from '@/ui';
 type Form = { phone: string; bio: string; links: string[]; bank: string; ifsc: string };
 
 const MAX_LINKS = 3;
@@ -147,7 +147,7 @@ export function ProfileEditSheet({ visible, onClose, profile }: { visible: boole
       <TextField label="Bio" value={form.bio} onChangeText={(v) => set({ bio: v })} placeholder="A line or two about you" multiline />
 
       <View style={styles.group}>
-        <Text variant="labelStrong" muted>
+        <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
           Work links (up to {MAX_LINKS})
         </Text>
         {form.links.slice(0, linkSlots).map((l, i) => (

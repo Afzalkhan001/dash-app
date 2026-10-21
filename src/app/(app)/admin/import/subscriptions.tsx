@@ -17,6 +17,7 @@ import { parseSubscriptionWorkbook, type SubImport } from '@/features/excel/pars
 import { TEMPLATES } from '@/features/excel/templates';
 import { PickCard, type PreviewItem, PreviewList, ResultCard, TemplateCard, useSheetPicker } from '@/features/excel/ui';
 import { inr, plural } from '@/lib/format';
+import { palette } from '@/theme/tokens';
 import { Banner, Button, ConfirmSheet, EmptyState, NavHeader, Screen, Segmented, SkeletonList, SummaryCard, toast } from '@/ui';
 
 export default function SubscriptionsImport() {
@@ -46,7 +47,7 @@ export default function SubscriptionsImport() {
     subtitle: [s.department || 'No department', `${inr(s.amountInr)} ${s.period}`].join(' · '),
     issues: [
       ...(s.renewalDate ? [] : [{ level: 'warning' as const, text: 'No renewal date.' }]),
-      ...(s.kekaCode ? [] : [{ level: 'info' as const, text: 'No Keka code (shows as MISSING).' }]),
+      ...(s.kekaCode ? [] : [{ level: 'info' as const, text: 'No project code (shows as MISSING).' }]),
     ],
     fields: [
       { label: 'Department', value: s.department },
@@ -59,7 +60,7 @@ export default function SubscriptionsImport() {
       { label: 'Login link', value: s.loginUrl },
       { label: 'Payee', value: s.payee },
       { label: 'Payment mode', value: s.paymentMode },
-      { label: 'Keka code', value: s.kekaCode },
+      { label: 'Project code', value: s.kekaCode },
       { label: 'Status', value: s.status },
       { label: 'Owner', value: s.owner },
       { label: 'Comments', value: s.comments },
@@ -77,7 +78,7 @@ export default function SubscriptionsImport() {
       { label: 'Plan', value: p.plan },
       { label: 'Amount (INR)', value: inr(p.amountInr) },
       { label: 'Amount (USD)', value: p.amountUsd ? `$${p.amountUsd}` : '' },
-      { label: 'Keka code', value: p.kekaCode },
+      { label: 'Project code', value: p.kekaCode },
       { label: 'Comments', value: p.comments },
     ],
   }));
@@ -110,7 +111,7 @@ export default function SubscriptionsImport() {
       {!ready || manage.isPending ? (
         <SkeletonList rows={4} />
       ) : denied ? (
-        <EmptyState title="Read-only access" message="You can see subscriptions, but only the people who manage them can import past data." icon={<CreditCard />} />
+        <EmptyState title="Read-only access" message="You can see subscriptions, but only the people who manage them can import past data." icon={<CreditCard color={palette.textMuted} strokeWidth={1.8} />} />
       ) : (
         <>
           <Banner tone="info" message="Drop in the subscriptions workbook. A tab with a Renewal Date column becomes subscriptions; a tab with a Transaction Date column becomes payment history. Passwords are never read." />

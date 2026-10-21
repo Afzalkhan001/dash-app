@@ -8,7 +8,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { Paperclip } from 'lucide-react-native';
+import { Coins, Paperclip } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
 
@@ -20,20 +20,24 @@ import { CoinsField, PhaseEditor, SwitchRow } from '@/features/bountyadmin/compo
 import { AdminGate, useBountyAdmin } from '@/features/bountyadmin/gate';
 import { cheapestPhase, creatorAvailable, digitsOnly, newPhase, type PhaseDraft, phaseLine, phaseProblem } from '@/features/bountyadmin/logic';
 import { FileError, pickDocument } from '@/lib/files';
-import { space } from '@/theme/tokens';
+import { themedStyles } from '@/theme/themed';
+import { palette, space } from '@/theme/tokens';
 import {
   AccountRow,
   ActionBar,
-  Banner,
+  ActionRow,
   Button,
+  Card,
   ConfirmSheet,
   DateField,
+  EmptyState,
+  ListCard,
   NavHeader,
   Screen,
+  SectionLabel,
   SelectField,
   SuccessSheet,
   SummaryCard,
-  Text,
   TextField,
   toast,
 } from '@/ui';
@@ -222,8 +226,14 @@ function NewTask() {
     // Nothing to fund a task with: say so instead of a form that can't succeed.
     return (
       <Screen header={<NavHeader title={TITLE} />}>
-        <Banner tone="warning" title="No coins to fund a task" message="Ask your Super Admin to give you bounty coins, then post the task." />
-        <Button title="Back" variant="ghost" onPress={() => router.back()} />
+        <Card>
+          <EmptyState
+            icon={<Coins color={palette.textMuted} strokeWidth={1.8} />}
+            title="No coins to fund a task"
+            message="Ask your Super Admin to give you bounty coins, then post the task."
+            action={<Button title="Go back" variant="accent" size="md" onPress={() => router.back()} />}
+          />
+        </Card>
       </Screen>
     );
   }
@@ -236,21 +246,25 @@ function NewTask() {
         header={<NavHeader title={TITLE} subtitle={`Step ${step + 1} of 3 · ${STEPS[step]}`} />}
         footer={
           <ActionBar note={error}>
-            <Button title={step < 2 ? 'Next' : 'Review and post'} onPress={next} />
             {step > 0 ? (
-              <Button
-                title="Back"
-                variant="ghost"
-                onPress={() => {
-                  setError(null);
-                  setStep(step - 1);
-                }}
-              />
-            ) : null}
+              <ActionRow context="bar">
+                <Button
+                  title="Back"
+                  variant="accent"
+                  onPress={() => {
+                    setError(null);
+                    setStep(step - 1);
+                  }}
+                />
+                <Button title={step < 2 ? 'Next' : 'Review'} onPress={next} />
+              </ActionRow>
+            ) : (
+              <Button title="Next" onPress={next} />
+            )}
           </ActionBar>
         }>
         {step === 0 ? (
-          <View style={{ gap: space.md }}>
+          <Card style={styles.fields}>
             <TextField label="Task title" value={f.title} onChangeText={(v) => set('title', v)} maxLength={120} placeholder="e.g. Cut a 30-second teaser" />
             <TextField
               label="What to do"
@@ -270,71 +284,75 @@ function NewTask() {
               hint={f.deptId ? 'Only this department’s people will see it and can take it.' : 'Everyone can see and take it.'}
             />
             <DateField label="Deadline (optional)" value={f.deadline || null} onChange={(v) => set('deadline', v)} minimumDate={today} />
-          </View>
+          </Card>
         ) : null}
 
         {step === 1 ? (
-          <View style={{ gap: space.md }}>
+          <View style={styles.step}>
             <SummaryCard rows={[{ key: 'av', label: 'You can fund', value: walletQ.isLoading ? '…' : `${coins(available)} coins` }]} />
-            <SwitchRow
-              title="Phase-wise coins"
-              subtitle={f.phaseWiseCoins ? 'Different rewards by joining order (first 50 get one amount, the next 50 another…).' : 'Off: everyone who takes part gets the same reward.'}
-              value={f.phaseWiseCoins}
-              onChange={(v) => set('phaseWiseCoins', v)}
-            />
-            {f.phaseWiseCoins ? (
-              <PhaseEditor phases={f.phases} onChange={(p) => set('phases', p)} />
-            ) : (
-              <CoinsField label="Reward for each person" value={f.reward} onChange={(v) => set('reward', v)} />
-            )}
-            <TextField
-              label="How many people can take part (optional)"
-              value={f.maxAccepts}
-              onChangeText={(v) => set('maxAccepts', digitsOnly(v))}
-              keyboardType="number-pad"
-              inputMode="numeric"
-              placeholder="No limit"
-              hint={f.maxAccepts ? `The task closes to new people once ${f.maxAccepts} have taken part.` : 'Each person can take part once.'}
-            />
+            {/* Switches sit in a ListCard (rows bring their own padding); each phase is its own card. */}
+            <ListCard>
+              <SwitchRow
+                title="Phase-wise coins"
+                subtitle={f.phaseWiseCoins ? 'Different rewards by joining order (first 50 get one amount, the next 50 another…).' : 'Off: everyone who takes part gets the same reward.'}
+                value={f.phaseWiseCoins}
+                onChange={(v) => set('phaseWiseCoins', v)}
+              />
+            </ListCard>
+            {f.phaseWiseCoins ? <PhaseEditor phases={f.phases} onChange={(p) => set('phases', p)} /> : null}
+            <Card style={styles.fields}>
+              {f.phaseWiseCoins ? null : <CoinsField label="Reward for each person" value={f.reward} onChange={(v) => set('reward', v)} />}
+              <TextField
+                label="How many people can take part (optional)"
+                value={f.maxAccepts}
+                onChangeText={(v) => set('maxAccepts', digitsOnly(v))}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                placeholder="No limit"
+                hint={f.maxAccepts ? `The task closes to new people once ${f.maxAccepts} have taken part.` : 'Each person can take part once.'}
+              />
+            </Card>
           </View>
         ) : null}
 
         {step === 2 ? (
-          <View style={{ gap: space.md }}>
-            <SelectField
-              label="What people send"
-              value={f.submissionType}
-              options={TYPES.map((t) => ({ value: t, label: SUBMISSION_TYPE_LABEL[t] }))}
-              onChange={(v) => set('submissionType', v)}
-            />
-            {countable ? (
-              <TextField
-                label={`How many ${countable.noun} may each person ${countable.verb}?`}
-                value={f.maxAttachments}
-                onChangeText={(v) => set('maxAttachments', digitsOnly(v).slice(0, 2))}
-                keyboardType="number-pad"
-                inputMode="numeric"
-                hint="Between 1 and 10."
-              />
-            ) : null}
-            <TextField label="Who can do it (optional)" value={f.eligibility} onChangeText={(v) => set('eligibility', v)} maxLength={120} placeholder="e.g. Editors only" />
-            {profTypes.length ? (
+          <View style={styles.step}>
+            <Card style={styles.fields}>
               <SelectField
-                label="Only for one kind of professional (optional)"
-                value={f.targetProfType || 'none'}
-                options={[{ value: 'none', label: 'Everyone' }, ...profTypes.map((t) => ({ value: String(t.id), label: `${profTypeLabel(String(t.id), tenant)} only` }))]}
-                onChange={(v) => set('targetProfType', v === 'none' ? '' : v)}
+                label="What people send"
+                value={f.submissionType}
+                options={TYPES.map((t) => ({ value: t, label: SUBMISSION_TYPE_LABEL[t] }))}
+                onChange={(v) => set('submissionType', v)}
               />
-            ) : null}
-            <SwitchRow
-              title="Check work before paying"
-              subtitle={f.requiresApproval ? 'You check each piece of work before coins are paid.' : 'Coins are paid the moment someone sends their work. No check.'}
-              value={f.requiresApproval}
-              onChange={(v) => set('requiresApproval', v)}
-            />
-            <Text variant="labelStrong" muted>
-              Reference (optional)
-            </Text>
+              {countable ? (
+                <TextField
+                  label={`How many ${countable.noun} may each person ${countable.verb}?`}
+                  value={f.maxAttachments}
+                  onChangeText={(v) => set('maxAttachments', digitsOnly(v).slice(0, 2))}
+                  keyboardType="number-pad"
+                  inputMode="numeric"
+                  hint="Between 1 and 10."
+                />
+              ) : null}
+              <TextField label="Who can do it (optional)" value={f.eligibility} onChangeText={(v) => set('eligibility', v)} maxLength={120} placeholder="e.g. Editors only" />
+              {profTypes.length ? (
+                <SelectField
+                  label="Only for one kind of professional (optional)"
+                  value={f.targetProfType || 'none'}
+                  options={[{ value: 'none', label: 'Everyone' }, ...profTypes.map((t) => ({ value: String(t.id), label: `${profTypeLabel(String(t.id), tenant)} only` }))]}
+                  onChange={(v) => set('targetProfType', v === 'none' ? '' : v)}
+                />
+              ) : null}
+            </Card>
+            <ListCard>
+              <SwitchRow
+                title="Check work before paying"
+                subtitle={f.requiresApproval ? 'You check each piece of work before coins are paid.' : 'Coins are paid the moment someone sends their work. No check.'}
+                value={f.requiresApproval}
+                onChange={(v) => set('requiresApproval', v)}
+              />
+            </ListCard>
+            <SectionLabel title="Reference (optional)" />
             {f.referenceFileName ? (
               <AccountRow
                 icon={Paperclip}
@@ -345,17 +363,20 @@ function NewTask() {
                 onPress={() => setF((x) => ({ ...x, referenceFileData: '', referenceFileName: '' }))}
                 accessibilityLabel={`Remove reference file ${f.referenceFileName}`}
               />
-            ) : (
-              <Button title={picking ? 'Opening…' : 'Add a file'} variant="ghost" icon={<Paperclip />} loading={picking} onPress={() => void pickRef()} />
-            )}
-            <TextField
-              label="Reference link"
-              value={f.referenceUrl}
-              onChangeText={(v) => set('referenceUrl', v)}
-              autoCapitalize="none"
-              keyboardType="url"
-              placeholder="https:// Drive folder, video, website…"
-            />
+            ) : null}
+            <Card style={styles.fields}>
+              <TextField
+                label="Reference link"
+                value={f.referenceUrl}
+                onChangeText={(v) => set('referenceUrl', v)}
+                autoCapitalize="none"
+                keyboardType="url"
+                placeholder="https:// Drive folder, video, website…"
+              />
+              {f.referenceFileName ? null : (
+                <Button title={picking ? 'Opening…' : 'Add a file'} variant="accent" size="md" icon={<Paperclip />} loading={picking} onPress={() => void pickRef()} />
+              )}
+            </Card>
           </View>
         ) : null}
       </Screen>
@@ -405,3 +426,8 @@ function NewTask() {
     </>
   );
 }
+
+const styles = themedStyles(() => ({
+  step: { gap: space.md },
+  fields: { gap: space.md },
+}));

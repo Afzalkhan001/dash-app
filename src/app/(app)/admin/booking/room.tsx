@@ -24,16 +24,16 @@ import { dateLabel, durationLabel, hmLabel, istParts } from '@/lib/dates';
 import { useAccess } from '@/lib/use-access';
 import { palette, radius, space } from '@/theme/tokens';
 import {
+  AccountRow,
   ActionBar,
+  ActivityList,
+  ActivityRow,
   Banner,
   Button,
   Card,
   ConfirmSheet,
   EmptyState,
   ErrorState,
-  ListCard,
-  ListRow,
-  ModuleBadge,
   NavHeader,
   PressableScale,
   Screen,
@@ -171,12 +171,12 @@ export default function BookRoomScreen() {
         ) : !rooms.data ? (
           <SkeletonList rows={3} />
         ) : rooms.data.length ? (
-          <ListCard title="Rooms">
+          <ActivityList title="Rooms">
             {rooms.data.map((r) => (
-              <ListRow
+              <ActivityRow
                 key={r.id}
-                size="lg"
-                left={<ModuleBadge module="tasks" icon={DoorClosed} />}
+                module="tasks"
+                icon={DoorClosed}
                 title={r.name || r.id}
                 subtitle={[r.floor, r.capacity ? `Seats ${r.capacity}` : ''].filter(Boolean).join(' · ') || undefined}
                 chevron
@@ -187,7 +187,7 @@ export default function BookRoomScreen() {
                 }}
               />
             ))}
-          </ListCard>
+          </ActivityList>
         ) : (
           <EmptyState icon={<DoorClosed color={palette.textMuted} />} title="No rooms yet" message="IT Admin adds conference rooms in the IT desk." />
         )}
@@ -213,22 +213,24 @@ export default function BookRoomScreen() {
   return (
     <>
       <Screen
-        header={<NavHeader title={room.name || 'Room'} />}
+        header={<NavHeader title="Book a room" />}
         onRefresh={() => Promise.all([slotRows.refetch(), feed.refetch()])}
         footer={
           <ActionBar note={sel ? `${range} · ${durationLabel((sel.end - sel.start) * 30)}${missing ? ` · ${missing} needed` : !purpose ? ' · pick a purpose' : ''}` : 'Tap a free slot to start.'}>
             <Button title="Review booking" icon={<ArrowRight />} disabled={!ready} onPress={() => setConfirm(true)} />
           </ActionBar>
         }>
-        <Button
-          title="Change room"
-          variant="text"
-          size="sm"
+        <AccountRow
+          icon={DoorClosed}
+          module="tasks"
+          title={room.name || 'Room'}
+          sub={[room.floor, room.capacity ? `Seats ${room.capacity}` : ''].filter(Boolean).join(' · ') || 'Conference room'}
+          actionLabel="Change"
           onPress={() => {
             setRoom(null);
             setSel(null);
           }}
-          style={styles.change}
+          accessibilityLabel={`${room.name || 'Room'}. Change room`}
         />
         <DayStrip
           value={date}

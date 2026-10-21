@@ -59,7 +59,7 @@ export default function PettyTrackingScreen() {
       <SummaryHero
         icon={FileSpreadsheet}
         module="pettyCash"
-        label="Spent, in these reports"
+        label="Spent in these reports"
         value={q.data ? total : undefined}
         currency="₹"
         decimals={0}
@@ -80,7 +80,7 @@ export default function PettyTrackingScreen() {
       ) : q.isError && !q.data ? (
         <ErrorState message={q.error?.message || 'Couldn’t load the expense reports.'} onRetry={() => void q.refetch()} />
       ) : list.length ? (
-        <ActivityList title={plural(list.length, 'report')}>
+        <ActivityList title="Newest first">
           {list.map((r) => (
             <ActivityRow
               key={r.batchId}

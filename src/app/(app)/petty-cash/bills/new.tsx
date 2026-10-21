@@ -409,7 +409,8 @@ export default function SubmitBillsScreen() {
           );
         })}
 
-        <Button title="Add another bill" variant="ghost" icon={<Plus />} onPress={addRow} />
+        {/* A quiet text action, as "Add another expense" on Request money: the one prominent button is in the bar. */}
+        <Button title="Add another bill" variant="text" icon={<Plus />} onPress={addRow} style={styles.addRow} />
 
         {err && !confirming ? <Banner tone="danger" title="Couldn’t send yet" message={err} /> : null}
       </Screen>
@@ -457,6 +458,7 @@ export default function SubmitBillsScreen() {
 }
 
 const styles = themedStyles(() => ({
+  addRow: { alignSelf: 'center' },
   flex: { flex: 1, minWidth: 0 },
   flexText: { flex: 1, minWidth: 0, gap: 2 },
   bill: { gap: space.md },

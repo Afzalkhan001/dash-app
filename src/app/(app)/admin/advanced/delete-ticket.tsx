@@ -11,6 +11,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Search, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
+import { View } from 'react-native';
 
 import { type DeskTicket, useDeskTickets } from '@/api/servicedesk';
 import { canDeleteTickets } from '@/features/adminadvanced/access';
@@ -20,6 +21,8 @@ import { categoryLabelFor, kindIcon, kindLabel, matchesSearch, raiserOf, refOf, 
 import { dateLabel } from '@/lib/dates';
 import type { StatusTone } from '@/theme/tokens';
 import {
+  ActionBar,
+  ActionRow,
   Banner,
   Button,
   ConfirmSheet,
@@ -36,6 +39,7 @@ import {
   SuccessSheet,
   SummaryCard,
   Text,
+  useLayout,
 } from '@/ui';
 
 const OPEN = ['open', 'pending', 'pending_approval', 'in_progress', 'accepted', 'assigned'];
@@ -45,6 +49,7 @@ const PAGE = 40;
 export default function DeleteTicketScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
+  const { gap } = useLayout();
   const { access, pending } = useGate();
   const allowed = canDeleteTickets(access);
   const q = useDeskTickets(allowed);
@@ -56,7 +61,7 @@ export default function DeleteTicketScreen() {
   const [typed, setTyped] = useState('');
   const [deleted, setDeleted] = useState<string | null>(null);
 
-  const header = <NavHeader title="Delete a service request" />;
+  const header = <NavHeader title="Delete a request" />;
   if (!allowed) return <GateFallback pending={pending} header={header} />;
 
   const all = (q.data ?? []).slice().sort((a, b) => whenOf(b).localeCompare(whenOf(a)));
@@ -90,16 +95,18 @@ export default function DeleteTicketScreen() {
         ) : !list.length ? (
           <EmptyState title={search.trim() ? 'No request matches' : 'No requests'} message={search.trim() ? 'Try a reference like TKT-1234.' : undefined} />
         ) : (
-          <>
+          <View style={{ gap }}>
             <ListCard>
               {list.slice(0, shown).map((x) => (
                 <ListRow
                   key={x.id}
                   left={<ModuleBadge module="support" icon={kindIcon(x)} />}
                   title={whatOf(x)}
-                  subtitle={`${refOf(x)} · ${raiserOf(x)} · ${dateLabel(whenOf(x))}`}
-                  subtitleLines={2}
-                  right={<StatusPill label={statusWords(x.status)} tone={toneOf(x.status)} />}
+                  numberOfLines={2}
+                  subtitle={`${refOf(x)} · ${raiserOf(x)}`}
+                  meta={dateLabel(whenOf(x))}
+                  below={<StatusPill label={statusWords(x.status)} tone={toneOf(x.status)} />}
+                  chevron
                   onPress={() => {
                     setPicked(x.id);
                     setTyped('');
@@ -108,7 +115,7 @@ export default function DeleteTicketScreen() {
               ))}
             </ListCard>
             {list.length > shown ? <Button title={`Show more (${list.length - shown} left)`} variant="accent" size="md" onPress={() => setShown(shown + PAGE)} /> : null}
-          </>
+          </View>
         )}
         {done}
       </Screen>
@@ -128,7 +135,26 @@ export default function DeleteTicketScreen() {
     });
 
   return (
-    <Screen header={header} onRefresh={() => q.refetch()}>
+    <Screen
+      header={header}
+      onRefresh={() => q.refetch()}
+      footer={
+        <ActionBar>
+          <ActionRow context="bar">
+            <Button title="Pick another" variant="accent" onPress={() => setPicked(null)} />
+            <Button
+              title="Delete"
+              variant="danger"
+              icon={<Trash2 />}
+              onPress={() => {
+                del.reset();
+                setTyped('');
+                setConfirming(true);
+              }}
+            />
+          </ActionRow>
+        </ActionBar>
+      }>
       <SummaryCard
         title={whatOf(t)}
         right={<StatusPill label={statusWords(t.status)} tone={toneOf(t.status)} />}
@@ -142,17 +168,6 @@ export default function DeleteTicketScreen() {
       />
       {open ? <Banner tone="warning" message="This request is still open. Deleting it stops it for everyone, and the raiser isn’t told." /> : null}
       <Banner tone="danger" message="The request is deleted for good. Any task already made from it stays. The activity log keeps a record." />
-      <Button
-        title="Delete this request"
-        variant="destructive"
-        icon={<Trash2 />}
-        onPress={() => {
-          del.reset();
-          setTyped('');
-          setConfirming(true);
-        }}
-      />
-      <Button title="Pick another request" variant="accent" size="md" onPress={() => setPicked(null)} />
 
       <ConfirmSheet
         visible={confirming}

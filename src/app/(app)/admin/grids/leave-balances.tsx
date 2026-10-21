@@ -11,7 +11,7 @@ import { useCompanyBalances } from '@/api/hrtime';
 import { useLeaveSettings } from '@/api/leave';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { GridView } from '@/features/grids/data-grid';
-import { GridGateFallback, gridCsvColumns, RowSheet, ShareCsvButton, useGridGate, useZoom } from '@/features/grids/grid-ui';
+import { afterSheet, GridGateFallback, gridCsvColumns, RowSheet, ShareCsvButton, useGridGate, useZoom } from '@/features/grids/grid-ui';
 import { balanceColumns, filterBalances } from '@/features/grids/model';
 import { leaveYearOf } from '@/features/leave/rules';
 import type { BalancePerson } from '@/api/hrtime';
@@ -81,7 +81,7 @@ export default function LeaveBalancesGrid() {
           variant="accent"
           onPress={() => {
             setOpen(null);
-            router.push('/admin/hr-time/balances');
+            afterSheet(() => router.push('/admin/hr-time/balances'));
           }}
         />
       </RowSheet>

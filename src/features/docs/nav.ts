@@ -14,7 +14,7 @@ export function workspaceRows(access: Access): WorkspaceRow[] {
       key: 'docs.hub',
       section: 'links',
       label: 'Documents',
-      subtitle: 'Make PDFs: timesheet, statements, schedules and reports',
+      subtitle: 'Make PDFs: timesheet, expense reports, schedules and reports',
       href: '/admin/docs',
       icon: FileText,
       module: 'policies',

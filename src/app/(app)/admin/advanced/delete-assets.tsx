@@ -7,6 +7,7 @@
 import { useRouter } from 'expo-router';
 import { Boxes, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
+import { View } from 'react-native';
 
 import { useAssets } from '@/api/itdesk';
 import { canDeleteAllAssets } from '@/features/adminadvanced/access';
@@ -14,6 +15,7 @@ import { useDeleteAllAssets } from '@/features/adminadvanced/api';
 import { GateFallback, plural, TypeToConfirm, typedMatches, useGate } from '@/features/adminadvanced/ui';
 import { palette } from '@/theme/tokens';
 import {
+  ActionBar,
   Banner,
   Button,
   ConfirmSheet,
@@ -28,10 +30,12 @@ import {
   SummaryCard,
   SummaryHero,
   Text,
+  useLayout,
 } from '@/ui';
 
 export default function DeleteAssetsScreen() {
   const router = useRouter();
+  const { gap } = useLayout();
   const { access, pending } = useGate();
   const allowed = canDeleteAllAssets(access);
   const q = useAssets(allowed);
@@ -65,7 +69,25 @@ export default function DeleteAssetsScreen() {
   };
 
   return (
-    <Screen header={header} onRefresh={() => q.refetch()}>
+    <Screen
+      header={header}
+      onRefresh={() => q.refetch()}
+      footer={
+        n ? (
+          <ActionBar note="To delete one asset, open it in Assets instead.">
+            <Button
+              title={`Delete all ${n} assets`}
+              variant="danger"
+              icon={<Trash2 />}
+              onPress={() => {
+                del.reset();
+                setTyped('');
+                setConfirming(true);
+              }}
+            />
+          </ActionBar>
+        ) : undefined
+      }>
       {q.isError && !q.data ? (
         <ErrorState message={q.error?.message ?? 'The assets could not be loaded.'} onRetry={() => void q.refetch()} />
       ) : !q.data ? (
@@ -73,7 +95,7 @@ export default function DeleteAssetsScreen() {
       ) : !n ? (
         <EmptyState icon={<Boxes color={palette.textMuted} />} title="No assets" message="The catalogue is already empty." />
       ) : (
-        <>
+        <View style={{ gap }}>
           <SummaryHero label="Assets in the catalogue" icon={Boxes} module="support" value={n} />
           <Banner
             tone="danger"
@@ -82,25 +104,11 @@ export default function DeleteAssetsScreen() {
           />
           <SummaryCard
             rows={[
-              { key: 'all', label: 'Assets', value: plural(n, 'asset') },
               { key: 'held', label: 'With someone now', value: plural(held, 'asset'), valueColor: held ? palette.warningInk : undefined },
               { key: 'free', label: 'In stock', value: plural(n - held, 'asset') },
             ]}
           />
-          <Button
-            title={`Delete all ${n} assets`}
-            variant="destructive"
-            icon={<Trash2 />}
-            onPress={() => {
-              del.reset();
-              setTyped('');
-              setConfirming(true);
-            }}
-          />
-          <Text variant="caption" muted align="center">
-            To delete one asset, open it in Assets instead.
-          </Text>
-        </>
+        </View>
       )}
 
       <ConfirmSheet

@@ -6,7 +6,9 @@
 //            shows while something was posted in the last 2 days
 //   inbox  → Inbox; the dot shows while something waits on me
 //   chat   → (slot) the chat domain's button, before the inbox, when features/chat/header-action
-//            useChatHeaderAction() returns one (a Wave 0 stub that returns null until chat ships)
+//            useChatHeaderAction() returns one. Only while there is room for three buttons: below
+//            360 dp (or with large text) the pill keeps two, so "Good morning 👋" is never cut to
+//            "Good mo…" — Chat stays one tap away in More
 // No logo.
 //
 // The greeting and the "new news" window are India time and re-read every minute (useNow), so a Home
@@ -27,7 +29,7 @@ import { useInboxCount } from '@/features/inbox/use-inbox-count';
 import { canSeeAnnouncements } from '@/features/more/menu';
 import { greeting } from '@/lib/dates';
 import { firstName } from '@/lib/format';
-import { HomeHeader, type NavAction } from '@/ui';
+import { HomeHeader, type NavAction, shouldStack, useLayout } from '@/ui';
 
 const NEW_NEWS_DAYS = 2;
 
@@ -40,6 +42,8 @@ export function HomeTopBar() {
   const photo = typeof avatar === 'string' && avatar ? avatar : null;
   const inbox = useInboxCount();
   const chat = useChatHeaderAction();
+  // Three round buttons leave the greeting about 80 dp at 320 dp; two below 360 dp or with large text.
+  const roomy = !shouldStack(useLayout(), { below: 'narrow' });
   const now = useNow();
   const hello = greeting(new Date(now));
 
@@ -67,7 +71,7 @@ export function HomeTopBar() {
       onBellPress={news ? () => router.push('/announcements') : undefined}
       bellDot={freshNews}
       bellLabel={freshNews ? 'News, new posts' : 'News'}
-      actions={chat ? [chat, inboxAction] : [inboxAction]}
+      actions={chat && roomy ? [chat, inboxAction] : [inboxAction]}
     />
   );
 }

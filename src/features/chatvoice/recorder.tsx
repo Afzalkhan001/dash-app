@@ -25,7 +25,7 @@ import { sizeLabel } from '@/features/chat/format';
 import { clock, MAX_VOICE_SECONDS, recording, voiceName } from '@/features/chatvoice/clips';
 import { themedStyles } from '@/theme/themed';
 import { palette, radius, space } from '@/theme/tokens';
-import { haptic, Text, toast } from '@/ui';
+import { haptic, hitSlopFor, Text, toast } from '@/ui';
 
 export type VoiceClip = { name: string; type: string; size: number; dataUrl: string; localUri: string; seconds: number };
 
@@ -202,7 +202,7 @@ export function VoiceRecorder({
           <Trash2 size={20} color={palette.dangerInk} strokeWidth={1.9} />
         </Round>
         <View style={styles.stage} accessibilityLabel={`Voice message, ${clock(clip.seconds)}, ${sizeLabel(clip.size)}. Not sent yet`}>
-          <Pressable onPress={togglePreview} accessibilityRole="button" accessibilityLabel={ps.playing ? 'Pause' : 'Play it back'} hitSlop={6} style={styles.play}>
+          <Pressable onPress={togglePreview} accessibilityRole="button" accessibilityLabel={ps.playing ? 'Pause' : 'Play it back'} hitSlop={hitSlopFor(30)} style={styles.play}>
             {ps.playing ? <Pause size={16} color={palette.onPrimary} fill={palette.onPrimary} /> : <Play size={16} color={palette.onPrimary} fill={palette.onPrimary} />}
           </Pressable>
           <View style={styles.stageBody}>
@@ -273,7 +273,7 @@ function Round({
 
 const styles = themedStyles(() => ({
   row: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  round: { width: 44, height: 44, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  round: { width: 48, height: 48, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   plain: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.glassLine },
   send: { backgroundColor: palette.charcoal },
   stop: { backgroundColor: palette.danger },
@@ -282,12 +282,12 @@ const styles = themedStyles(() => ({
   stage: {
     flex: 1,
     minWidth: 0,
-    minHeight: 44,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs,
     paddingHorizontal: space.sm,
-    borderRadius: 22,
+    borderRadius: 24,
     backgroundColor: palette.surface,
     borderWidth: 1,
     borderColor: palette.glassLine,

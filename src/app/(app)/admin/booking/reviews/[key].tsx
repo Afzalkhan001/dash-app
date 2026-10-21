@@ -20,12 +20,12 @@ import {
   waitingSince,
   waLink,
 } from '@/features/booking/model';
-import { useProfTypes, whenLine } from '@/features/booking/ui';
+import { StackedRow, useProfTypes, whenLine } from '@/features/booking/ui';
 import { plural } from '@/lib/format';
 import { useAccess } from '@/lib/use-access';
 import { themedStyles } from '@/theme/themed';
 import { space } from '@/theme/tokens';
-import { ActivityList, ActivityRow, Banner, Button, EmptyState, ErrorState, NavHeader, Screen, SkeletonList, SummaryHero, Text } from '@/ui';
+import { ActivityList, Banner, Button, EmptyState, ErrorState, NavHeader, Screen, SkeletonList, SummaryHero, Text } from '@/ui';
 
 export default function PendingReviewGroupScreen() {
   const params = useLocalSearchParams<{ key: string; by?: string }>();
@@ -76,14 +76,14 @@ export default function PendingReviewGroupScreen() {
                 {[...sg.items]
                   .sort((a, b) => String(b.markedDoneAt || '').localeCompare(String(a.markedDoneAt || '')))
                   .map((b) => (
-                    <ActivityRow
+                    <StackedRow
                       key={b.id}
                       module="tasks"
                       icon={ClipboardList}
                       title={b.kekaCode || b.project || 'Booking'}
                       subtitle={whenLine(b, today)}
                       value={waitingLabel(daysWaiting(waitingSince(b), now))}
-                      meta="waiting"
+                      valueMeta="waiting"
                       status={b.kind === 'approval' ? { label: 'Needs approval', tone: 'pending' } : { label: 'Needs rating', tone: 'info' }}
                     />
                   ))}

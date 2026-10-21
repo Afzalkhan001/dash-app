@@ -18,7 +18,7 @@ import { claimStatusMeta, coins, dateTimeLabel, num, submissionTypeOf, SUBMISSIO
 import { noteDecision } from '@/features/inbox/decided';
 import { DecidedSheet, DecisionScreen, DetailSkeleton, explainDecisionError, MissingItem, outcomeStatus, requesterItem, useOutcome, WhoCards } from '@/features/inbox/detail';
 import { space } from '@/theme/tokens';
-import { Banner, Card, ConfirmSheet, Segmented, SummaryCard, SummaryHero, Text, TextField } from '@/ui';
+import { Banner, ConfirmSheet, SectionHeader, Segmented, SummaryCard, SummaryHero, Text, TextField } from '@/ui';
 
 import { canDecideClaim, canReviewTask } from './access';
 import { SubmissionView } from './components';
@@ -142,7 +142,7 @@ export function ClaimReviewScreen({ taskId, employeeId }: { taskId: string; empl
           sub={task.title}
         />
         <WhoCards
-          from={requesterItem(name, claim.submittedAt ? `Sent ${dateTimeLabel(claim.submittedAt, today)}` : 'Took part')}
+          from={requesterItem(name, claim.submittedAt ? 'Sent the work' : 'Took part')}
           to={decide ? { title: 'You', subtitle: 'Check and pay', avatar: { name: user?.name || 'You' } } : { title: task.creatorName || 'Poster', subtitle: status.label, avatar: { name: task.creatorName || 'Poster' } }}
         />
         {!waiting && claim.status === 'rejected' && claim.rejectReason ? <Banner tone="danger" title="Rejected" message={`“${claim.rejectReason}”`} /> : null}
@@ -151,19 +151,17 @@ export function ClaimReviewScreen({ taskId, employeeId }: { taskId: string; empl
           <Banner tone="info" title="View only" message={gates.overseer ? 'Approving is switched off for your role in Company settings.' : 'Only the person who posted this task can check it.'} />
         ) : null}
 
-        <Card tone="frostStrong" style={{ gap: space.sm }}>
-          <Text variant="heading" accessibilityRole="header">
-            What they sent
-          </Text>
+        {/* A section, not a card: the submission's own cards (text, links, files) sit right under it. */}
+        <View style={{ gap: space.sm }}>
+          <SectionHeader title="What they sent" />
           <SubmissionView taskId={task.id} claim={claim} type={type} />
-        </Card>
+        </View>
 
         <SummaryCard
           title="Details"
           hideEmpty
           rows={[
             { key: 'status', label: 'Status', value: status.label, status: status.tone },
-            { key: 'task', label: 'Task', value: task.title },
             { key: 'type', label: 'They send', value: SUBMISSION_TYPE_LABEL[type] },
             { key: 'pos', label: 'Joining order', value: task.phaseWiseCoins && claim.position ? `No. ${claim.position}` : null },
             { key: 'joined', label: 'Joined', value: claim.claimedAt ? dateTimeLabel(claim.claimedAt, today) : null },

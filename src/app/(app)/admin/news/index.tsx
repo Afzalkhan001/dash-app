@@ -15,8 +15,9 @@ import { useNow } from '@/features/attendance/use-now';
 import { branchesLabel, isPopup, popupFreqLabel, postStatus, postTypeLabel } from '@/features/newsroom/format';
 import { useNewsroomAccess } from '@/features/newsroom/gate';
 import { postIcon } from '@/features/newsroom/icons';
-import { palette } from '@/theme/tokens';
-import { ActivityList, ActivityRow, Banner, Button, EmptyState, ErrorState, NavHeader, Screen, Segmented } from '@/ui';
+import { StatusRow } from '@/features/hiring/ui';
+import { palette, radius } from '@/theme/tokens';
+import { ActivityList, EmptyState, ErrorState, NavHeader, Screen, Segmented, Skeleton, SummaryHero } from '@/ui';
 
 type Tab = 'mine' | 'all';
 
@@ -40,18 +41,30 @@ export default function NewsStudioScreen() {
   const mine = all.filter((a) => !!user?.name && a.createdBy === user.name);
   const rows = tab === 'mine' ? mine : all;
 
-  const actions = [
-    { key: 'new', icon: Plus, label: 'New post', onPress: () => router.push('/admin/news/compose') },
-    ...(celebrations ? [{ key: 'settings', icon: Settings2, label: 'News settings', onPress: () => router.push('/admin/news/settings') }] : []),
-  ];
+  const live = all.filter((a) => postStatus(a).tone === 'done');
+  const scheduled = all.filter((a) => postStatus(a).tone === 'pending').length;
+  const popups = live.filter(isPopup).length;
+  const compose = () => router.push('/admin/news/compose');
+
+  // The hero carries "New post", so the header keeps only News settings (HR and Super Admin).
+  const actions = celebrations ? [{ key: 'settings', icon: Settings2, label: 'News settings', onPress: () => router.push('/admin/news/settings') }] : [];
 
   return (
     <Screen header={<NavHeader title="News studio" actions={actions} />} onRefresh={() => q.refetch()}>
-      <Banner
-        tone="info"
-        title="Posts reach everyone at once"
-        message="A new post shows on Home and in News for its branches, and on the office TVs. A pop-up opens over everyone’s Home page."
-      />
+      {q.isPending ? (
+        <Skeleton height={228} radius={radius.xxl} />
+      ) : q.isError && !q.data ? null : (
+        <SummaryHero
+          icon={Megaphone}
+          module="news"
+          label="Live now"
+          value={live.length}
+          unit={live.length === 1 ? 'post' : 'posts'}
+          info={scheduled ? { label: 'Scheduled', value: String(scheduled) } : popups ? { label: 'Pop-ups', value: String(popups) } : undefined}
+          sub="A post reaches Home, News and the office TVs at once."
+          action={{ title: 'New post', icon: <Plus />, onPress: compose }}
+        />
+      )}
 
       <Segmented<Tab>
         options={[
@@ -66,25 +79,23 @@ export default function NewsStudioScreen() {
         <ErrorState message={q.error?.message ?? 'Posts could not be loaded.'} onRetry={() => void q.refetch()} />
       ) : (
         <ActivityList
-          title={tab === 'mine' ? 'Your posts' : 'Every post'}
           loading={q.isPending}
           loadingRows={4}
           empty={
             <EmptyState
               icon={<Megaphone color={palette.textMuted} strokeWidth={1.8} />}
               title={tab === 'mine' ? 'You haven’t posted yet' : 'No posts yet'}
-              message="Share an update, a link, a picture or a file with everyone."
-              action={<Button title="New post" icon={<Plus />} onPress={() => router.push('/admin/news/compose')} />}
+              message="Share an update, a link, a picture or a file with everyone. Start with New post above."
             />
           }>
           {rows.map((a) => {
             const st = postStatus(a);
             return (
-              <ActivityRow
+              <StatusRow
                 key={a.id}
                 module="news"
                 icon={postIcon(a)}
-                title={a.title || '(untitled)'}
+                title={a.title || 'Untitled post'}
                 subtitle={subtitleOf(a)}
                 note={tab === 'all' && a.createdBy ? `By ${a.createdBy}` : null}
                 meta={postedLabel(a.createdAt, now) || undefined}

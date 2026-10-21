@@ -5,21 +5,25 @@
 // ended, no name found) → All / With people / In stock → categories (the website's grouping: the Mac
 // family is one kind, case and space variants are one label) → search (asset ID, name, serial, employee
 // number, name) → rows, 40 at a time. A row opens the asset, where assign / return / condition / delete are.
+// The scan button in the search field reads an asset tag (barcode or QR: asset ID, serial or a link to it) and opens the asset.
 // The filter sheet holds Location, Condition, Warranty status and the warranty-end range.
 // Stays on the website: bulk upload from Excel, the template, Excel / PDF reports, "Delete all assets".
 
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ListFilter, Package, PackagePlus, Search, SearchX, X } from 'lucide-react-native';
+import { ListFilter, Package, PackagePlus, ScanBarcode, Search, SearchX, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { type Asset, useAssets } from '@/api/itdesk';
 import { useTodayIst } from '@/features/attendance/use-now';
+import { QrScanner } from '@/features/deskqr/camera';
 import { canSeeAssets } from '@/features/itdesk/access';
 import {
   ACK_WORDS,
   ackState,
+  ASSET_TAG_CODES,
   assetIcon,
+  assetsForTag,
   assetKpis,
   assetStatus,
   categoryCounts,
@@ -33,7 +37,7 @@ import {
   warrantySoon,
   warrantyYmd,
 } from '@/features/itdesk/format';
-import { useAssetDirectory } from '@/features/itdesk/ui';
+import { StatusRow, useAssetDirectory } from '@/features/itdesk/ui';
 import { dateLabel } from '@/lib/dates';
 import { inr, plural } from '@/lib/format';
 import { useAccess } from '@/lib/use-access';
@@ -41,7 +45,6 @@ import { themedStyles } from '@/theme/themed';
 import { palette, radius, space } from '@/theme/tokens';
 import {
   ActivityList,
-  ActivityRow,
   Button,
   Chip,
   ChipRow,
@@ -104,6 +107,7 @@ export default function AssetsScreen() {
   const [draft, setDraft] = useState<Filters>(NO_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const [shown, setShown] = useState(PAGE);
+  const [scanOpen, setScanOpen] = useState(false);
 
   if (access.user && !allowed) return <Redirect href="/" />;
 
@@ -151,11 +155,34 @@ export default function AssetsScreen() {
   ];
   const narrowed = !!q.trim() || filterCount > 0 || !!quick || !!cat || seg !== 'all';
 
+  // One pill, for what needs a look: no name found, an acknowledgement waiting, or a condition that
+  // isn't Good. A "Good" pill on most rows said nothing and took the names' width.
   const pill = (a: Asset) => {
     if (noRecord(a)) return { label: 'No name found', tone: 'failed' as const };
     const ack = ackState(a);
     if (ack === 'waiting') return { label: ACK_WORDS.waiting.label, tone: ACK_WORDS.waiting.tone };
+    if (a.condition === 'Good') return null;
     return { label: conditionWords(a.condition), tone: conditionTone(a.condition) };
+  };
+
+  // A scanned tag opens its asset; a tag shared by several assets (or a serial typed twice) narrows the
+  // list to them. An unknown tag keeps the camera open with a plain message.
+  const onTag = (data: string) => {
+    if (!assets.data) return 'The assets are still loading. Try again in a moment.';
+    const { assets: hits, term } = assetsForTag(list, data);
+    if (!hits.length) return `No asset has the tag “${data.trim().slice(0, 40)}”. Try another, or close and search.`;
+    setScanOpen(false);
+    if (hits.length === 1) {
+      router.push(`/admin/it-desk/assets/${encodeURIComponent(hits[0]!.id)}`);
+      return;
+    }
+    setSeg('all');
+    setQuick(null);
+    setCat(null);
+    setKind(null);
+    setFilters(NO_FILTERS);
+    setQ(term);
+    reset();
   };
 
   const tiles: { key: Quick; label: string; value: number }[] = [
@@ -190,7 +217,7 @@ export default function AssetsScreen() {
         <SummaryHero
           icon={Package}
           module="support"
-          label="Assets"
+          label="Company equipment"
           value={k.total}
           info={{ label: 'Total value', value: inr(k.value, { decimals: false }) }}
           sub={`${plural(k.assigned, 'asset')} with people · ${k.available} in stock`}
@@ -279,7 +306,7 @@ export default function AssetsScreen() {
           setQ(v);
           reset();
         }}
-        placeholder="Search asset ID, name, serial or person"
+        placeholder="Search or scan an asset"
         autoCorrect={false}
         autoCapitalize="none"
         returnKeyType="search"
@@ -290,7 +317,11 @@ export default function AssetsScreen() {
             <IconButton accessibilityLabel="Clear search" size={32} tone="surface" onPress={() => setQ('')}>
               <X size={16} color={palette.textMuted} />
             </IconButton>
-          ) : undefined
+          ) : (
+            <IconButton accessibilityLabel="Scan an asset tag" size={32} tone="surface" onPress={() => setScanOpen(true)}>
+              <ScanBarcode size={18} color={palette.textMuted} />
+            </IconButton>
+          )
         }
       />
 
@@ -313,7 +344,7 @@ export default function AssetsScreen() {
               {visible.slice(0, shown).map((a) => {
                 const who = holder(a);
                 return (
-                  <ActivityRow
+                  <StatusRow
                     key={a.id}
                     module="support"
                     icon={assetIcon(a.assetType, a.category)}
@@ -363,6 +394,15 @@ export default function AssetsScreen() {
           />
         )}
       </View>
+
+      <QrScanner
+        visible={scanOpen}
+        title="Scan an asset tag"
+        hint="Point the camera at the asset’s barcode or QR label."
+        barcodeTypes={[...ASSET_TAG_CODES]}
+        onScanned={onTag}
+        onClose={() => setScanOpen(false)}
+      />
 
       <Sheet
         visible={filterOpen}

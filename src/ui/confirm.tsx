@@ -18,7 +18,7 @@ import { haptic } from '@/ui/haptics';
 import { shouldStack, useLayout } from '@/ui/layout';
 import { Avatar, Button } from '@/ui/primitives';
 import { Sheet } from '@/ui/sheet';
-import { useSurface } from '@/ui/surface';
+import { isDarkScheme, useSurface } from '@/ui/surface';
 import { Text } from '@/ui/text';
 
 import { themedStyles } from '@/theme/themed';
@@ -127,6 +127,9 @@ function buttonLabelFrom(label: string) {
   return rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : 'Confirm';
 }
 
+/** Swipes that throw something away or turn it off get the destructive (red) track by default. */
+const DESTRUCTIVE = /^swipe\s+(to\s+)?(reject|delete|remove|discard|decline|deny|revoke|cancel|deactivate|disable|switch off|turn off|end|terminate|block|void|withdraw)(\s|$)/i;
+
 export type SwipeToConfirmProps = {
   /** Centred label, e.g. "Swipe to apply leave". */
   label?: string;
@@ -137,6 +140,11 @@ export type SwipeToConfirmProps = {
   disabled?: boolean;
   /** Label of the plain button shown to screen-reader / Reduce Motion users (default: derived from `label`). */
   buttonLabel?: string;
+  /**
+   * 'primary' (brand) or 'destructive' (red track, like the destructive Button) — default: destructive
+   * when the label starts "Swipe to reject / delete / remove / switch off …", primary otherwise.
+   */
+  tone?: 'primary' | 'destructive';
   style?: StyleProp<ViewStyle>;
 };
 
@@ -146,8 +154,11 @@ export type SwipeToConfirmProps = {
  * back. With a screen reader or Reduce Motion on it renders a normal primary Button instead.
  *   <SwipeToConfirm label="Swipe to apply leave" onConfirm={submit} loading={saving} />
  */
-export function SwipeToConfirm({ label = 'Swipe to confirm', onConfirm, loading, disabled, buttonLabel, style }: SwipeToConfirmProps) {
+export function SwipeToConfirm({ label = 'Swipe to confirm', onConfirm, loading, disabled, buttonLabel, tone, style }: SwipeToConfirmProps) {
   const reduced = useReducedMotion();
+  const destructive = (tone ?? (DESTRUCTIVE.test(label) ? 'destructive' : 'primary')) === 'destructive';
+  // The track is the matching Button fill; the knob is always white (both themes), its icon the fill colour.
+  const fill = destructive ? (isDarkScheme() ? palette.danger : palette.dangerInk) : palette.charcoal;
   const screenReader = useScreenReader();
   const [trackW, setTrackW] = useState(0);
   const [armed, setArmed] = useState(false);
@@ -196,15 +207,28 @@ export function SwipeToConfirm({ label = 'Swipe to confirm', onConfirm, loading,
   const fadeStyle = useAnimatedStyle(() => ({ opacity: max > 0 ? Math.max(0, 1 - x.get() / (max * 0.6)) : 1 }));
 
   if (screenReader || reduced) {
-    return <Button title={buttonLabel ?? buttonLabelFrom(label)} onPress={confirm} loading={loading} disabled={disabled} style={style} />;
+    return (
+      <Button
+        title={buttonLabel ?? buttonLabelFrom(label)}
+        variant={destructive ? 'destructive' : 'primary'}
+        onPress={confirm}
+        loading={loading}
+        disabled={disabled}
+        style={style}
+      />
+    );
   }
 
   const busy = !!loading;
+  // The label gets the track minus the knob and the end chevron: ~8 dp per character at 15 px. A longer
+  // label drops to 13 px over up to 2 lines instead of being cut ("Swipe to lock October payroll").
+  const labelRoom = trackW - (KNOB + INSET + space.sm) - 44;
+  const long = trackW > 0 && label.length * 8 > labelRoom;
   return (
     <GestureHandlerRootView style={[styles.swipeRoot, disabled && styles.swipeDisabled, style]}>
       <View
         onLayout={(e) => setTrackW(Math.round(e.nativeEvent.layout.width))}
-        style={styles.track}
+        style={[styles.track, { backgroundColor: fill }]}
         accessible
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -216,7 +240,13 @@ export function SwipeToConfirm({ label = 'Swipe to confirm', onConfirm, loading,
         }}>
         <Animated.View style={[styles.trackFill, fillStyle]} pointerEvents="none" />
         <Animated.View style={[styles.labelWrap, fadeStyle]} pointerEvents="none">
-          <Text variant="body" color={palette.onPrimary} numberOfLines={1} maxFontSizeMultiplier={1.2} style={styles.label}>
+          <Text
+            variant={long ? 'label' : 'body'}
+            color={palette.onPrimary}
+            align="center"
+            numberOfLines={long ? 2 : 1}
+            maxFontSizeMultiplier={1.2}
+            style={styles.label}>
             {label}
           </Text>
         </Animated.View>
@@ -225,7 +255,7 @@ export function SwipeToConfirm({ label = 'Swipe to confirm', onConfirm, loading,
         </Animated.View>
         <GestureDetector gesture={pan}>
           <Animated.View style={[styles.knob, knobStyle]}>
-            {busy ? <ActivityIndicator color={palette.primaryText} /> : <ChevronsRight size={22} color={palette.primaryText} strokeWidth={1.6} />}
+            {busy ? <ActivityIndicator color={fill} /> : <ChevronsRight size={22} color={fill} strokeWidth={1.6} />}
           </Animated.View>
         </GestureDetector>
       </View>
@@ -253,6 +283,8 @@ export type ConfirmSheetProps = {
   disabled?: boolean;
   /** Short muted line under the swipe ("You can cancel it until it is approved"). */
   note?: string;
+  /** The swipe's tone (default: from `confirmLabel`, see SwipeToConfirm). */
+  tone?: 'primary' | 'destructive';
 };
 
 /**
@@ -277,6 +309,7 @@ export function ConfirmSheet({
   loading,
   disabled,
   note,
+  tone,
 }: ConfirmSheetProps) {
   return (
     <Sheet
@@ -287,7 +320,7 @@ export function ConfirmSheet({
       floatingClose
       footer={
         <>
-          <SwipeToConfirm label={confirmLabel} onConfirm={onConfirm} loading={loading} disabled={disabled} />
+          <SwipeToConfirm label={confirmLabel} onConfirm={onConfirm} loading={loading} disabled={disabled} tone={tone} />
           {note ? (
             <Text variant="caption" muted align="center" numberOfLines={2}>
               {note}
@@ -436,7 +469,8 @@ const styles = themedStyles(() => ({
     borderRadius: KNOB / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.surface,
+    // Always white (REFERENCE-COMPONENTS #29), also in dark mode where `surface` is a dark umber.
+    backgroundColor: '#FFFFFF',
     ...shadow.soft,
   },
 

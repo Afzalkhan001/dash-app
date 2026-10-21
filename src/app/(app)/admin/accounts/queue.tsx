@@ -86,7 +86,7 @@ export default function AccountsQueueScreen() {
       <View style={styles.searchRow}>
         <PillField
           icon={Search}
-          placeholder="Name, vendor, project code…"
+          placeholder="Search items"
           value={q}
           onChangeText={(t) => {
             setQ(t);
@@ -96,6 +96,7 @@ export default function AccountsQueueScreen() {
           autoCorrect={false}
           containerStyle={styles.search}
           accessibilityLabel="Search the list"
+          accessibilityHint="Searches names, vendors, project codes, references and amounts"
         />
         <PillSelector icon={SlidersHorizontal} label={filterCount ? `Filters · ${filterCount}` : 'Filters'} onPress={() => setFiltersOpen(true)} accessibilityHint="Opens the filters" />
       </View>
@@ -132,7 +133,7 @@ export default function AccountsQueueScreen() {
       ) : rows.length ? (
         <ActivityList title={`${rows.length} ${rows.length === 1 ? 'item' : 'items'}`}>
           {rows.slice(0, shown).map((it) => (
-            <ItemRow key={it.key} item={it} today={today} onPress={() => router.push({ pathname: '/admin/accounts/item/[type]/[id]', params: { type: it.type, id: it.id } })} />
+            <ItemRow key={it.key} item={it} today={today} hideStage={!!stage} onPress={() => router.push({ pathname: '/admin/accounts/item/[type]/[id]', params: { type: it.type, id: it.id } })} />
           ))}
         </ActivityList>
       ) : !desk.error ? (

@@ -21,7 +21,7 @@ import { coins, dateTimeLabel, num, redemptionStatusMeta } from '@/features/boun
 import { noteDecision } from '@/features/inbox/decided';
 import { DecidedSheet, DetailSkeleton, explainDecisionError, MissingItem, outcomeStatus, requesterItem, useOutcome, WhoCards } from '@/features/inbox/detail';
 import { space } from '@/theme/tokens';
-import { ActionBar, Banner, Button, ConfirmSheet, NavHeader, Screen, SummaryCard, SummaryHero, TextField } from '@/ui';
+import { ActionBar, ActionRow, Banner, Button, ConfirmSheet, NavHeader, Screen, SummaryCard, SummaryHero, TextField } from '@/ui';
 
 import { useBountyAdmin } from './gate';
 
@@ -122,30 +122,32 @@ export function RedemptionReviewScreen({ id }: { id: string }) {
         footer={
           decide ? (
             <ActionBar note="Both send them an email and a WhatsApp.">
-              <Button
-                title="Approve"
-                icon={<Check />}
-                onPress={() => {
-                  setLink('');
-                  setCode('');
-                  setSheet('approve');
-                }}
-              />
-              <Button
-                title="Decline"
-                variant="ghost"
-                icon={<X />}
-                onPress={() => {
-                  setReason('');
-                  setSheet('decline');
-                }}
-              />
+              <ActionRow context="bar">
+                <Button
+                  title="Decline"
+                  variant="danger"
+                  icon={<X />}
+                  onPress={() => {
+                    setReason('');
+                    setSheet('decline');
+                  }}
+                />
+                <Button
+                  title="Approve"
+                  icon={<Check />}
+                  onPress={() => {
+                    setLink('');
+                    setCode('');
+                    setSheet('approve');
+                  }}
+                />
+              </ActionRow>
             </ActionBar>
           ) : undefined
         }>
         <SummaryHero icon={Gift} module="bounty" label="Coins to use" value={amount} unit="coins" info={{ label: 'Asked', value: dateTimeLabel(r.requestedAt, today) }} />
         <WhoCards
-          from={requesterItem(name, `Asked ${dateTimeLabel(r.requestedAt, today)}`)}
+          from={requesterItem(name, 'Wants to use coins')}
           to={
             decide
               ? { title: 'You', subtitle: 'Approve or decline', avatar: { name: user?.name || 'You' } }

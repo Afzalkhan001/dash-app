@@ -32,6 +32,7 @@ import { TrTaskRow, taskSub } from '@/features/teamboard/task-row';
 import { palette, radius, space, type as typeScale } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
 import {
+  FIELD_LABEL_INSET,
   ActionRow,
   Banner,
   Button,
@@ -127,7 +128,7 @@ export function MyTeamTasks() {
         />
       ) : null}
 
-      <StatGrid columns={4}>
+      <StatGrid columns={2}>
         <StatTile variant="light" label="Total" value={tasks.length} module="tasks" />
         <StatTile variant="light" label="In progress" value={tasks.filter((t) => t.status === 'in_progress').length} module="tasks" />
         <StatTile variant="light" label="Overdue" value={overdue} valueColor={overdue ? palette.dangerInk : undefined} />
@@ -257,7 +258,7 @@ function TaskDetailSheet({
               accessibilityHint={isRunningTr(t) ? 'Stops the clock' : 'Starts the clock. Any other running team task pauses.'}
             />
           ) : null}
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Status
           </Text>
           <ChipRow wrap>

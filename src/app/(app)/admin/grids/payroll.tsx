@@ -15,17 +15,18 @@ import { useState } from 'react';
 
 import { type PayrollItem, usePayrollRun, usePayrollRuns } from '@/api/payroll';
 import { GridView } from '@/features/grids/data-grid';
-import { GridGateFallback, gridCsvColumns, RowSheet, ShareCsvButton, useGridGate, useZoom } from '@/features/grids/grid-ui';
+import { afterSheet, GridGateFallback, gridCsvColumns, RowSheet, ShareCsvButton, useGridGate, useZoom } from '@/features/grids/grid-ui';
 import { filterItems, registerColumns, rupees } from '@/features/grids/model';
 import { monthName, runStatus, usePayView } from '@/features/payroll/ui';
 import { themedStyles } from '@/theme/themed';
 import { moduleTone } from '@/theme/tokens';
-import { Banner, Button, Chip, ChipRow, EmptyState, ErrorState, NavHeader, PillField, Screen, SkeletonList, Text } from '@/ui';
+import { Banner, Button, Chip, ChipRow, EmptyState, ErrorState, NavHeader, PillField, Screen, SkeletonList, Text, useLayout } from '@/ui';
 
 export default function PayrollRegister() {
   const router = useRouter();
   const { allowed, pending } = useGridGate('payroll');
   const { zoom, actions } = useZoom(0);
+  const { compact } = useLayout();
   const { money, eye } = usePayView();
   const runs = usePayrollRuns(allowed);
   const list = Array.isArray(runs.data) ? runs.data : [];
@@ -35,7 +36,14 @@ export default function PayrollRegister() {
   const [query, setQuery] = useState('');
   const [warnOnly, setWarnOnly] = useState(false);
   const [open, setOpen] = useState<PayrollItem | null>(null);
-  const header = <NavHeader title="Payroll register" subtitle={run.data ? `${monthName(run.data.run.month)} · ${runStatus(run.data.run).label}` : undefined} actions={allowed ? [eye, ...actions] : undefined} />;
+  // Two header actions leave room for a short title at 320 dp, so the month moves into the subtitle.
+  const header = (
+    <NavHeader
+      title={compact ? 'Pay register' : 'Payroll register'}
+      subtitle={run.data ? `${monthName(run.data.run.month, compact)} · ${runStatus(run.data.run).label}` : undefined}
+      actions={allowed ? [eye, ...actions] : undefined}
+    />
+  );
   if (!allowed) return <GridGateFallback pending={pending} header={header} />;
 
   const items = run.data?.items ?? [];
@@ -55,7 +63,7 @@ export default function PayrollRegister() {
           ))}
         </ChipRow>
       ) : null}
-      <PillField icon={Search} value={query} onChangeText={setQuery} placeholder="Search by name, team or structure" accessibilityLabel="Search lines" autoCorrect={false} />
+      <PillField icon={Search} value={query} onChangeText={setQuery} placeholder="Search by name or team" accessibilityLabel="Search lines" autoCorrect={false} />
       {withWarnings ? (
         <ChipRow>
           <Chip label="Everyone" selected={!warnOnly} onPress={() => setWarnOnly(false)} />
@@ -93,7 +101,7 @@ export default function PayrollRegister() {
             <EmptyState
               icon={<FileSpreadsheet color={moduleTone.pay.fg} strokeWidth={1.8} />}
               title={!list.length ? 'No payroll runs yet' : query || warnOnly ? 'Nothing matches' : 'No lines in this run'}
-              message={!list.length ? 'Run a month in Payroll first.' : query || warnOnly ? 'Try another search.' : 'Recompute the run in Payroll.'}
+              message={!list.length ? 'Run a month in Payroll first.' : query || warnOnly ? 'Try another search.' : 'Recalculate the run in Payroll.'}
             />
           )
         }
@@ -121,7 +129,7 @@ export default function PayrollRegister() {
             onPress={() => {
               const itemId = open?.id;
               setOpen(null);
-              router.push(itemId ? `/admin/payroll/runs/${meta.id}/${itemId}` : `/admin/payroll/runs/${meta.id}`);
+              afterSheet(() => router.push(itemId ? `/admin/payroll/runs/${meta.id}/${itemId}` : `/admin/payroll/runs/${meta.id}`));
             }}
           />
         ) : null}

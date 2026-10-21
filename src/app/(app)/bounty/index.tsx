@@ -15,7 +15,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ListChecks, Search, ShieldCheck, Trophy } from 'lucide-react-native';
-import { View } from 'react-native';
 
 import {
   type BountyClaimReminder,
@@ -28,14 +27,14 @@ import {
   useBountyWallet,
 } from '@/api/bounty';
 import { useTodayIst } from '@/features/attendance/use-now';
-import { BountyCapBanner, BountyClaimReminderCard, BountyCoinsHero, BountyCoinsHeroSkeleton, BountyTaskList, BountyTaskListSkeleton } from '@/features/bounty/components';
+import { BountyCapBanner, BountyClaimReminderCard, BountyCoinsHero, BountyCoinsHeroSkeleton, BountyTaskList } from '@/features/bounty/components';
 import { BountyGate } from '@/features/bounty/gate';
 import { bountyAdminGates, canOpenBountyAdmin } from '@/features/bountyadmin/access';
 import { useBountyLabels } from '@/features/bounty/hooks';
 import { ReferCard } from '@/features/hiring/refer-card';
 import { asArray, boardTasks, claimIsActive, coins, earnedThisMonth, myClaimOf, num, tasksToFind } from '@/features/bounty/logic';
 import { palette } from '@/theme/tokens';
-import { ActivityList, ActivityRow, Card, EmptyState, ErrorState, NavHeader, Screen, SectionHeader } from '@/ui';
+import { ActivityList, ActivityRow, Card, EmptyState, ErrorState, NavHeader, Screen } from '@/ui';
 
 const TITLE = 'Bounty rewards';
 const PREVIEW = 3;
@@ -112,18 +111,11 @@ function BountyHub() {
 
       {notice}
 
+      {/* Find tasks: one ActivityList in every state, so the header and card never change shape. */}
       {tasksQ.isLoading ? (
-        <View style={{ gap: 4 }}>
-          <SectionHeader title={findTitle} />
-          <BountyTaskListSkeleton count={PREVIEW} />
-        </View>
+        <ActivityList title={findTitle} loading loadingRows={PREVIEW} />
       ) : tasksQ.error && !loaded ? (
-        <View style={{ gap: 4 }}>
-          <SectionHeader title={findTitle} />
-          <Card>
-            <ErrorState message={tasksQ.error.message} onRetry={() => void tasksQ.refetch()} />
-          </Card>
-        </View>
+        <ActivityList title={findTitle} empty={<ErrorState message={tasksQ.error.message} onRetry={() => void tasksQ.refetch()} />} />
       ) : toFind.length ? (
         <BountyTaskList
           title={findTitle}
@@ -134,14 +126,11 @@ function BountyHub() {
           onOpen={(t) => router.push(`/bounty/${encodeURIComponent(t.id)}`)}
         />
       ) : (
-        <View style={{ gap: 4 }}>
-          <SectionHeader
-            title={findTitle}
-            actionLabel="See all"
-            actionAccessibilityLabel="See all bounty tasks"
-            onAction={seeAll ? () => router.push('/bounty/tasks') : undefined}
-          />
-          <Card>
+        <ActivityList
+          title={findTitle}
+          onSeeAll={seeAll ? () => router.push('/bounty/tasks') : undefined}
+          seeAllAccessibilityLabel="See all bounty tasks"
+          empty={
             <EmptyState
               icon={<Search color={palette.textMuted} />}
               title={capped ? 'No new tasks this month' : 'No new tasks right now'}
@@ -157,8 +146,8 @@ function BountyHub() {
                     : 'When someone posts a task, it shows up here.'
               }
             />
-          </Card>
-        </View>
+          }
+        />
       )}
 
       <ActivityList>

@@ -7,11 +7,11 @@ import { View } from 'react-native';
 import { type BookingRecord, type BookUser, useAllBookings, useBookingFeed } from '@/api/booking';
 import type { ProfType } from '@/api/me';
 import { bookingDay, bookingLooksCancelled, bookingTimes, effEnd, hasTimeOverlap, statusOf, typeLabel } from '@/features/booking/model';
-import { BOOKING_MODULE, timeRange, typeIcon } from '@/features/booking/ui';
+import { BOOKING_MODULE, StackedRow, timeRange, typeIcon } from '@/features/booking/ui';
 import type { Field } from '@/features/inbox/format';
 import { dateLabel, stampLabel } from '@/lib/dates';
 import { palette, space } from '@/theme/tokens';
-import { ActivityList, ActivityRow, Banner, SummaryHero, Text } from '@/ui';
+import { ActivityList, Banner, SummaryHero, Text } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 
@@ -35,8 +35,9 @@ export function BookingHero({ b, today, types, label }: { b: BookingRecord; toda
       module={BOOKING_MODULE}
       label={label ?? `${typeLabel(b, types)} booking`}
       figure={
-        <Text variant="hero" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-          {timeRange(b)}
+        // Two lines at most: on a 320 dp phone the range breaks after the dash instead of being cut.
+        <Text variant="hero" color={palette.ink} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7} tabular>
+          {timeRange(b).replace(/ (AM|PM)/g, '\u00A0$1')}
         </Text>
       }
       sub={`${dateLabel(bookingDay(b), today)} · ${b.resource || '—'}`}
@@ -92,7 +93,7 @@ export function ProDayCard({ b, list, today }: { b: BookingRecord; list: Booking
         title={`${b.resource ? `${b.resource}’s` : 'Their'} day · ${dateLabel(day, today)}`}
         empty="Nothing else booked that day.">
         {others.map((o) => (
-          <ActivityRow
+          <StackedRow
             key={o.id}
             person={{ name: o.requestedBy || '' }}
             title={timeRange(o)}

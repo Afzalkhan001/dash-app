@@ -9,6 +9,7 @@
 import { useRouter } from 'expo-router';
 import { Search, Users } from 'lucide-react-native';
 import { useState } from 'react';
+import { View } from 'react-native';
 
 import { useAssetList } from '@/api/people';
 import { useTeamTasks, useWorkDepts, useWorkUsers } from '@/api/work';
@@ -17,13 +18,14 @@ import { GateFallback, plural, useGate } from '@/features/adminadvanced/ui';
 import { roleLabel } from '@/features/people/roster';
 import { todayIst } from '@/lib/dates';
 import { palette } from '@/theme/tokens';
-import { Avatar, Button, EmptyState, ErrorState, ListCard, ListRow, NavHeader, PillField, Screen, SkeletonList, StatusPill, SummaryHero, Text } from '@/ui';
+import { Avatar, Button, EmptyState, ErrorState, ListCard, ListRow, NavHeader, PillField, Screen, SkeletonList, StatusPill, SummaryHero, Text, useLayout } from '@/ui';
 
 const DONE = ['completed', 'submitted'];
 const PAGE = 40;
 
 export default function EmployeesScreen() {
   const router = useRouter();
+  const { gap } = useLayout();
   const { access, pending } = useGate();
   const allowed = canSeeEmployees(access);
   const usersQ = useWorkUsers(allowed);
@@ -56,13 +58,15 @@ export default function EmployeesScreen() {
       ) : !usersQ.data || !deptsQ.data ? (
         <SkeletonList rows={6} avatar />
       ) : (
-        <>
-          <SummaryHero label={scope ? `Team · ${scope}` : 'Team directory'} icon={Users} module="people" value={list.length} unit={list.length === 1 ? 'person' : 'people'} />
-          {away ? (
-            <Text variant="caption" muted>
-              {plural(away, 'person', 'people')} on leave today.
-            </Text>
-          ) : null}
+        <View style={{ gap }}>
+          <SummaryHero
+            label={scope ? `Team · ${scope}` : 'Team directory'}
+            icon={Users}
+            module="people"
+            value={list.length}
+            unit={list.length === 1 ? 'person' : 'people'}
+            sub={away ? `${plural(away, 'person', 'people')} on leave today` : undefined}
+          />
           <PillField
             icon={Search}
             placeholder="Name, email or employee no."
@@ -91,13 +95,13 @@ export default function EmployeesScreen() {
                       subtitle={[
                         roleLabel(u.role),
                         tasksQ.data ? (n ? plural(n, 'active task') : 'No active tasks') : null,
-                        assetsQ.data ? plural(a, 'item') : null,
+                        assetsQ.data && a ? plural(a, 'asset') : null,
                         leave ? `${plural(leave, 'leave day')} this month` : null,
                       ]
                         .filter(Boolean)
                         .join(' · ')}
                       subtitleLines={2}
-                      right={off ? <StatusPill label="On leave" tone="pending" /> : undefined}
+                      below={off ? <StatusPill label="On leave" tone="pending" /> : undefined}
                       chevron
                       onPress={() => router.push(`/people/${encodeURIComponent(u.id)}`)}
                     />
@@ -108,7 +112,7 @@ export default function EmployeesScreen() {
             </>
           )}
           {tasksQ.isError ? <Text variant="caption" muted>Couldn’t load tasks, so workload isn’t shown.</Text> : null}
-        </>
+        </View>
       )}
     </Screen>
   );

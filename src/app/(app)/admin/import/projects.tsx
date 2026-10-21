@@ -52,8 +52,8 @@ export default function ProjectsImport() {
       { label: 'Metadata 1', value: p.meta1 },
       { label: 'Metadata 2', value: p.meta2 },
       { label: 'Metadata 3', value: p.meta3 },
-      { label: 'Keka code', value: p.kekaCode },
-      { label: 'Cost code owner', value: p.costCodeOwner },
+      { label: 'Project code', value: p.kekaCode },
+      { label: 'Project owner', value: p.costCodeOwner },
       { label: 'Employee number', value: p.empNo },
       { label: 'Date', value: p.date },
       { label: 'Status', value: 'Active' },
@@ -86,7 +86,7 @@ export default function ProjectsImport() {
         <SkeletonList rows={4} />
       ) : (
         <>
-          <Banner tone="info" message="Adds Keka codes as active projects. A code is never deleted from DASH; turn one off from Projects when it is finished." />
+          <Banner tone="info" message="Adds project codes as active projects. A code is never deleted from DASH; turn one off from Projects when it is finished." />
           {result ? (
             <ResultCard
               title="Projects added"
@@ -96,7 +96,7 @@ export default function ProjectsImport() {
               onDone={() => router.push('/admin/work/projects')}
             />
           ) : null}
-          <TemplateCard template={TEMPLATES.projects} note="Metadata 1, 2 and 3 make the Keka code (joined with _) when the Keka Code cell is empty. The project is named after Metadata 3." />
+          <TemplateCard template={TEMPLATES.projects} note="Metadata 1, 2 and 3 make the project code (joined with _) when the “Keka Code” column is empty. The project is named after Metadata 3." />
           <PickCard fileName={picker.fileName} busy={picker.busy} onPick={picker.pick} onSample={picker.sample} />
           {saving ? <SavingBanner done={saving.done} total={saving.total} noun="projects" /> : null}
           {rows?.length ? (
@@ -125,7 +125,7 @@ export default function ProjectsImport() {
         confirmLabel="Swipe to add projects"
         loading={!!saving}
         onConfirm={run}
-        note="No one is messaged. Cost code owners see their codes in Projects.">
+        note="No one is messaged. Project owners see their codes in Projects.">
         <SummaryCard
           rows={[
             { label: 'Projects to add', value: todo.length },

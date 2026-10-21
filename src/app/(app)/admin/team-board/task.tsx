@@ -31,10 +31,12 @@ import { type PickPerson, PersonPicker } from '@/features/shared/person-picker';
 import { type Board, BoardGate } from '@/features/teamboard/gate';
 import { useNow } from '@/features/tasks/live-timer';
 import { hms, liveSeconds, PRIORITY_LABEL, TASK_STATUS_LABEL } from '@/features/teamboard/model';
+import { FormChoice } from '@/features/teamboard/pickers';
 import { useDeptMembers } from '@/features/teamboard/use-board';
 import { radius, space } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
 import {
+  FIELD_LABEL_INSET,
   AccountRow,
   ActionBar,
   Avatar,
@@ -47,7 +49,6 @@ import {
   haptic,
   NavHeader,
   Screen,
-  Segmented,
   SelectField,
   Skeleton,
   Text,
@@ -222,7 +223,7 @@ function TaskFields({
         />
         <TextField label="Description" value={description} onChangeText={setDescription} placeholder="Optional" multiline maxLength={2000} />
         <View style={styles.part}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Assignee
           </Text>
           {assignee ? (
@@ -259,10 +260,10 @@ function TaskFields({
           hint={board.dept.taskTypes.length ? null : 'No task types yet. Add some from Projects › Task types.'}
         />
         <View style={styles.part}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Priority
           </Text>
-          <Segmented
+          <FormChoice
             options={PRIORITIES.map((p) => ({
               key: p,
               label: PRIORITY_LABEL[p],
@@ -272,10 +273,10 @@ function TaskFields({
           />
         </View>
         <View style={styles.part}>
-          <Text variant="labelStrong" muted>
+          <Text variant="labelStrong" muted style={FIELD_LABEL_INSET}>
             Status
           </Text>
-          <Segmented
+          <FormChoice
             options={TASK_STATUSES.map((s) => ({
               key: s,
               label: TASK_STATUS_LABEL[s],

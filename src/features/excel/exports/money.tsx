@@ -6,6 +6,7 @@
 //   Vendor master      exportVendorMaster (:25802): approved vendors, never bank details
 //   Bounty coins       BountyReportsView exportExcel (:13410): Summary + Transactions (Master Admin: top-ups only)
 
+import { Circle, CircleCheck } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -23,7 +24,7 @@ import { monthYear } from '@/lib/dates';
 import { inr } from '@/lib/format';
 import { type Cell, letterheadRows, objectsToRows, readCsvText, sheetMatrix } from '@/lib/xlsx';
 import { themedStyles } from '@/theme/themed';
-import { space } from '@/theme/tokens';
+import { palette, space } from '@/theme/tokens';
 import { ActivityList, ActivityRow, EmptyState, SelectField } from '@/ui';
 
 const R = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
@@ -94,16 +95,24 @@ export function PayrollExport({ def }: { def: ExportDef }) {
       }}>
       {list.length ? (
         <ActivityList title="Payroll month">
-          {list.slice(0, 24).map((r) => (
-            <ActivityRow
-              key={r.id}
-              title={monthYear(r.month)}
-              subtitle={r.totals ? `${r.totals.employees} people · net ${inr(r.totals.net)}` : undefined}
-              status={r.id === run?.id ? { label: 'Chosen', tone: 'info' } : { label: r.status === 'locked' ? 'Locked' : 'Draft', tone: r.status === 'locked' ? 'done' : 'pending' }}
-              onPress={() => setRunId(r.id)}
-              accessibilityHint="Chooses this month"
-            />
-          ))}
+          {list.slice(0, 24).map((r) => {
+            const chosen = r.id === run?.id;
+            const state = r.status === 'locked' ? 'Locked' : 'Draft';
+            const sub = r.totals ? `${r.totals.employees} people · net ${inr(r.totals.net, { decimals: false })}` : undefined;
+            return (
+              <ActivityRow
+                key={r.id}
+                title={monthYear(r.month)}
+                subtitle={sub}
+                titleColor={chosen ? palette.primaryText : undefined}
+                status={{ label: state, tone: r.status === 'locked' ? 'done' : 'pending' }}
+                right={chosen ? <CircleCheck size={22} color={palette.primaryText} strokeWidth={2} /> : <Circle size={22} color={palette.textFaint} strokeWidth={1.6} />}
+                onPress={() => setRunId(r.id)}
+                accessibilityLabel={[monthYear(r.month), sub, state, chosen ? 'Chosen' : null].filter(Boolean).join(', ')}
+                accessibilityHint="Chooses this month"
+              />
+            );
+          })}
         </ActivityList>
       ) : (
         <EmptyState title="No payroll runs" message="Start a payroll month in Payroll first." />

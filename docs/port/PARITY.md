@@ -82,7 +82,7 @@ tab row (registry: `src/features/domains.ts`).
 | HrDbCheckBanner | HR admins | `admin/hr-advanced/payroll-setup.tsx` | done |
 | HR › Approvals (ApprovalsPanel) | approvers | Inbox tab (every kind) + `inbox/history.tsx` | done |
 | `timesheets` TimesheetsView | everyone who clocks in | `attendance/timesheets.tsx`; Documents timesheet PDF; Excel | done |
-| Someone's timesheet / bookings (Excel) | canViewTimesheet | Import & export | partial: leaves out the employee's submitted timesheet lines (the website's call returns the viewer's own) |
+| Someone's timesheet / bookings (Excel) | canViewTimesheet | Import & export | partial: leaves out the employee's submitted timesheet lines. No server route returns them: `/hr/timesheet/mine`, `/today` and `/week` (hr_timesheet.js) all read the signed-in person's own sheets, so it needs a new server route |
 | `referrals` ReferralHub (open jobs, refer, my referrals) | everyone with openings | `admin/hiring/refer/**`, Bounty screen card | done |
 | Job openings, candidates, careers applications | job-opening creators, app_manager (view) | `admin/hiring/**`; Inbox `referral` | done |
 
@@ -97,9 +97,9 @@ tab row (registry: `src/features/domains.ts`).
 | `vendormaster` VendorMaster (KPIs, bills, agreements, bank change) | accounts | `admin/accounts/vendors/**` (KPIs + chart); Documents vendor master + vendor summary PDFs; Excel vendor master | done |
 | `agreements` list, extend, countersign | accounts, overseers, named countersigners | `admin/accounts/agreements/index.tsx`, `[id].tsx`; Inbox `agree-sign` | done |
 | Draft an agreement + signature spots (NewAgreementModal) | EMPLOYEE_ROLES with Agreements | `admin/accounts/agreements/new.tsx` (header + on the list, + sheet "Agreement") | done |
-| Signed agreement copy (certificate PDF) | same | `admin/docs/agreement/[id].tsx` | partial: a countersigner who is neither drafter nor overseer can't reopen it after countersigning (the agreement is in neither list the screen reads) |
+| Signed agreement copy (certificate PDF) | same | `admin/docs/agreement/[id].tsx`; the agreement page's "Signed copy" row and success sheet | done: a countersigner who is neither drafter nor overseer reopens it from "You countersigned" (Vendor agreements) or Documents: the phone keeps the agreement's details when they sign (`features/docs/countersigned.ts`) and the server still serves them the files. The countersignature's certificate number is only on copies the lists carry |
 | Petty cash: request, bills, statements, reject a bill | staff, approvers | `petty-cash/**`; Inbox `petty`, `petty-acct`; statement PDF in Documents | done |
-| `ledger` PettyCashLedger (+ custom range, Excel, print) | accounts, super_admin | Big tables › `admin/grids/petty-ledger.tsx` (CSV) | partial: the per-row History modal and receipt links are not ported |
+| `ledger` PettyCashLedger (+ custom range, Excel, print) | accounts, super_admin | Big tables › `admin/grids/petty-ledger.tsx` (CSV): a row opens its bills with "View receipt" and the request's History; a claim opens its bill and History | done |
 | Expense claims (reimbursements) | staff, approvers | `reimbursements/**`; Inbox `reimbursements`, `reimb-acct` | done |
 | `subscriptions` SubscriptionsHub (overview, list, payments, add/edit) | subscription admins + grants, it_admin | `admin/company/subscriptions/**` | done |
 | Subscriptions Excel import / export | same | `admin/import/subscriptions.tsx`, Excel export (3 sheets) | done |
@@ -116,7 +116,7 @@ tab row (registry: `src/features/domains.ts`).
 | Asset bulk upload + history | it_admin | `admin/import/assets.tsx`, `history.tsx` | done |
 | Asset register reports (Excel / PDF) | it_admin | Import & export (4 registers + one asset's history); Documents › asset | done |
 | "Delete all assets" | it_admin | More › Delete data › `admin/advanced/delete-assets.tsx` (type "delete N assets") | done |
-| Asset tag scanning | it_admin | `features/deskqr/camera.tsx` exists; not wired to assets | partial: no asset-tag scan screen |
+| Asset tag scanning | it_admin | Assets: the scan button in the search field (`features/deskqr/camera.tsx` QrScanner with barcodes) opens the asset by asset ID, serial or a link to it; Add an asset scans the serial and asset ID | done |
 | `rooms` RoomsLocations (rooms, locations, purposes, cancel a booking) | it_admin + rooms | `admin/it-desk/rooms/**` | done |
 | `servicedesk` ServiceDesk (assign, approve, reject, status) | per slice | `admin/service-desk/**`; Inbox `desk-it` | done |
 | `tasks` ITTaskOnBehalf (raise for someone) | it_admin | `admin/service-desk/raise.tsx`; + Raise for someone | done |
@@ -134,7 +134,7 @@ tab row (registry: `src/features/domains.ts`).
 | Config: professional categories | same | More › Professional categories `admin/hr-advanced/categories.tsx` | done |
 | `audit` UserActivityAudit (filters, before/after) | super_admin + grants | `admin/company/audit/index.tsx` | done |
 | Audit Excel / PDF | downloadReports grant | Import & export › audit; Documents › audit | done |
-| `announcements` AnnouncementsPage (read) | everyone | `announcements/**` | partial: video posts are saved or opened in another app, not played inline |
+| `announcements` AnnouncementsPage (read) | everyone | `announcements/**`; video posts play in the post (`features/announcements/video.tsx`, expo-video, loaded on tap) and can still be saved | done |
 | News studio (post, schedule, pop-up, TV priority, celebrations, settings) | announcement creators | `admin/news/**`; + Post news | done |
 | Office TVs (pair, choose playlist, custom media) | super_admin, ceo, coo | `admin/news/tvs/**` | done |
 | TV playlist editor (TvPlaylistModal) | same | `admin/advanced/playlists/**` (linked from Office TVs) | done |
@@ -185,13 +185,13 @@ tab row (registry: `src/features/domains.ts`).
 
 | Status | Count |
 |---|---|
-| done | 101 |
-| partial | 7 |
+| done | 105 |
+| partial | 3 |
 | blocked | 3 |
 | n/a | 7 |
 | **Total rows** | **118** |
 
-Of the 111 rows that have something to port (all but n/a), 101 are done (91%), 7 partial and 3 blocked
+Of the 111 rows that have something to port (all but n/a), 105 are done (95%), 3 partial and 3 blocked
 only by things outside the app (a native build, a server deploy, owner credentials).
 
 ### Small gaps fixed in this pass
@@ -211,5 +211,17 @@ only by things outside the app (a native build, a server deploy, owner credentia
 - Push: deploy `feature/mobile-push`, run `sql/push_devices.sql`, set `PUSH_ENABLED=1`, add the FCM/APNs
   keys (`docs/PUSH.md`).
 - Google: client ids + new build (`docs/GOOGLE-SIGNIN.md`).
-- Partial rows above: inline video, asset-tag scanning, ledger history/receipts, signed copy for
-  third-party countersigners, someone else's timesheet lines, vendor Google, department view-as.
+- Partial rows above: someone else's timesheet lines (needs a server route), vendor Google (owner's
+  client ids and a build), department view-as (a desktop-only impersonated view; the data is in Employees,
+  Managers and Reports).
+
+### Closed in pass 4
+- Asset tag scanning: Assets › the scan button in the search field reads a QR or printed barcode (asset ID,
+  serial number, or a link ending in either) and opens that asset; Add an asset can scan its serial and
+  asset ID. Uses the desk's QrScanner, now taking `barcodeTypes`.
+- Petty cash ledger: each bill shows "View receipt" (`…/receipt`, the web's PettyCashReceiptLink) and the
+  request's History; a claim shows its bill and History.
+- Signed copy for a countersigner who isn't the drafter or an overseer: kept on the phone at signing
+  (`features/docs/countersigned.ts`), listed under "You countersigned" and in Documents; the agreement page
+  links the signed copy.
+- Inline video in news posts: `expo-video` (added with `npx expo install`; in Expo Go for SDK 57).

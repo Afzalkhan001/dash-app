@@ -21,25 +21,12 @@
 // Home renders the card only when useNeedsYou().rows has something in it.
 
 import { type Href, useIsFocused, useRouter } from 'expo-router';
-import {
-  Banknote,
-  CalendarDays,
-  CalendarPlus,
-  ClockAlert,
-  DoorOpen,
-  HandCoins,
-  House,
-  Inbox,
-  KeyRound,
-  type LucideIcon,
-  Receipt,
-  ReceiptIndianRupee,
-  ScrollText,
-} from 'lucide-react-native';
+import { Inbox, KeyRound, ScrollText } from 'lucide-react-native';
 import { View } from 'react-native';
 
 import { type PendingOtp, usePendingOtps } from '@/api/tasks';
-import { type InboxItem, type InboxKind, itemRow, type LeaveNames } from '@/features/inbox/format';
+import { type InboxItem, itemRow, type LeaveNames } from '@/features/inbox/format';
+import { itemLook } from '@/features/inbox/kind-look';
 import { useLeaveNames } from '@/features/inbox/leave-names';
 import { useInboxSummary } from '@/features/inbox/use-inbox';
 import { usePolicyPendingCount } from '@/features/policies/use-policy-actions';
@@ -48,23 +35,10 @@ import { nameWords } from '@/features/visitors/format';
 import { istParts } from '@/lib/dates';
 import { plural } from '@/lib/format';
 import { themedStyles } from '@/theme/themed';
-import { font, type ModuleKey, moduleTone, palette, space } from '@/theme/tokens';
+import { font, moduleTone, palette, space } from '@/theme/tokens';
 import { ActivityList, ActivityRow, Avatar, ModuleBadge, shouldStack, Text, useLayout } from '@/ui';
 
 const MAX_ROWS = 3;
-
-// Each kind of request as its module's colour and an icon (the badge on the asker's avatar).
-const KIND_BADGE: Record<InboxKind, { module: ModuleKey; icon: LucideIcon }> = {
-  visitors: { module: 'visitors', icon: DoorOpen },
-  leave: { module: 'leave', icon: CalendarDays },
-  wfh: { module: 'leave', icon: House },
-  comp_off: { module: 'leave', icon: CalendarPlus },
-  regularization: { module: 'attendance', icon: ClockAlert },
-  reimbursements: { module: 'pay', icon: ReceiptIndianRupee },
-  loans: { module: 'pay', icon: HandCoins },
-  keka: { module: 'expenses', icon: Receipt },
-  petty: { module: 'pettyCash', icon: Banknote },
-};
 
 export type NeedsYouRow =
   | { type: 'code'; key: string; otp: PendingOtp }
@@ -163,10 +137,13 @@ function CodeRow({ p, now }: { p: PendingOtp; now: number }) {
 // the figure and how long ago, so "See all" opens on the very same rows.
 function ItemRow({ item, now, today, names, open }: { item: InboxItem; now: number; today: string; names: LeaveNames; open: (href: Href) => void }) {
   const m = itemRow(item, today, now, names);
+  // The right column is a figure, not a sentence: "Tue, 13 Oct" rather than the hero's "on Tue, 13 Oct".
+  const age = m.age ? m.age.replace(/^on /, '') : '';
   // A visitor's name can carry a note ("Manoj (Blue Dart)"); the initials come from the name only.
   const avatar = item.kind === 'visitors' ? nameWords(item.who).join(' ') : item.who;
-  // A domain plug-in's item carries its own look (features/plugin-types).
-  const badge = item.kind === 'plugin' ? item.look : KIND_BADGE[item.kind];
+  // The kind's badge is the Inbox's own (kind-look: same icon and module colour as its row there); a
+  // domain plug-in's item carries its own look (features/plugin-types).
+  const badge = itemLook(item);
   return (
     <ActivityRow
       left={
@@ -178,7 +155,7 @@ function ItemRow({ item, now, today, names, open }: { item: InboxItem; now: numb
       title={m.title}
       subtitle={m.subtitle}
       value={m.value}
-      meta={m.age || undefined}
+      meta={age || undefined}
       chevron
       onPress={() => open(item.href as Href)}
       accessibilityLabel={[m.title, m.subtitle, m.value, m.age].filter(Boolean).join(', ')}
