@@ -37,7 +37,7 @@ On the app's sign-in screen tap **Sign in with email**. Type your email and pass
 A wrong email or password gives a general error; DASH never says which one was wrong.
 
 ### Forgot password
-- **Staff:** website only. You enter your email; DASH shows the last 4 digits of the phone on file. You confirm that number with a WhatsApp code and set a new password. DASH emails and WhatsApps you that the password changed. The app has no "Forgot password" for staff yet.
+- **Staff (app and website):** on the email sign-in screen tap **Forgot password?**. You enter your email; DASH shows the last 4 digits of the phone on file. You type that full number, confirm it with a WhatsApp code and set a new password. You swipe to confirm, because DASH then emails and WhatsApps you that the password changed. The app takes you back to email sign-in with your email filled in.
 - **Vendors:** in the app and on the website (see Vendors below).
 
 ### Change password (app and website)
@@ -48,8 +48,8 @@ Signed-in staff can change their password in the app from **More → Change pass
 - **App: not available.** The app has no Google button.
 - Vendors can also use Google on the website, but only after their vendor account is linked to that Google email.
 
-### Sign up (website only)
-A new staff member whose email is on the company's approved list can create a password on the website. After that they sign in normally. The app has no sign-up for staff.
+### Sign up (app and website)
+A new staff member whose email is on the company's approved list can create a password. In the app: email sign-in screen, then **New here? Create your account**. Type the email, then a password (at least 4 characters) twice. Nobody is messaged. **Continue** then signs you in with a code, as usual. An email that already has an account is told to sign in instead; an email that is not on the list is refused with DASH's own words.
 
 ### Trusted device and the 15-day session
 - **Website:** a "Trust this device" tick box. With it you stay signed in for 15 days. Without it, 12 hours.
@@ -75,7 +75,7 @@ Vendors are a different kind of user with their own portal. On the app's sign-in
 ### Kiosks, TVs and other screens (not in the app)
 - **Office TV (news display):** the TV shows a pairing code. An admin types that code on the DASH website, and the TV stays signed in from then on. It only shows company news.
 - **Older announcement screen:** works the same way (a code on the screen, claimed by an admin on the website).
-- **Visitor kiosk tablet:** a Visitor Manager signs in to the DASH website on the tablet and opens **Kiosk Mode**. Guests check themselves in by scanning a QR code. Leaving Kiosk Mode needs the Visitor Manager's password.
+- **Visitor kiosk tablet:** a Visitor Manager signs in to the DASH website on the tablet and opens **Kiosk Mode**. Guests check themselves in by scanning a QR code. Leaving Kiosk Mode needs the Visitor Manager's password. (Kiosk mode in the app is planned for the next wave.)
 - **Job applicants:** check their application status on the careers page with a WhatsApp code.
 
 None of these are part of the mobile app.
@@ -88,17 +88,17 @@ None of these are part of the mobile app.
 
 | Role (as shown in the app) | Who it is for | What they see and do in the app | Website only |
 | --- | --- | --- | --- |
-| **Employee** | Regular staff | Clock in and out, attendance, fix a missed punch, timesheets, holidays, shifts. Apply for leave or work from home. Salary, payslips, salary claims and salary advance. Expense claims, petty cash bills, My tasks, visitors, help requests, policies, People, news, bounty. | Home dashboard, Clients, Booking, team task view |
+| **Employee** | Regular staff | Clock in and out, attendance, fix a missed punch, timesheets, holidays, shifts. Apply for leave or work from home. Salary, payslips, salary claims and salary advance. Expense claims, petty cash bills, My tasks, visitors, help requests, policies, People, news, bounty. **Chat** with colleagues. **Booking** (a professional, a room or a location) and their own **Clients**. Countersigns a vendor agreement when named. | Home dashboard, team task view |
 | **Professional** | Freelance crew booked for shoots | Same as Employee (whatever their department has switched on), plus their **shoot bookings** in My tasks. | Same as Employee |
-| **Manager** | Runs a team | Everything an Employee has, plus: **approves the team's** leave, work from home, comp-off, attendance fixes and salary claims; sees who's in today and the team's attendance. If they own a project code: approves that project's expense claims and petty cash. Can claim bounties. | Create, assign and review tasks; Projects; Employees; Reports; Device Monitoring (own team); Team Roster; Requests |
-| **Admin** | Senior manager who runs a department | Same as Manager. Still clocks in and has their own leave and pay. | Dashboard, Managers, Requests, Service Desk, Tasks, Employees, Roster, Projects, Clients, Booking, Reports, Device Monitoring, vendor accounts |
-| **HR** | The HR team | No clock-in or own pay (system role). **Approves leave, work from home, comp-off, attendance fixes, salary claims and salary advances for the whole company.** Who's in across the company, shifts, holidays, the full People directory. Expense claims, petty cash, visitors, help, policies, news, bounty. No My tasks. | Employee roster, departments, projects, booking, service desk, reports; posting news; bounty admin; job openings; attendance setup, leave setup, holidays, shifts, policies; **Payroll**; vendor accounts |
-| **Super Admin** | Head of the company on DASH | Same as HR, plus: sees **every expense claim** in the company and can approve any; sees every petty cash request (view only). Creates bounties but cannot claim them. | Everything for the company: users, roster, departments, projects, booking, vendors and bill approvals, bounty funding, news, service desk, reports, **Config** (feature switches), audit, subscriptions, device monitoring, Visitor Desk, HR and leave setup, Payroll |
+| **Manager** | Runs a team | Everything an Employee has, plus: **approves the team's** leave, work from home, comp-off, attendance fixes and salary claims; sees who's in today and the team's attendance. If they own a project code: approves that project's expense claims and petty cash. Can claim bounties. **Team tasks** (assign, edit, review submitted tasks and time fixes), **Team today / Tomorrow** on Home, **Booking requests** (approve or reject the team's bookings), Project codes, Clients. | Reports; Device Monitoring (own team); Team Roster |
+| **Admin** | Senior manager who runs a department | Same as Manager (Team tasks, Booking requests, Project codes, Clients), plus **Employees** (edit only) and the **Service desk** (equipment requests; approves them when they run IT & Admin). Still clocks in and has their own leave and pay. | Dashboard, Managers, Roster, Reports, Device Monitoring, vendor accounts |
+| **HR** | The HR team | No clock-in or own pay (system role). **Approves leave, work from home, comp-off, attendance fixes, salary claims and salary advances for the whole company.** Who's in across the company, shifts, holidays, the full People directory. Expense claims, petty cash, visitors, help, policies, news, bounty. No My tasks. **Employees** (add, edit, mark leavers), **Departments**, **HR setup** (offices, clock-in rules, shifts, holidays, leave types and balances, policies), Behaviour & work complaints in the **Service desk**, Booking, Project codes; the activity audit when granted. | Reports; posting news; bounty admin; job openings; **Payroll**; vendor accounts |
+| **Super Admin** | Head of the company on DASH | Same as HR, plus: sees **every expense claim** in the company and can approve any; sees every petty cash request (view only). Creates bounties but cannot claim them. **Company dashboard** ("Company at a glance" on Home), **Users**, **Company settings**, **Activity audit**, **Subscriptions**, the **Accounts desk** (approves vendor bills), vendor agreements, the whole **Service desk**, the **Visitor desk**, Employees, Departments, HR setup, Booking, Project codes. | Vendors, bounty funding, news, reports, device monitoring, Payroll |
 | **CEO** / **COO** | Top leadership | System roles: no clock-in or own pay. Their own team's approvals if they run a department. Full People directory. Same More menu as Super Admin. Can create and also claim bounties. **No demo persona**: in the demo, Kiran Rao (CEO) and Arvind Menon (COO) appear as colleagues. | Same website menu as Super Admin |
-| **IT Admin** | The IT team | System role: no clock-in. Approves the IT team's requests if they run IT. **IT tickets** in My tasks (start and finish without a code). All the usual tiles. | Assets, subscriptions, roster, tasks, service desk, rooms and locations, device monitoring, posting news, vendor accounts |
-| **Accounts** | Finance team | Clock in, own leave and pay. **Approves petty cash for every team.** Expense claims, visitors, help, policies, People. No news, tasks or bounty. | Vendor registrations, vendor master, bill approvals, agreements; final approval and payment of expense claims; petty cash payments and statements |
-| **Application Manager** | Looks after DASH itself | Clock in, own leave and pay, tasks. Bounty board **view only**. No Expense claims: DASH refuses this role, so the app hides it. | Pending reviews, dashboard, managers, requests, service desk, tasks, employees, roster, projects, clients, booking, reports, bounty oversight |
-| **Visitor Manager** | Reception | Almost nothing: Help & support, People, raise a ticket. | The whole **Visitor Desk**: today's visitors, Kiosk Mode, visitor log, invites, QR code |
+| **IT Admin** | The IT team | System role: no clock-in. Approves the IT team's requests if they run IT. **IT tickets** in My tasks (start and finish without a code). All the usual tiles. The **Service desk** (assign tickets, approve equipment, reject), **Raise for someone**, **Employees** (edit, mark leavers), **Subscriptions**. | Assets, rooms and locations, device monitoring, posting news, vendor accounts |
+| **Accounts** | Finance team | Clock in, own leave and pay. **Approves petty cash for every team.** Expense claims, visitors, help, policies, People. No news, tasks or bounty. The **Accounts desk**: petty cash, expense claims and vendor bills at Accounts' stage, starting payments, petty cash tracking and expense types; **Vendors** (check registrations); **Vendor agreements** (countersign, extend); Subscriptions (view). | Drafting agreements, vendor list export and print, the petty cash ledger |
+| **Application Manager** | Looks after DASH itself | Clock in, own leave and pay, tasks. Bounty board **view only**. No Expense claims: DASH refuses this role, so the app hides it. **Pending reviews** (with a count on Home), Team tasks, Booking and Booking requests, Project codes, Clients, Employees (edit), Service desk (equipment). | Dashboard, managers, roster, reports, bounty oversight |
+| **Visitor Manager** | Reception | The **visitor desk**: "In the building" on Home, visitors waiting in Inbox (let in or turn away), check out, the visitor log, invites (invite a visitor from **+**) and the check-in link. Help & support, People. | Kiosk Mode, the printable QR poster |
 | **Announcements (Display)** | The shared office TV account | Almost nothing: People only. | The news display on the office TV |
 | **Master Admin** | Owner of the DASH platform (all companies) | Belongs to no company, so the app is nearly empty: People only. | Companies, company wallets, company features, overrides |
 | **Vendor** *(not a staff role)* | Suppliers | Register, verify ID and bank with Digio, sign the tax forms, track approval. Once approved: money due, bills, agreements to sign, change requests, profile. | Google sign-in |
@@ -106,7 +106,9 @@ None of these are part of the mobile app.
 **What else changes what someone sees (beyond their role):**
 - **Running a department** adds that team's approvals and "Who's in today".
 - **Owning a project code** adds that project's expense claims and petty cash approvals.
-- **Company switches** (set on the website) can hide tasks, news, bounty or People for everyone.
+- **Company switches** (Company settings in the app, or the website) can hide tasks, news, bounty or People for everyone.
+- **Being named** on a vendor agreement as its countersigner puts it in that person's Inbox, whatever their role.
+- **Every role** can chat (More, Chat), unless the company switched Meets off.
 
 ---
 
@@ -121,6 +123,8 @@ On a development build (Expo Go or a dev build), or an internal preview build wi
 
 A wrong code or password tells you the right one. The gold pill at the top shows which role you are in, for example **DEMO · HR**.
 
+**Forgot password and sign-up (staff):** on the email screen, **Forgot password?** with `afzal.demo@tamadamedia.com`, then the number `8328617610`, the code `123456` and any new password of 4 or more characters (nothing changes: `Demo@123` still works). **New here? Create your account** with `afzal.newjoiner@tamadamedia.com` creates an account, and **Continue** opens Afzal Employee; `afzal.demo@tamadamedia.com` says the account already exists; `afzal.notlisted@tamadamedia.com` is refused because it is not on the list.
+
 **Vendor sign-in screen:** `8328617610` with the password `123456` (or `Demo@123`). Or tap Register / Forgot password with `8328617610` or the demo email, then the code `123456`. From here the popup shows only the vendor roles.
 
 ### The roles in the popup
@@ -130,18 +134,18 @@ CEO and COO are left out on purpose. Inbox counts below are where each role star
 
 | Persona | What you see | What to try |
 | --- | --- | --- |
-| **Afzal Employee** | Clock-in card and shortcuts on Home. Me: attendance, leave (33 days left), pay. Inbox: one visitor. All 9 tiles in More. | Apply for leave (pick a holiday and see it refused), open a payslip, tap **+** to see all 8 actions. |
-| **Afzal Professional** | Like Employee, with fewer modules: payslips only under Pay, no work from home or salary advance. | Open **My tasks** to see the shoot bookings. |
-| **Afzal Manager** | Runs the Creative team. Inbox about 14: the team's leave, work from home, comp-off, attendance fixes, salary claims, plus 2 project claims and 2 petty cash requests. | Approve a leave, reject a project claim with a reason, approve petty cash. Check "Who's in today". |
-| **Afzal HR** | No clock-in. Inbox about 23 from the whole company, including 3 salary advances. "Your team" under Me. Full People directory. | Approve a salary advance (only HR can). Open People and see departments and employee numbers. |
-| **Afzal Accounts** | Clock-in, own leave and pay. Inbox: a visitor plus 4 petty cash requests from different teams. 6 tiles; no news or bounty. | Approve one petty cash request and reject another. |
-| **Afzal Super Admin** | No clock-in. Company-wide approvals. Expense claims shows every claim. Petty cash is view only. | Approve a leave. Open Bounty: 0 coins, because a super admin can't claim. |
-| **Afzal Admin** | Runs the Production team. Clock-in, own leave and pay. Inbox: the Production team's 4 requests plus a visitor. | Reject a leave with a reason. Open My tasks for the Production task. |
-| **Afzal IT Admin** | No clock-in. Inbox: the IT team's leave, work from home and attendance fix. | Open **My tasks** for the 2 IT tickets (no start code needed). |
-| **Afzal Visitor Manager** | Almost empty: Today card, Help & support, People. | Tap **+**: only "Raise a ticket". Its real work is on the website. |
-| **Afzal Announcements** (pill says **Display**) | Almost empty: People only. | See how little the TV account gets in the app. |
-| **Afzal App Manager** | Clock-in, leave, pay, tasks. Bounty is view only. | Open Expense claims: you get the same "no permission" error the real app gives this role. |
-| **Afzal Master Admin** | No company, so nearly empty: People (full directory). | Open People and the org chart. |
+| **Afzal Employee** | Clock-in card and shortcuts on Home. Me: attendance, leave (33 days left), pay. Inbox about 4: a visitor, an agreement to countersign, booking work to approve and one to rate. All 9 tiles in More, plus Chat, Booking and Clients. | Apply for leave (pick a holiday and see it refused), open a payslip, tap **+** (8 actions plus Book and New chat). Countersign the vendor agreement from Inbox. Book a professional, a room or a location. Send Priya a chat: a reply arrives. |
+| **Afzal Professional** | Like Employee, with fewer modules: payslips only under Pay, no work from home or salary advance. | Open **My tasks** to see the shoot bookings. More, Booking shows "Booked for you". |
+| **Afzal Manager** | Runs the Creative team. Home: Team today and Tomorrow. Inbox about 23: the team's leave, work from home, comp-off, attendance fixes, salary claims, 2 project claims, 2 petty cash requests, 2 tasks to review, a time fix and 4 bookings. More, Work: Team tasks, Booking, Booking requests, Project codes, Clients. | Approve a leave, reject a project claim with a reason, approve petty cash. Approve a submitted task, or send it back. Approve a booking (it becomes the professional's task) or reject one with a reason. Tap **+**, **Assign task**. |
+| **Afzal HR** | No clock-in. Inbox about 26 from the whole company, including 3 salary advances and a Behaviour & work complaint. "Your team" under Me. Full People directory. More, People & HR: Employees, Departments, HR setup; Activity audit (granted). | Approve a salary advance (only HR can). **+**, **Add employee**, and invite someone. Mark Farhan Ali as resigned (blocked: he still holds a camera). In HR setup add a holiday, a shift or a leave type, adjust a leave balance, publish the draft policy. |
+| **Afzal Accounts** | Clock-in, own leave and pay. Inbox about 17: a visitor, 4 petty cash requests at the project owner's stage, 5 petty cash items at Accounts' stage, 3 claims, 3 vendor bills and an agreement to countersign. Home: Payments (3 to start, 3 not received). More, Money: Accounts desk, Vendors, Vendor agreements, Subscriptions (view). | Approve one petty cash request and reject another. Approve a vendor bill, then start its payment. Check the waiting vendor's registration and approve it. Reject one bill in Imran's expense report. Extend an agreement's deadline. |
+| **Afzal Super Admin** | No clock-in. Company-wide approvals (Inbox about 33, with vendor bills and the service desk). Home: Company at a glance. More: Booking, Project codes; Employees, Departments, HR setup; Accounts desk, Vendor agreements; Service desk; Company dashboard, Users, Company settings, Activity audit, Subscriptions; the Visitor desk. Petty cash is view only. | Approve a leave. Open Bounty: 0 coins, because a super admin can't claim. Turn a company switch off and on in Company settings. Remove a login in Users. Mark the stationery request resolved in the Service desk. Delete a subscription payment. |
+| **Afzal Admin** | Runs the Production team. Clock-in, own leave and pay. Inbox about 11: the Production team's requests, a visitor, a task to review, a time fix and 2 bookings (Farhan, cinematographer, and the Ramoji location). More: Team tasks, Booking, Booking requests, Project codes, Clients, Employees (edit), Service desk (equipment, view only). | Reject a leave with a reason. Open My tasks for the Production task. Approve the Ramoji location booking. |
+| **Afzal IT Admin** | No clock-in. Inbox about 11: the IT team's leave, work from home and attendance fix, plus 7 in the Service desk. More: Employees, Service desk, Raise for someone, Subscriptions. | Open **My tasks** for the 2 IT tickets (no start code needed). Assign Zoya's VPN ticket to Ravi, approve Kavya's 2 monitors, reject the printer jam with a reason. **+**, **Raise for someone**, for Tejas (not signed up yet). |
+| **Afzal Visitor Manager** | Home: "In the building" with the desk shortcuts. Inbox: visitors at reception. More: Visitor desk, Visitor log, Invites and Check-in link as tiles, plus Help & support and My team. | Let a waiting visitor in (swipe) or turn one away. Check someone out on the Visitor desk. Search the log. **+**, **Invite visitor**. Make a new check-in link. |
+| **Afzal Announcements** (pill says **Display**) | Almost empty: People and Chat. | See how little the TV account gets in the app. |
+| **Afzal App Manager** | Clock-in, leave, pay, tasks. Bounty is view only. Home: Pending reviews (5 bookings with 2 professionals). More: Team tasks, Booking, Booking requests, Pending reviews, Project codes, Clients, Employees, Service desk. | Open Expense claims: you get the same "no permission" error the real app gives this role. Open Pending reviews and send a WhatsApp reminder. |
+| **Afzal Master Admin** | No company, so nearly empty: People (full directory) and Chat. | Open People and the org chart. |
 
 **Vendor portal** (one sample business, Afzal Studios & Co.)
 
@@ -167,6 +171,7 @@ CEO and COO are left out on purpose. Inbox counts below are where each role star
 - **All staff roles share one personal history**, so "my" leave, claims and help requests are the same sample items in every role.
 - If today is a holiday in the demo calendar (for example Dussehra), "Who's in today" shows 0.
 - Some file downloads say "Downloads are not available in the demo account."
+- **Anything you swipe to confirm** (approve, reject, remove, cancel, publish) changes only the sample data. The note under the swipe says who the real DASH would email or WhatsApp; in the demo nobody is messaged.
 
 ---
 

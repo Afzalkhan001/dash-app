@@ -4,6 +4,9 @@
 //   password-email  email code → /auth/login/verify-otp { code }
 //   demo            the in-app demo (dev builds only): 123456 → the "Explore DASH as…" role picker
 //                   (features/demo/role-picker.tsx), which signs in as the chosen Afzal persona
+//   forgot          forgot password ((auth)/forgot.tsx): WhatsApp code → proofToken, stored in the flow
+//                   (forgotProof), then back to the forgot screen to set the new password. Nobody is
+//                   signed in here. The demo account (forgotDemo) takes 123456 and sends nothing.
 // Auto-submits on the 6th digit; resend has the same 30-second cooldown as the website.
 // Layout (Payno "Verify OTP", docs/REFERENCE-COMPONENTS.md §3): the round back button, the channel's
 // icon in a frosted circle, "Verify it’s you" and one muted line with the masked number ("We sent a
@@ -34,6 +37,7 @@ import { type ApiResult, isApiError } from '@/api/client';
 import { AuthNote, AuthShell, BackButton, maskSentTo, ResendCode, SIGN_IN_FAILED } from '@/auth/auth-shell';
 import { useAuthFlow } from '@/auth/flow';
 import { useSession } from '@/auth/session';
+import { DEMO_RESET_PROOF } from '@/demo/auth-extras';
 import { DEMO_OTP } from '@/demo/config';
 import { DemoRolePicker, startStaffDemo, startVendorPersona } from '@/features/demo/role-picker';
 import { space } from '@/theme/tokens';
@@ -75,6 +79,9 @@ export default function OtpScreen() {
 
   const viaEmail = flow.purpose === 'password-email';
   const demo = flow.purpose === 'demo';
+  const forgot = flow.purpose === 'forgot';
+  // Any code that is answered on the phone: the demo sign-in, or the demo account's forgot password.
+  const demoCode = demo || (forgot && flow.forgotDemo);
 
   function fail(message?: string | null) {
     haptic.error();
@@ -114,6 +121,8 @@ export default function OtpScreen() {
       return;
     }
 
+    if (flow.purpose === 'forgot') return verifyForgot(value);
+
     // The earlier screen always sets these; a missing one means the flow was lost and no retry here
     // can work, so go back to the start of sign-in (each start resets the flow).
     const needsLoginChallenge = viaEmail || flow.purpose === 'password-phone';
@@ -140,7 +149,9 @@ export default function OtpScreen() {
       result =
         flow.purpose === 'mobile'
           ? await signInWithPhoneProof(proofToken)
-          : await verifyLoginOtp(flow.loginChallengeId!, { idToken: proofToken });
+          : await verifyLoginOtp(flow.loginChallengeId!, {
+              idToken: proofToken,
+            });
     }
 
     if (isApiError(result) || !isSessionPayload(result) || !result.token) {
@@ -151,9 +162,41 @@ export default function OtpScreen() {
       return viaEmail ? failCode(message) : fail(message);
     }
     if (flow.phone) await rememberPhone(flow.phone);
-    await signIn({ kind: 'staff', token: result.token, tokenExpiresAt: result.tokenExpiresAt, user: result.user });
+    await signIn({
+      kind: 'staff',
+      token: result.token,
+      tokenExpiresAt: result.tokenExpiresAt,
+      user: result.user,
+    });
     flow.reset();
     // The root layout's protected routes take over from here and show the app.
+  }
+
+  const leaveForgot = () => (router.canGoBack() ? router.back() : router.replace('/forgot'));
+
+  // Forgot password: the code only proves the number. Hand the proof back to the forgot screen (the
+  // code is single use; the proof lasts 10 minutes), and sign nobody in.
+  async function verifyForgot(value: string) {
+    let proofToken: string;
+    if (flow.forgotDemo) {
+      if (value !== DEMO_OTP) return failCode(`That code is wrong. In the demo the code is ${DEMO_OTP}.`);
+      proofToken = DEMO_RESET_PROOF;
+    } else {
+      if (!flow.phoneChallengeId) {
+        submitted.current = '';
+        setBusy(false);
+        haptic.error();
+        toast.show('This code has expired. Please ask for a new one.', 'danger');
+        return leaveForgot();
+      }
+      const proof = await verifyPhoneOtp(flow.phoneChallengeId, value);
+      if (isApiError(proof) || !proof?.proofToken) return failCode(isApiError(proof) ? proof.error : null);
+      proofToken = proof.proofToken;
+    }
+    flow.set({ forgotProof: proofToken });
+    setBusy(false);
+    haptic.success();
+    leaveForgot();
   }
 
   async function resend() {
@@ -163,11 +206,9 @@ export default function OtpScreen() {
     setCode('');
     submitted.current = '';
     proofRef.current = null;
-    if (flow.purpose === 'demo') return setCooldown(RESEND_SECONDS);
+    if (demoCode) return setCooldown(RESEND_SECONDS);
     setResending(true);
-    const r = viaEmail
-      ? await sendLoginEmailOtp(flow.loginChallengeId!)
-      : await sendPhoneOtp(flow.phone, flow.phoneChallengeId ?? undefined);
+    const r = viaEmail ? await sendLoginEmailOtp(flow.loginChallengeId!) : await sendPhoneOtp(flow.phone, flow.phoneChallengeId ?? undefined);
     setResending(false);
     if (isApiError(r)) return fail(r.error);
     if (r && typeof r === 'object' && 'challengeId' in r && r.challengeId) flow.set({ phoneChallengeId: r.challengeId });
@@ -190,14 +231,16 @@ export default function OtpScreen() {
     setError(null);
     setWrongCode(false);
   };
-  const keypad = useCodeKeypad(code, type, { onComplete: (v) => void verify(v) });
+  const keypad = useCodeKeypad(code, type, {
+    onComplete: (v) => void verify(v),
+  });
 
   return (
     <AuthShell
-      icon={demo ? FlaskConical : viaEmail ? Mail : MessageCircle}
+      icon={demoCode ? FlaskConical : viaEmail ? Mail : MessageCircle}
       title="Verify it’s you"
       subtitle={
-        demo
+        demoCode
           ? 'Enter the 6-digit code for the demo account.'
           : viaEmail || !sentTo
             ? `We sent a 6-digit code to ${where}.`
@@ -205,14 +248,19 @@ export default function OtpScreen() {
       }
       top={<BackButton onPress={() => router.back()} />}
       keypad={<NumericKeypad onKey={keypad.onKey} disabled={busy || demoOk} />}>
-      {demo ? <AuthNote icon={FlaskConical}>{demoOk ? 'Code accepted · choose which role to explore' : `Sample data only · the code is ${DEMO_OTP}`}</AuthNote> : null}
+      {demo ? (
+        <AuthNote icon={FlaskConical}>
+          {demoOk ? 'Code accepted · choose which role to explore' : `Sample data only · the code is ${DEMO_OTP}`}
+        </AuthNote>
+      ) : null}
+      {forgot && flow.forgotDemo ? <AuthNote icon={FlaskConical}>{`Demo account · no WhatsApp message, the code is ${DEMO_OTP}`}</AuthNote> : null}
       <OtpBoxes
         value={code}
         onChange={type}
         onComplete={(v) => void verify(v)}
         withKeypad
         error={wrongCode}
-        accessibilityLabel={demo ? 'Demo code' : viaEmail ? 'Email code' : 'WhatsApp code'}
+        accessibilityLabel={demoCode ? 'Demo code' : viaEmail ? 'Email code' : 'WhatsApp code'}
       />
       {error === NO_STAFF_ACCOUNT ? (
         <Banner
@@ -231,7 +279,7 @@ export default function OtpScreen() {
       {demoOk ? (
         <Button title="Choose a role" icon={<Users />} onPress={() => setPicking(true)} />
       ) : (
-        <Button title="Sign in" onPress={() => verify(code)} loading={busy} disabled={code.length !== 6} />
+        <Button title={forgot ? 'Verify' : 'Sign in'} onPress={() => verify(code)} loading={busy} disabled={code.length !== 6} />
       )}
       {/* Part of the form block, so the shell keeps it above the system keyboard when the boxes open it. */}
       <ResendCode seconds={cooldown} onPress={resend} loading={resending} disabled={busy} />

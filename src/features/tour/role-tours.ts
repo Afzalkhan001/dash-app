@@ -6,14 +6,23 @@
 //
 // The hosts (features/tour/hosts.tsx) build the context from hooks the app already runs, pick the tour
 // with staffTourIdFor / vendorTourIdFor, and start it. All tour copy lives here; screens hold none.
+//
+// EXTENSION POINT (Wave 0, docs/port/EXTENSION-POINTS.md §7): each domain's tourSteps(ctx)
+// (features/<domain>/tour.ts) is appended to the role's steps just before "See this again" (and so
+// before the demo step), in registry order (features/domains). The domain's steps carry their own copy.
 
-import { type Href, router } from 'expo-router';
+import type { Href } from 'expo-router';
 
+import { domainTourSteps } from '@/features/domains';
 import { meHref, type MeTab } from '@/features/me/tabs';
+import { tourStep } from '@/features/tour/step';
 import { ROLE_LABEL } from '@/lib/access';
 import type { TourIntro, TourStep } from '@/ui';
 
-/** Bump only when the steps change in a way people should see again. */
+/**
+ * Bump only when the steps change in a way people should see again. The integrator bumps it ONCE, at
+ * release time (PLAN §2.2.6) — never per domain.
+ */
 export const TOUR_VERSION = 1;
 
 export type StaffTourId =
@@ -111,6 +120,10 @@ export type StaffTourCtx = {
   lockAvailable: boolean;
   /** The demo account (More shows "Switch demo role"). */
   demo: boolean;
+  /** Plug-in keys this person sees (features/domains): More › Workspace rows, + actions, Home cards. */
+  workspaceRows: string[];
+  createKeys: string[];
+  homeCards: string[];
 };
 
 export type VendorTourCtx = {
@@ -135,13 +148,8 @@ export type BuiltTour = { tourId: string; steps: TourStep[]; intro: TourIntro };
 export type PreviousTour = { tour: string } | null;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-/** Steps that open another screen get longer to find their control (the screen mounts first). */
-const CROSS_MS = 1500;
-
-/** Open a screen before the step looks for its control. */
-const open = (href: Href) => () => {
-  router.navigate(href);
-};
+// One step = features/tour/step tourStep() (shared with the domain plug-ins' tour.ts).
+const step = tourStep;
 
 const SCREENS = {
   home: '/',
@@ -152,19 +160,6 @@ const SCREENS = {
   vendorHome: '/portal',
   vendorProfile: '/portal/profile',
 } satisfies Record<string, Href>;
-
-type StepOpts = { when?: () => boolean; screen?: Href };
-
-function step(key: string, target: string, title: string, body: string, opts: StepOpts = {}): TourStep {
-  return {
-    key,
-    target,
-    title,
-    body,
-    when: opts.when,
-    ...(opts.screen ? { onEnter: open(opts.screen), timeout: CROSS_MS } : null),
-  };
-}
 
 /** "A", "A and B", "A, B and C" (or "or"). */
 function listWords(words: string[], last: 'and' | 'or') {
@@ -270,7 +265,7 @@ const STAFF_INTRO: Record<StaffTourId, string> = {
   it_admin: 'Here’s where your team’s requests and your IT tickets are. It takes about a minute.',
   accounts: 'Here’s where to sign off petty cash and find your own work. It takes about a minute.',
   app_manager: 'Here’s where to clock in, apply for leave and keep an eye on tasks and bounties. It takes about a minute.',
-  visitor_manager: 'The visitor desk runs on the DASH website. Here’s what’s on your phone. It takes about a minute.',
+  visitor_manager: 'Here’s who is at reception, how to let visitors in and where the visitor log is. It takes about a minute.',
   display: 'This is the office display account. News shows on the reception TV, not in this app.',
   platform: 'Company setup, wallets and features are on the DASH website. Here’s what’s on your phone.',
 };
@@ -388,7 +383,7 @@ function staffSteps(id: StaffTourId, ctx: StaffTourCtx): TourStep[] {
             when: () => ctx.createLabels.length > 0,
           },
         ),
-        s.inbox('Your Inbox', 'Anything that needs you will show up here.'),
+        s.inbox('Your Inbox', 'Visitors waiting at reception show here. Tap one to let them in.'),
         s.tile('support', 'more.support', 'Help & support', 'Your help requests, the office Wi-Fi and staff contacts are here.'),
         s.team('See who you report to and find any colleague.'),
         step(`${id}.appearance`, 'more.appearance', 'Light or dark', 'Choose how DASH looks on this phone.', { screen: SCREENS.more }),
@@ -444,13 +439,79 @@ function withDemoStep(steps: TourStep[], id: string, target: string, screen: Hre
 }
 
 /** The staff tour for this person. `prev` is their stored record: a different tour means a role change. */
+/**
+ * Which domain steps a tour keeps when a role has many (integrator pass 1): the steps that say what
+ * this role is FOR come first. At most DOMAIN_MORE_CAP of the More-screen steps run; Home steps
+ * (targets 'home.*': a desk hero, Team today, the company glance) always run.
+ */
+const DOMAIN_STEP_PRIORITY = [
+  'company.settings',
+  'accounts.desk',
+  'accounts.vendors',
+  'work.tasks',
+  'desk.board',
+  'desk.qr',
+  'servicedesk.raise',
+  'servicedesk.desk',
+  'hrtime.setup',
+  'people.roster',
+  'company.users',
+  'company.audit',
+  'company.subscriptions',
+  'booking.reviews',
+  'booking.hub',
+  'chat.chat',
+];
+const DOMAIN_MORE_CAP = 4;
+
+const onHome = (s: TourStep) => typeof s.target === 'string' && s.target.startsWith('home.');
+const shows = (s: TourStep) => {
+  try {
+    return !s.when || s.when();
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The domain plug-ins' steps (features/<domain>/tour.ts, via features/domains). Home steps go right
+ * after the role's own Home steps (so the tour doesn't jump back to Home later); More steps go just
+ * before the last step ("See this again"), at most DOMAIN_MORE_CAP of them by DOMAIN_STEP_PRIORITY, in
+ * their registry order. The demo step then lands between them and that last step.
+ */
+function withDomainSteps(steps: TourStep[], id: StaffTourId, ctx: StaffTourCtx): TourStep[] {
+  const extra = domainTourSteps({ ...ctx, tourId: id }).filter(shows);
+  if (!extra.length) return steps;
+  const home = extra.filter(onHome);
+  const rank = (s: TourStep) => {
+    const i = DOMAIN_STEP_PRIORITY.indexOf(s.key ?? '');
+    return i < 0 ? DOMAIN_STEP_PRIORITY.length : i;
+  };
+  const keep = new Set(
+    extra
+      .filter((s) => !onHome(s))
+      .map((s, i) => ({ s, i }))
+      .sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i)
+      .slice(0, DOMAIN_MORE_CAP)
+      .map(({ s }) => s),
+  );
+  const more = extra.filter((s) => keep.has(s));
+  if (steps.length < 1) return [...home, ...more];
+  const body = steps.slice(0, -1);
+  let lastHome = -1;
+  body.forEach((s, i) => {
+    if (onHome(s) && shows(s)) lastHome = i;
+  });
+  return [...body.slice(0, lastHome + 1), ...home, ...body.slice(lastHome + 1), ...more, steps[steps.length - 1]!];
+}
+
 export function buildStaffTour(ctx: StaffTourCtx, prev: PreviousTour): BuiltTour {
   const id = staffTourIdFor(ctx.role);
   const roleName = ROLE_LABEL[ctx.role] ?? 'new role';
   const changed = !!prev && prev.tour !== id && !prev.tour.startsWith('vendor.');
   return {
     tourId: id,
-    steps: withDemoStep(staffSteps(id, ctx), id, 'more.switchDemo', SCREENS.more, ctx.demo),
+    steps: withDemoStep(withDomainSteps(staffSteps(id, ctx), id, ctx), id, 'more.switchDemo', SCREENS.more, ctx.demo),
     intro: {
       title: ctx.firstName ? `Welcome, ${ctx.firstName}` : 'Welcome to DASH',
       body: changed ? `You’re now ${/^[AEIOU]/.test(roleName) ? 'an' : 'a'} ${roleName}. Here’s what’s new for you.` : STAFF_INTRO[id],

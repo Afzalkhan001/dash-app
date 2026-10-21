@@ -10,16 +10,25 @@ Four tabs, each with one job:
 
 | Tab | What it holds |
 | --- | --- |
-| **Home** | Greeting, the clock in / out card, "Needs you" (up to 3 things waiting on me, opens Inbox), up to 4 shortcuts, announcements and this week's birthdays |
+| **Home** | Greeting, the clock in / out card, "Needs you" (up to 3 things waiting on me, opens Inbox), up to 4 shortcuts, announcements and this week's birthdays. Role cards: Team today and Tomorrow (Manager), Company at a glance (Super Admin), Payments (Accounts), Pending reviews (App Manager), the visitor desk (Visitor Manager). A chat button with an unread dot in the header |
 | **Me** | My own work in three parts: **Attendance** (clock card, this month, Fix attendance, Timesheets, Holidays, My shift), **Leave** (balance, Apply leave, my requests), **Pay** (latest take-home, payslips, salary details, tax summary, salary advance) |
-| **Inbox** | Every approval in one list: leave, work from home, comp-off, attendance fixes, salary claims and advances, expense claims on projects I own, petty cash, visitors at reception. Approve / Reject happens on the item's own screen |
-| **More** | My profile, the other modules (expense claims, petty cash, visitors, tasks, help & support, policies, people, news, bounty rewards), password, app lock, sign out |
+| **Inbox** | Every approval in one list: leave, work from home, comp-off, attendance fixes, salary claims and advances, expense claims on projects I own, petty cash, visitors at reception; plus tasks and time fixes to review, bookings, Accounts' petty cash, claims and vendor bills, agreements to countersign and the service desk. Approve / Reject happens on the item's own screen |
+| **More** | My profile, the other modules (expense claims, petty cash, visitors, tasks, help & support, policies, people, news, bounty rewards), Chat, then **Workspace**: the admin and desk areas this role has, grouped as Work · People & HR · Money · IT & office · Company · Reception. Password, app lock, sign out |
 
 Each thing lives in one place, and a section is hidden when it has nothing to show. Old links
 (`/attendance`, `/leave`, `/pay`) open the matching part of Me (`/me?tab=…`). Screens use plain
 words and one format for dates, times, durations and money — see `docs/DESIGN.md` §0A–0C.
 
 The vendor portal (sign in as a vendor) has its own tabs: Home · Bills · Agreements · Profile.
+
+**Ported from the website (wave 1, `docs/port/PLAN.md`):** team tasks, projects and clients; booking
+(professionals, rooms, locations, requests, pending reviews); the service desk; the employee roster
+and departments; HR setup (offices, clock-in rules, shifts, holidays, leave rules and balances,
+policies); the Accounts desk, vendors and agreements; company dashboard, users, settings, audit and
+subscriptions; the visitor desk; staff forgot password and sign-up; chat with attachments. Each
+domain plugs in through `src/features/<domain>/{nav,inbox,tour,access}.ts` (registry:
+`src/features/domains.ts`); its demo data is `src/demo/fixtures/<domain>.ts`, and clashes between
+domains are settled in `src/demo/fixtures/integration.ts`.
 
 ## Run it on your phone (Expo Go)
 
@@ -58,17 +67,17 @@ After the code, **"Explore DASH as…"** lists one person per role, each named "
 
 | Persona | Role | What it shows |
 | --- | --- | --- |
-| Afzal Employee | `employee` | Clock in, leave, payslips. Inbox: visitors only |
-| Afzal Professional | `professional` | The same, plus shoot bookings in My tasks |
-| Afzal Manager | `manager` | Runs Creative. Team approvals, who's in, and owns the Nimbus/Showreel codes (project claims, petty cash) |
-| Afzal HR | `hr` | HR queues and salary advances for the whole company. Full People directory. No clock-in or pay of its own |
-| Afzal Accounts | `accounts` | Approves anyone's petty cash. No news or bounty |
-| Afzal Super Admin | `super_admin` | Company-wide queues, every expense claim and every petty cash request. Can't claim bounties |
-| Afzal Admin | `admin` | Runs Production: its team's approvals and attendance |
-| Afzal IT Admin | `it_admin` | IT tickets in My tasks (no start/end code). The IT team's approvals |
-| Afzal Visitor Manager | `visitor_manager` | Almost nothing in the app: the visitor desk is on the website |
+| Afzal Employee | `employee` | Clock in, leave, payslips, booking, chat. Inbox: a visitor, an agreement to countersign, booking work to approve and rate |
+| Afzal Professional | `professional` | The same, plus shoot bookings in My tasks and "Booked for you" |
+| Afzal Manager | `manager` | Runs Creative. Team approvals, who's in, Team tasks (assign, review), booking requests, Team today / Tomorrow, and owns the Nimbus/Showreel codes (project claims, petty cash) |
+| Afzal HR | `hr` | HR queues and salary advances for the whole company. Employees, Departments, HR setup, complaints, audit (granted). No clock-in or pay of its own |
+| Afzal Accounts | `accounts` | Approves anyone's petty cash; the Accounts desk (claims, vendor bills, payments), vendors, agreements. No news or bounty |
+| Afzal Super Admin | `super_admin` | Company-wide queues, every expense claim and petty cash request; company dashboard, users, settings, audit, subscriptions, service desk, visitor desk. Can't claim bounties |
+| Afzal Admin | `admin` | Runs Production: its team's approvals and attendance, Team tasks, booking requests |
+| Afzal IT Admin | `it_admin` | IT tickets in My tasks (no start/end code). The IT team's approvals, the service desk, Raise for someone |
+| Afzal Visitor Manager | `visitor_manager` | The visitor desk: who is in, let visitors in, check out, the log, invites, check-in link |
 | Afzal Announcements | `announcement_viewer` | The TV display account: almost nothing in the app |
-| Afzal App Manager | `app_manager` | Tasks and the bounty board, view only. Expense claims are refused, as the server refuses them |
+| Afzal App Manager | `app_manager` | Tasks, pending booking reviews and the bounty board (view only). Expense claims are refused, as the server refuses them |
 | Afzal Master Admin | `master_admin` | No company, so the app is nearly empty: the website is where it works |
 
 CEO and COO are left out on purpose.
@@ -119,7 +128,8 @@ npx expo-doctor    # dependency health
 | `src/app/` | Routes (expo-router). `(auth)` sign-in, `(app)` staff app with `(tabs)` (`index` Home, `me`, `inbox`, `more`), `(vendor)` vendor portal |
 | `src/api/` | API client (`client.ts`, bearer token, same timeouts as the web) + one file per module |
 | `src/auth/` | Session (SecureStore token, 15-day trusted session), sign-in flow state, app lock |
-| `src/features/` | Screen building blocks per module; the tabs' own parts are in `home/`, `me/` (the Attendance, Leave and Pay views), `inbox/` and `more/` |
+| `src/features/` | Screen building blocks per module; the tabs' own parts are in `home/`, `me/` (the Attendance, Leave and Pay views), `inbox/` and `more/`. Ported domains plug in through `domains.ts` (More Workspace rows, + actions, Home cards, Inbox kinds, tour steps) |
+| `docs/port/` | The porting plan (`PLAN.md`), the extension points and each domain's spec |
 | `src/lib/` | Access rules ported from the web (`access.ts`), IST dates and the shared formats (`dates.ts`, `format.ts`), file helpers |
 | `src/ui/` | Design system: tokens in `src/theme/tokens.ts`, components exported from `@/ui` |
 | `docs/DESIGN.md` | The design spec: app structure, plain words, formats, kit, layout rules |
@@ -128,4 +138,4 @@ npx expo-doctor    # dependency health
 
 - **Push notifications**: the server has no device-token endpoint. Counts refresh while the app is open.
 - **Sign-out** only forgets the token on the phone (the server has no staff logout endpoint — same as the website).
-- **Meets calls** need a development build (`react-native-webrtc`), not Expo Go.
+- **Meets calls** need a development build (`react-native-webrtc`), not Expo Go. Chat works; an incoming call says "answer on the DASH website".

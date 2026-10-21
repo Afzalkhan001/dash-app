@@ -376,3 +376,26 @@ export const reimbursementRoutes: Route[] = [
   ['POST', /^\/reimbursements\/([^/]+)\/keka-approve$/, gate('approve a reimbursement', ([, id]: string[], body: unknown) => kekaDecide(id!, true, body))],
   ['POST', /^\/reimbursements\/([^/]+)\/keka-reject$/, gate('reject a reimbursement', ([, id]: string[], body: unknown) => kekaDecide(id!, false, body))],
 ];
+
+// ── Exports for the domain fixtures (Wave 0, docs/port/EXTENSION-POINTS.md §10) ──
+// The live expense-claim rows (every employee's) the routes above read, and receipts uploaded in the
+// demo by claim id, so the Accounts desk and the claimant's screens agree.
+export const reimbursementStore: Reimbursement[] = ROWS;
+export const reimbursementReceipts = RECEIPTS;
+
+/**
+ * Move a claim to another stage the way reimbursements.js records it: the status and any extra fields,
+ * plus one history entry (`event`, default the status) by `by` (the demo person by default). The caller
+ * applies the role rules first. Null when missing.
+ */
+export function setReimbursementStage(
+  id: string,
+  status: string,
+  patch: Partial<Reimbursement> = {},
+  opts: { event?: string; by?: { id: string; name: string }; extra?: Partial<HistoryEntry> } = {},
+): Reimbursement | null {
+  const r = load(id);
+  if (!r) return null;
+  step(r, { ...patch, status }, ev(opts.event ?? status, status, nowIso(), opts.by ?? ME, opts.extra));
+  return r;
+}

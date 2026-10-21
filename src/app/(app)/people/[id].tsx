@@ -16,7 +16,7 @@
 // WhatsApp, "Share contact" and "Show on org chart" are in the "•••" menu.
 
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Mail, MessageCircle, MoreHorizontal, Network, Phone, Share2, UserX } from 'lucide-react-native';
+import { Mail, MessageCircle, MoreHorizontal, Network, Phone, Share2, UserCog, UserX } from 'lucide-react-native';
 import { useState } from 'react';
 
 import { useMyProfile } from '@/api/me';
@@ -28,6 +28,7 @@ import { bloodCode, joinedLabel, personPhone, personTitle, tenureHere, useOrgTre
 import { type OrgNode, placeOf } from '@/features/people/org-tree';
 import { type ContactAction, PersonHeader, PersonHeaderSkeleton, PersonRow } from '@/features/people/person-ui';
 import { firstName } from '@/lib/format';
+import { useAccess } from '@/lib/use-access';
 import { palette } from '@/theme/tokens';
 import {
   ActivityList,
@@ -68,6 +69,10 @@ export default function PersonScreen() {
   const departments = useDepartments(org.full);
   const deptList = Array.isArray(departments.data) ? departments.data : undefined;
   const [menuOpen, setMenuOpen] = useState(false);
+  // The roster's own edit screen (admin/people), for whoever the website shows Employees to: the
+  // website opens the same edit form from its directory.
+  const access = useAccess();
+  const rosterOn = access.web('roster');
 
   const person = id ? org.tree.byId.get(id) : undefined;
   const kids = person ? org.tree.kids.get(person.id) : undefined;
@@ -175,6 +180,7 @@ export default function PersonScreen() {
     ...(canWhatsApp(phone) ? [{ key: 'whatsapp', label: 'Message on WhatsApp', icon: MessageCircle, onPress: () => openWhatsApp(phone) }] : []),
     { key: 'share', label: 'Share contact', icon: Share2, onPress: () => shareContact({ name, title, phone: phoneShown, email }) },
     { key: 'chart', label: 'Show on org chart', icon: Network, onPress: openChart },
+    ...(rosterOn ? [{ key: 'roster', label: 'Manage in Employees', icon: UserCog, onPress: () => router.push(`/admin/people/${encodeURIComponent(person.id)}`) }] : []),
   ];
 
   return (

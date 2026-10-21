@@ -2,19 +2,24 @@
 // NavHeader, the year switch (last / this / next year, like the web's year picker), then state first —
 // a light SummaryHero counting down to the next holiday (its name and date in the info chip) — then the
 // year's holidays as frosted lists under SectionHeaders: the ones still to come, then the past ones
-// (greyed); optional ones carry a pill. Adding/editing holidays stays on the website (HR admins only).
+// (greyed); optional ones carry a pill. HR admins (Super Admin and HR with Holidays on — dash.html
+// HolidaysPanel admin, ported in features/hrtime) get a "+" in the header and tap a row to change or
+// remove it (features/hrtime/holiday-sheet).
 
-import { Palmtree } from 'lucide-react-native';
+import { Palmtree, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { type Holiday, useHolidays } from '@/api/hr';
 import { monthShort, shortDay, WEEKDAYS, weekdayOf } from '@/features/attendance/format';
 import { useTodayIst } from '@/features/attendance/use-now';
+import { canManageHolidays } from '@/features/hrtime/access';
+import { HolidaySheet } from '@/features/hrtime/holiday-sheet';
 import { useAccess } from '@/lib/use-access';
 import { moduleTone, palette, radius, space } from '@/theme/tokens';
 import {
   ActivityList,
+  Button,
   EmptyState,
   ErrorState,
   isDarkScheme,
@@ -70,6 +75,9 @@ export default function HolidaysScreen() {
   const today = useTodayIst();
   const thisYear = today.slice(0, 4);
   const [year, setYear] = useState(thisYear);
+  const admin = canManageHolidays(access.hr, access.user);
+  const [edit, setEdit] = useState<{ holiday: Holiday | null; key: number } | null>(null);
+  const openNew = () => setEdit({ holiday: null, key: Date.now() });
   const q = useHolidays(year, on);
   const years = [-1, 0, 1].map((o) => String(Number(thisYear) + o));
   const raw: Holiday[] = Array.isArray(q.data?.holidays) ? q.data.holidays : [];
@@ -99,11 +107,14 @@ export default function HolidaysScreen() {
         subtitleLines={2}
         below={compact ? pill : undefined}
         right={compact || !pill ? undefined : <View>{pill}</View>}
+        chevron={admin}
+        onPress={admin ? () => setEdit({ holiday: h, key: Date.now() }) : undefined}
+        accessibilityHint={admin ? 'Opens the holiday to change or remove it' : undefined}
       />
     );
   };
 
-  const header = <NavHeader title="Holidays" />;
+  const header = <NavHeader title="Holidays" actions={admin && on ? [{ icon: Plus, label: 'Add a holiday', onPress: openNew }] : undefined} />;
   if (!on) {
     return (
       <Screen header={header}>
@@ -131,7 +142,8 @@ export default function HolidaysScreen() {
         <EmptyState
           icon={<Palmtree color={moduleTone.holidays.fg} strokeWidth={1.8} />}
           title={`No holidays for ${year} yet`}
-          message="They’ll show here once HR adds them."
+          message={admin ? 'Add the company’s holidays for this year.' : 'They’ll show here once HR adds them.'}
+          action={admin ? <Button title="Add a holiday" icon={<Plus />} onPress={openNew} /> : undefined}
         />
       ) : (
         <View style={styles.sections}>
@@ -154,6 +166,15 @@ export default function HolidaysScreen() {
         <Text variant="caption" muted align="center">
           Holidays don’t use your leave.
         </Text>
+      ) : null}
+      {edit ? (
+        <HolidaySheet
+          key={edit.key}
+          holiday={edit.holiday}
+          today={today}
+          defaultDate={year === thisYear ? today : `${year}-01-01`}
+          onClose={() => setEdit(null)}
+        />
       ) : null}
     </Screen>
   );

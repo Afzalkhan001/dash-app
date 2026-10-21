@@ -22,7 +22,7 @@ import { View } from 'react-native';
 
 import { useNow, useTodayIst } from '@/features/attendance/use-now';
 import { groupByDay, type InboxItem, itemRow, type LeaveNames, safeTime, timeValue } from '@/features/inbox/format';
-import { kindLook } from '@/features/inbox/kind-look';
+import { itemLook } from '@/features/inbox/kind-look';
 import { useLeaveNames } from '@/features/inbox/leave-names';
 import { InboxRequestRow } from '@/features/inbox/request-row';
 import { radius, space } from '@/theme/tokens';
@@ -34,12 +34,13 @@ const clean = (items: InboxItem[] | null | undefined) => (Array.isArray(items) ?
 
 // Visitors are standing at reception now, so they get their own group at the top whatever the day.
 const RECEPTION = { key: 'reception', label: 'At reception' };
-const pinVisitors = (item: InboxItem) => (item.kind === 'visitors' ? RECEPTION : null);
+// A plug-in may pin its own group the same way (people at a desk: features/plugin-types `pin`).
+const pinVisitors = (item: InboxItem) => (item.kind === 'visitors' ? RECEPTION : item.kind === 'plugin' && item.pin ? item.pin : null);
 
 /** One Inbox row. The right column says the time it came in ('9:42 AM', the day is the group's title). */
 function InboxRow({ item, today, now, names, onPress }: { item: InboxItem; today: string; now: number; names: LeaveNames; onPress: () => void }) {
   const m = itemRow(item, today, now, names);
-  const look = kindLook(item.kind);
+  const look = itemLook(item);
   // A visitor always says how long they have been waiting ('5m ago') — that is what matters at the desk.
   const meta = item.kind !== 'visitors' ? (timeValue(item.at) ? safeTime(item.at) : undefined) : m.age;
   return (
@@ -67,7 +68,7 @@ export function InboxGroups({ items, onOpen }: { items: InboxItem[]; onOpen?: (i
   if (!rows.length) return null;
   const groups = groupByDay(rows, (i) => i.at, today, pinVisitors);
   // The tour's "Open to decide" (docs/TOUR.md): the first request on screen (visitors aren't decided).
-  const firstRequest = groups.flatMap((g) => g.items).find((i) => i.kind !== 'visitors')?.key;
+  const firstRequest = groups.flatMap((g) => g.items).find((i) => i.kind !== 'visitors' && !(i.kind === 'plugin' && !i.decides))?.key;
   const open = (item: InboxItem) => {
     onOpen?.(item);
     router.push(item.href);

@@ -223,3 +223,21 @@ export const supportRoutes: Route[] = [
   ['GET', /^\/support_staff$/, () => STAFF],
   ['GET', /^\/support_temp_staff$/, () => TEMP_STAFF.filter((s) => !s.expiresAt || s.expiresAt > nowIso())],
 ];
+
+// ── Exports for the domain fixtures (Wave 0, docs/port/EXTENSION-POINTS.md §10) ──
+// The live ticket list and Support Centre directory the routes above read. patchTicket is a plain merge
+// with none of the raiser rules above: the domain route applies the server's own role rules first.
+export const ticketStore: Ticket[] = TICKETS;
+export const supportConfigStore: ConfigItem[] = CONFIG;
+export const supportWifiStore: WifiEntry[] = WIFI;
+export const supportStaffStore: StaffEntry[] = STAFF;
+export const supportTempStaffStore: TempStaffEntry[] = TEMP_STAFF;
+
+/** Merge changes into a ticket (never its id or company). Null when missing. */
+export function patchTicket(id: string, changes: Partial<Ticket>): Ticket | null {
+  const t = TICKETS.find((x) => x.id === id);
+  if (!t) return null;
+  const { id: _id, tenantId: _t, ...rest } = changes as Partial<Ticket> & { tenantId?: unknown };
+  Object.assign(t, rest);
+  return t;
+}

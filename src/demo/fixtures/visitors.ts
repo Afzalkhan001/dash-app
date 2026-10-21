@@ -138,9 +138,16 @@ function decide(id: string, body: unknown) {
 
 const waiting = (v: Visit) => v.status === 'pending' || v.status === 'no_response';
 const newest = (a: Visit, b: Visit) => b.createdAt.localeCompare(a.createdAt);
+// The store is shared with the visitor desk (visitStore below), which adds visits for other hosts:
+// /visitors/mine is only the demo person's, as visitors.js scopes it to the signed-in host.
+const mine = (v: Visit) => v.hostUserId === DEMO_USER.id;
 
 export const visitorRoutes: Route[] = [
-  ['GET', /^\/visitors\/mine$/, () => ({ ok: true, pending: VISITS.filter(waiting).sort(newest), history: VISITS.filter((v) => !waiting(v)).sort(newest) })],
+  [
+    'GET',
+    /^\/visitors\/mine$/,
+    () => ({ ok: true, pending: VISITS.filter((v) => mine(v) && waiting(v)).sort(newest), history: VISITS.filter((v) => mine(v) && !waiting(v)).sort(newest) }),
+  ],
   ['POST', /^\/visitors\/([^/]+)\/decide$/, ([, id], body) => decide(id!, body)],
   ['GET', /^\/visitors\/invites$/, () => ({ ok: true, invites: [...INVITES].sort((a, b) => b.visitDate.localeCompare(a.visitDate)) })],
   ['POST', /^\/visitors\/invites$/, (_p, body) => createInvite(body)],
@@ -156,3 +163,13 @@ export const visitorRoutes: Route[] = [
     },
   ],
 ];
+
+// ── Exports for the domain fixtures (Wave 0, docs/port/EXTENSION-POINTS.md §10) ──
+// ONE visit store for the whole demo, so the host (Inbox, Visitors) and the visitor desk agree: the
+// desk adds walk-ins and checks people out here, and a host's let in / turn away shows on the desk.
+// Visits for other hosts carry their own hostUserId / hostName (only the demo person's reach
+// /visitors/mine). `inviteStore` is the demo person's own invitations.
+export const visitStore: Visit[] = VISITS;
+export const inviteStore: Invite[] = INVITES;
+/** A visit row with the server's defaults (visitors.js shapeVisit), hosted by the demo person unless given. */
+export const makeVisit = visit;

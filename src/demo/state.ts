@@ -12,7 +12,8 @@ import { istParts, todayIst } from '@/lib/dates';
 export type DemoBody = any;
 // p[0] is the matched path, p[1..] the decoded captures of the route's pattern.
 export type Handler = (p: string[], body: DemoBody, query: URLSearchParams) => unknown;
-export type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+// PATCH: meets.js (conversations, meetings) and tv.js (TV devices) — the only PATCH routes on the server.
+export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export type Route = [method: Method, pattern: RegExp, handler: Handler];
 
 // A refusal, in the shape apiFetch hands the app for a non-2xx response (`{ error, status }`).
@@ -113,11 +114,23 @@ const HOLIDAYS: [string, string, boolean][] = [
   ['12-25', 'Christmas', false],
 ];
 
-export const holidaysFor = (year: string) =>
-  HOLIDAYS.map(([md, name, optional]) => ({ id: `hh-${year}-${md}`, date: `${year}-${md}`, name, optional }));
+export type DemoHoliday = { id: string; date: string; name: string; optional: boolean };
+// One live list per year, built from the calendar above the first time a year is asked for. It is the
+// SAME array every time: the HR setup fixture (fixtures/hrtime.ts) adds, edits and removes holidays in
+// it in place, so leave-day counting, comp-off and Home's "Coming up" follow those changes.
+const HOLIDAY_YEARS = new Map<string, DemoHoliday[]>();
+/** The company holidays of a year (a live list: change it in place, never sort it in place). */
+export const holidaysFor = (year: string): DemoHoliday[] => {
+  let list = HOLIDAY_YEARS.get(year);
+  if (!list) {
+    list = HOLIDAYS.map(([md, name, optional]) => ({ id: `hh-${year}-${md}`, date: `${year}-${md}`, name, optional }));
+    HOLIDAY_YEARS.set(year, list);
+  }
+  return list;
+};
 export const holidayOn = (ymd: string) => {
-  const h = HOLIDAYS.find(([md]) => md === ymd.slice(5));
-  return h ? { name: h[1], optional: h[2] } : null;
+  const h = holidaysFor(ymd.slice(0, 4)).find((x) => x.date === ymd);
+  return h ? { name: h.name, optional: !!h.optional } : null;
 };
 export const isMandatoryHoliday = (ymd: string) => {
   const h = holidayOn(ymd);

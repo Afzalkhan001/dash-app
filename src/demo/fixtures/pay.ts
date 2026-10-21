@@ -203,3 +203,39 @@ export const payRoutes: Route[] = [
     },
   ],
 ];
+
+// ── Exports for the domain fixtures (Wave 0, docs/port/EXTENSION-POINTS.md §10) ──
+// The demo person's salary, payslips, HR claims and salary advances. Locking a payroll run in the demo
+// (payroll domain) calls addPayslip, so the month appears in Afzal Employee's Pay › Payslips.
+export type DemoPayslip = Slip;
+export const salaryStore = SALARY;
+export const payslipStore: Slip[] = SLIPS;
+export const hrClaimStore = CLAIMS;
+export const loanStore = LOANS;
+
+/**
+ * Add (or replace) the demo person's payslip for a 'YYYY-MM' month. Missing figures follow the salary:
+ * gross = monthly gross, deductions = PF + PT + TDS (+ the advance EMI while it is being recovered).
+ * Keeps the list newest first. Returns the stored slip.
+ */
+export function addPayslip(month: string, figures: Partial<Pick<Slip, 'gross' | 'deductions' | 'net' | 'pf' | 'pt' | 'tds'>> = {}): Slip {
+  const gross = figures.gross ?? SALARY.monthly_gross;
+  const emi = LOANS.some((l) => l.status === 'approved' && month >= l.start_month && (l.outstanding ?? 0) > 0) ? 10000 : 0;
+  const deductions = figures.deductions ?? PF + PT + TDS + emi;
+  const slip: Slip = {
+    id: `hpi-demo-${month}`,
+    month,
+    gross,
+    deductions,
+    net: figures.net ?? gross - deductions,
+    pf: figures.pf ?? PF,
+    pt: figures.pt ?? PT,
+    tds: figures.tds ?? TDS,
+    taxable_gross: gross,
+  };
+  const i = SLIPS.findIndex((s) => s.month === month);
+  if (i >= 0) SLIPS.splice(i, 1);
+  SLIPS.push(slip);
+  SLIPS.sort((a, b) => b.month.localeCompare(a.month));
+  return slip;
+}

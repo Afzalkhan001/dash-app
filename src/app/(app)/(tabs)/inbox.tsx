@@ -5,7 +5,11 @@
 // decision is made there (swipe to approve).
 //
 // Open on one type with /inbox?type=<kind> (leave, wfh, comp_off, regularization, reimbursements,
-// loans, keka, petty, visitors).
+// loans, keka, petty, visitors, or a domain plug-in's key).
+//
+// Domain plug-ins (features/plugin-types InboxKindPlugin, Wave 0) come in through useInboxSummary:
+// their chips sit in features/domains INBOX_CHIP_ORDER among the built-in ones, labelled and coloured
+// by the plug-in.
 //
 // Layout (docs/REFERENCE-COMPONENTS.md §3 "Inbox", Payno × Lendora):
 //   header     TabRootHeader — "Inbox" centred (no back button), a round History button on the right
@@ -28,12 +32,13 @@ import { type ReactNode, useCallback, useState } from 'react';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { inboxKeys } from '@/api/inbox';
+import { byKeyList, INBOX_CHIP_ORDER } from '@/features/domains';
 import { CHIP_ROW_PAD, FollowChipRow } from '@/features/inbox/follow-chip-row';
-import { type InboxKind, KIND_COPY, KIND_ORDER } from '@/features/inbox/format';
+import { chipKeyOf, isBuiltInKind, KIND_COPY, KIND_ORDER } from '@/features/inbox/format';
 import { InboxGroups, InboxListSkeleton } from '@/features/inbox/inbox-list';
 import { KindDot } from '@/features/inbox/kind-look';
 import { hasInboxSummary, InboxSummary, InboxSummarySkeleton } from '@/features/inbox/summary';
-import { useInboxSummary } from '@/features/inbox/use-inbox';
+import { hasPastDecisions, useInboxSummary } from '@/features/inbox/use-inbox';
 import { usePolicyPendingCount } from '@/features/policies/use-policy-actions';
 import { plural } from '@/lib/format';
 import { motion, palette, radius, space } from '@/theme/tokens';
@@ -48,7 +53,8 @@ const PETTY_OVERVIEW = ['petty', 'overview'] as const;
 // Policies I still have to read (only ever active when the Policies module is on for me).
 const POLICIES = ['policies', 'list'] as const;
 
-type Filter = 'all' | InboxKind;
+// 'all', a built-in kind, or a plug-in's key.
+type Filter = string;
 
 export default function InboxTab() {
   const qc = useQueryClient();
@@ -82,8 +88,8 @@ export default function InboxTab() {
   const booting = summary.discovering || (queues.length > 0 && queues.every((q) => q.pending === null && !q.error));
   // Queues that failed with nothing cached to show.
   const broken = queues.filter((q) => q.error && q.pending === null);
-  // Past decisions only exist for requests and project claims.
-  const reviews = queues.some((q) => q.type === 'hr' || q.type === 'keka');
+  // Past decisions only exist for requests, project claims and plug-ins with a History.
+  const reviews = queues.some(hasPastDecisions);
   // Approvers get the Waiting | Done today cards; the header then doesn't say the count again.
   const withSummary = hasInboxSummary(queues);
   // "Nothing waiting" only once every queue has answered — never while one is loading or failed.
@@ -97,13 +103,19 @@ export default function InboxTab() {
         ? 'Nothing waiting'
         : 'Waiting on you';
 
-  // Chips: All, then every type with something waiting, in a fixed order.
-  const counts = new Map<InboxKind, number>();
-  for (const i of items) counts.set(i.kind, (counts.get(i.kind) ?? 0) + 1);
-  const kinds = KIND_ORDER.filter((k) => (counts.get(k) ?? 0) > 0);
+  // Chips: All, then every type with something waiting, in the integrator's fixed order
+  // (features/domains INBOX_CHIP_ORDER: reception, the HR kinds, money, work, bookings, service desk).
+  const counts = new Map<string, number>();
+  for (const i of items) counts.set(chipKeyOf(i), (counts.get(chipKeyOf(i)) ?? 0) + 1);
+  const pluginQueues = queues.flatMap((q) => (q.type === 'plugin' ? [q] : []));
+  const order: string[] = byKeyList([...KIND_ORDER, ...pluginQueues.map((q) => q.key)], INBOX_CHIP_ORDER, (k) => k);
+  const kinds = order.filter((k) => (counts.get(k) ?? 0) > 0);
+  const chipLabel = (k: string) => (isBuiltInKind(k) ? KIND_COPY[k].chip : (pluginQueues.find((q) => q.key === k)?.label ?? k));
+  const chipDot = (k: string, on: boolean) =>
+    isBuiltInKind(k) ? <KindDot kind={k} on={on} /> : <KindDot module={pluginQueues.find((q) => q.key === k)?.module} on={on} />;
   const wanted = picked ?? linked ?? 'all';
-  const filter: Filter = kinds.includes(wanted as InboxKind) ? (wanted as InboxKind) : 'all';
-  const shown = filter === 'all' ? items : items.filter((i) => i.kind === filter);
+  const filter: Filter = kinds.includes(wanted) ? wanted : 'all';
+  const shown = filter === 'all' ? items : items.filter((i) => chipKeyOf(i) === filter);
 
   // The chip gives the selection haptic itself.
   const pick = (key: Filter) => {
@@ -184,8 +196,8 @@ export default function InboxTab() {
                 key: k,
                 chip: (
                   <Chip
-                    label={KIND_COPY[k].chip}
-                    icon={<KindDot kind={k} on={filter === k} />}
+                    label={chipLabel(k)}
+                    icon={chipDot(k, filter === k)}
                     selected={filter === k}
                     count={counts.get(k)}
                     onPress={() => pick(k)}

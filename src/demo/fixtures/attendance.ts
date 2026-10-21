@@ -188,7 +188,8 @@ function teamOn(date: string): AttendanceRow[] {
   const depts = DEPARTMENTS.filter((d) => d.adminId === DEMO_USER.id).map((d) => d.id);
   const inTeam = (deptId: unknown) => all || depts.includes(String(deptId ?? ''));
   const mine = inTeam(profile.departmentId) ? myRecord(date) : null;
-  const rows = PEOPLE.filter((p) => inTeam(p.departmentId))
+  // System logins (User Management, `source: 'system'`, no department) don't clock in: never "in".
+  const rows = PEOPLE.filter((p) => (p as { source?: unknown }).source !== 'system' && inTeam(p.departmentId))
     .map((p) => teamRecord(p, date))
     .filter((r): r is AttendanceRow => !!r);
   return (mine ? [mine, ...rows] : rows).sort((a, b) => a.in_at.localeCompare(b.in_at));

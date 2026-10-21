@@ -68,8 +68,9 @@ function kekaDecision(r: KekaReimbursement): { decision: Decision; at: string } 
   return null;
 }
 
-/** Whether this person gets the summary: they approve something (not only visitors at reception). */
-export const hasInboxSummary = (queues: InboxQueue[]) => (Array.isArray(queues) ? queues : []).some((q) => q.type !== 'visitors');
+/** Whether this person gets the summary: they approve something (not only visitors at reception, or a plug-in notice queue). */
+export const hasInboxSummary = (queues: InboxQueue[]) =>
+  (Array.isArray(queues) ? queues : []).some((q) => q.type !== 'visitors' && !(q.type === 'plugin' && !q.decides));
 
 export function InboxSummary({ items, queues }: { items: InboxItem[]; queues: InboxQueue[] }) {
   const router = useRouter();
@@ -80,10 +81,11 @@ export function InboxSummary({ items, queues }: { items: InboxItem[]; queues: In
   const list = Array.isArray(queues) ? queues : [];
   const waiting = Array.isArray(items) ? items : [];
 
-  // Past decisions exists for HR requests and project claims only, so "Done today" does too.
+  // Past decisions exists for HR requests, project claims and plug-ins with a History, so "Done today" does too.
   const hrKinds = list.flatMap((q) => (q.type === 'hr' ? [q.key] : []));
   const kekaOn = list.some((q) => q.type === 'keka');
-  const reviews = hrKinds.length > 0 || kekaOn;
+  const pluginReviews = list.flatMap((q) => (q.type === 'plugin' && q.hasHistory ? [q] : []));
+  const reviews = hrKinds.length > 0 || kekaOn || pluginReviews.length > 0;
 
   // Cache only (enabled: false): Past decisions' lists, and the project claims the Inbox already reads.
   const specs = hrKinds.flatMap((kind) => hrStatuses(kind).filter((s) => s !== 'pending').map((status) => ({ kind, status })));
@@ -115,6 +117,13 @@ export function InboxSummary({ items, queues }: { items: InboxItem[]; queues: In
       const d = r.id ? kekaDecision(r) : null;
       const day = d ? istDay(d.at) : '';
       if (d && day) decided.set(`keka:${r.id}`, { day, decision: d.decision });
+    }
+  }
+  // A plug-in's decisions from its own cache (InboxPluginResult.decided), keyed like its Inbox items.
+  for (const q of pluginReviews) {
+    for (const d of q.decided) {
+      const day = d && d.id ? istDay(d.at) : '';
+      if (day && (d.decision === 'approve' || d.decision === 'reject')) decided.set(`${q.key}:${d.id}`, { day, decision: d.decision });
     }
   }
   // Visitors are let in or turned away, not approved: they stay out of these counts.

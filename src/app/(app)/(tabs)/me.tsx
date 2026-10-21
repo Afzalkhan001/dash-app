@@ -41,6 +41,8 @@ export default function MeScreen() {
   const pay = usePayAccess();
   const hrQ = useHrMe();
   const name = useSession((s) => s.user?.name);
+  // The platform owner (no company) and the shared TV login have no HR to ask: say it like a system role.
+  const noHr = useSession((s) => s.user?.role === 'master_admin' || s.user?.role === 'announcement_viewer');
   const { gutter, gap } = useLayout();
 
   const available: MeTab[] = meSegmentsFor(access.sections, leave.enabled, pay.pay);
@@ -99,9 +101,9 @@ export default function MeScreen() {
       <EmptyState
         key="empty"
         icon={<CircleUserRound color={moduleTone.profile.fg} strokeWidth={1.8} />}
-        title={access.isSystemRole ? 'Nothing to track for you' : 'Nothing here for you yet'}
+        title={access.isSystemRole || noHr ? 'Nothing to track for you' : 'Nothing here for you yet'}
         message={
-          access.isSystemRole
+          access.isSystemRole || noHr
             ? 'DASH doesn’t track your attendance, leave or pay.'
             : 'Attendance, leave and pay aren’t on for you. Ask HR if you need them.'
         }

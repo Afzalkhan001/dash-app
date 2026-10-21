@@ -3,12 +3,15 @@
 // hours are deliberately not dressed up as a shift). Payno layout: NavHeader, then one light
 // SummaryHero — the shift's name as its label, the hours as the big light figure, when you count as
 // late in the info chip and the weekly off under it. HR admins also see every shift (a frosted list
-// under a SectionHeader), as on the web; creating and assigning them stays on the website.
+// under a SectionHeader), as on the web, and — with the Shifts module on — "Manage shifts" and "Who
+// works which shift", which open HR setup (app/(app)/admin/hr-time, the hrtime domain).
 
-import { Clock } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Clock, Settings2, UsersRound } from 'lucide-react-native';
 
 import { useAllShifts, useMyShift } from '@/api/attendance';
 import { duration, prettyHm, tsFmt, WEEKDAYS } from '@/features/attendance/format';
+import { canManageShifts } from '@/features/hrtime/access';
 import { useAccess } from '@/lib/use-access';
 import { moduleTone, palette, radius } from '@/theme/tokens';
 import { ActivityList, ActivityRow, Card, EmptyState, ErrorState, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero, Text } from '@/ui';
@@ -35,8 +38,11 @@ function addMinutes(hm: string | null | undefined, mins: number) {
 }
 
 export default function ShiftsScreen() {
+  const router = useRouter();
   const access = useAccess();
   const on = access.sections.shifts;
+  // HR setup (hrtime): Super Admin and HR manage shifts in the app now (dash.html ShiftsPanel admin).
+  const canManage = canManageShifts(access.hr, access.user);
   const personal = on && !access.isSystemRole;
   const mineQ = useMyShift(personal);
   const allQ = useAllShifts(on && access.isHrAdmin);
@@ -135,10 +141,18 @@ export default function ShiftsScreen() {
         )
       ) : null}
 
-      {access.isHrAdmin ? (
-        <Text variant="caption" muted align="center">
-          Create shifts and assign people to them on the DASH website.
-        </Text>
+      {canManage ? (
+        <ActivityList title="Manage">
+          <ActivityRow module="shifts" icon={Settings2} title="Manage shifts" subtitle="Add, change or remove shifts" chevron onPress={() => router.push('/admin/hr-time/shifts')} />
+          <ActivityRow
+            module="shifts"
+            icon={UsersRound}
+            title="Who works which shift"
+            subtitle="Put people on a shift or back on company hours"
+            chevron
+            onPress={() => router.push('/admin/hr-time/shift-people')}
+          />
+        </ActivityList>
       ) : null}
     </Screen>
   );

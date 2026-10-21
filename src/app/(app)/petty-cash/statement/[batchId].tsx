@@ -4,16 +4,24 @@
 // (when there is more than one), every bill, and any bills Accounts rejected.
 // /petty-cash/statement/_?request=<id> shows the bills claimed in an automatic "extra" request.
 // "Share report" exports the same printable page the website prints, as an HTML file.
+// Accounts (accounts domain): a bill the server marks `canReject` opens a menu with "Reject this bill"
+// (POST /petty_cash_bill_submissions/:id/reject, reason required). The employee is emailed; a bill inside
+// an extra claim shrinks or closes that claim, and the toast says by how much.
 // Layout: a light summary hero (total spent, bills and when they were sent), then per project a
 // SummaryCard of money in / spent / left over, spending by expense type, payments, and the bills.
 
+import { useMutation } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
-import { FileSpreadsheet, Paperclip, ReceiptText, Share2 } from 'lucide-react-native';
+import { Ban, FileSpreadsheet, Paperclip, ReceiptText, Share2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
 
+import { rejectSubmission } from '@/api/accounts';
+import { unwrap } from '@/api/client';
 import { useMyTenant } from '@/api/me';
-import { type PettyCashExcess, type PettyCashStatementSheet, usePettyCashStatement } from '@/api/petty-cash';
+import { type PettyCashExcess, type PettyCashStatementLine, type PettyCashStatementSheet, usePettyCashStatement } from '@/api/petty-cash';
+import { ReasonConfirmSheet } from '@/features/accounts/ui';
+import { useInvalidateAccounts } from '@/features/accounts/use-items';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { openDataUrl } from '@/features/bounty/files';
 import { PettyIdleFooter } from '@/features/petty-cash/components';
@@ -30,6 +38,7 @@ import {
   EmptyState,
   ErrorState,
   IconBadge,
+  MenuSheet,
   NavHeader,
   Screen,
   SectionHeader,
@@ -37,6 +46,7 @@ import {
   SkeletonList,
   SummaryCard,
   SummaryHero,
+  toast,
   useLayout,
 } from '@/ui';
 
@@ -50,7 +60,20 @@ function parseNotice(raw?: string): PettyCashExcess[] {
   }
 }
 
-function StatementSheetView({ st, today, onReceipt, busyId }: { st: PettyCashStatementSheet; today: string; onReceipt: (id: string) => void; busyId: string | null }) {
+function StatementSheetView({
+  st,
+  today,
+  onReceipt,
+  busyId,
+  onLine,
+}: {
+  st: PettyCashStatementSheet;
+  today: string;
+  onReceipt: (id: string) => void;
+  busyId: string | null;
+  /** Accounts: a bill the server lets them reject opens the line menu instead. */
+  onLine?: (line: PettyCashStatementLine) => void;
+}) {
   const { gap } = useLayout();
   // Every line is listed (as the hero's bill count and the shared report count them); one without an
   // id just can't open its receipt.
@@ -104,6 +127,7 @@ function StatementSheetView({ st, today, onReceipt, busyId }: { st: PettyCashSta
         {active.map((l, i) => {
           const busy = !!l.id && busyId === l.id;
           const canOpen = !!l.id && !!l.hasFile;
+          const rejectable = !!l.id && !!l.canReject && !!onLine;
           return (
             <ActivityRow
               key={l.id || `${l.voucherNumber || 'line'}-${i}`}
@@ -111,10 +135,10 @@ function StatementSheetView({ st, today, onReceipt, busyId }: { st: PettyCashSta
               icon={l.hasFile ? Paperclip : ReceiptText}
               title={[l.description, l.paidTo].filter(Boolean).join(' — ') || 'Bill'}
               subtitle={[l.head, l.date ? shortDate(l.date, today) : null].filter(Boolean).join(' · ') || null}
-              note={[l.voucherNumber ? `Bill no. ${l.voucherNumber}` : null, canOpen ? (busy ? 'Opening receipt…' : 'Receipt attached') : null].filter(Boolean).join(' · ') || null}
+              note={[l.voucherNumber ? `Bill no. ${l.voucherNumber}` : null, canOpen ? (busy ? 'Opening receipt…' : 'Receipt attached') : null, rejectable ? 'Tap to check or reject' : null].filter(Boolean).join(' · ') || null}
               value={rowMoney(l.amount)}
-              chevron={canOpen}
-              onPress={canOpen ? () => onReceipt(l.id) : undefined}
+              chevron={canOpen || rejectable}
+              onPress={rejectable ? () => onLine!(l) : canOpen ? () => onReceipt(l.id) : undefined}
             />
           );
         })}
@@ -153,6 +177,23 @@ export default function PettyCashStatementScreen() {
   const { compact } = useLayout();
   const receipts = useReceiptViewer();
   const [sharing, setSharing] = useState(false);
+  const [line, setLine] = useState<PettyCashStatementLine | null>(null);
+  const [rejecting, setRejecting] = useState<PettyCashStatementLine | null>(null);
+  const [reason, setReason] = useState('');
+  const invalidateAccounts = useInvalidateAccounts();
+  const reject = useMutation({
+    mutationFn: (l: PettyCashStatementLine) => unwrap(rejectSubmission(l.id, reason.trim())),
+    onSuccess: (r) => {
+      setRejecting(null);
+      const c = r?.claim;
+      toast.show(c ? (c.closed ? `Bill rejected. The extra claim of ${money(c.before)} is closed.` : `Bill rejected. Extra claim ${money(c.before)} → ${money(c.after)}.`) : 'Bill rejected. It’s no longer counted.');
+    },
+    onError: (e) => toast.show((e instanceof Error && e.message) || 'Couldn’t reject the bill.', 'danger'),
+    onSettled: () => {
+      void statementQ.refetch();
+      void invalidateAccounts();
+    },
+  });
   const excess = parseNotice(notice);
   const data = statementQ.data;
   const sheets = list(data?.statements).filter(Boolean);
@@ -222,11 +263,60 @@ export default function PettyCashStatementScreen() {
 
         {ready
           ? sheets.map((st, i) => (
-              <StatementSheetView key={`${st.kekaCode}-${i}`} st={st} today={today} busyId={receipts.busyId} onReceipt={(id) => void receipts.open('submission', id)} />
+              <StatementSheetView key={`${st.kekaCode}-${i}`} st={st} today={today} busyId={receipts.busyId} onReceipt={(id) => void receipts.open('submission', id)} onLine={setLine} />
             ))
           : null}
       </Screen>
       {receipts.sheet}
+      <MenuSheet
+        visible={!!line}
+        onClose={() => setLine(null)}
+        title={line ? [line.description, line.paidTo].filter(Boolean).join(' — ') || 'Bill' : undefined}
+        subtitle={line ? `${money(line.amount)}${line.voucherNumber ? ` · Bill no. ${line.voucherNumber}` : ''}` : undefined}
+        items={[
+          ...(line?.hasFile
+            ? [
+                {
+                  key: 'view',
+                  label: 'View the receipt',
+                  icon: Paperclip,
+                  onPress: () => {
+                    const id = line.id;
+                    setLine(null);
+                    void receipts.open('submission', id);
+                  },
+                },
+              ]
+            : []),
+          {
+            key: 'reject',
+            label: 'Reject this bill',
+            icon: Ban,
+            tone: 'danger' as const,
+            hint: 'The employee is emailed your reason',
+            onPress: () => {
+              const l = line;
+              setLine(null);
+              setReason('');
+              setTimeout(() => setRejecting(l), 400);
+            },
+          },
+        ]}
+      />
+      <ReasonConfirmSheet
+        visible={!!rejecting}
+        onClose={() => setRejecting(null)}
+        title="Reject this bill?"
+        rows={rejecting ? [{ key: 'b', label: 'Bill', value: [rejecting.description, rejecting.paidTo].filter(Boolean).join(' — ') || 'Bill' }, { key: 'a', label: 'Amount', value: money(rejecting.amount) }] : []}
+        reason={reason}
+        onReason={setReason}
+        minLength={1}
+        placeholder="e.g. Parking was part of the location fee."
+        note={`${employee?.name || 'The employee'} is emailed your reason. The bill stops counting; if it is part of an extra claim, that claim shrinks. It can’t be undone.`}
+        confirmLabel="Swipe to reject"
+        busy={reject.isPending}
+        onConfirm={() => rejecting && reject.mutate(rejecting)}
+      />
     </>
   );
 }

@@ -9,13 +9,22 @@
 //   Petty cash     the old Petty cash Approvals tab's rule: a petty cash role, and Accounts, a project
 //                  code owner, or someone with a request waiting on them (features/petty-cash/logic)
 //   Visitors       everyone but master_admin / announcement_viewer / visitor_manager (dash.html navFor)
+//   Plug-ins      every domain's inboxKinds (features/<domain>/inbox.ts via features/domains
+//                  inboxPlugins): each one's useItems(access) hook gates and reads its own queue
 // Only what is waiting is read here; Past decisions fetches the other statuses when opened.
+//
+// EXTENSION POINT (Wave 0, docs/port/EXTENSION-POINTS.md §5): plug-in queues join `queues` (type
+// 'plugin'), their rows join `items` (kind 'plugin'), their counts join `total` (the tab badge and
+// Home), and their ['inbox', <key>, …] queries join the one-minute poll. The HR kinds, project claims,
+// petty cash and visitors are unchanged.
 
 import { focusManager, onlineManager, type Query, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { LucideIcon } from 'lucide-react-native';
 import { useEffect } from 'react';
 
 import {
   canSeeVisitors,
+  type Decision,
   type HrKindKey,
   hrListQuery,
   INBOX_POLL_MS,
@@ -27,17 +36,62 @@ import {
 import { useKekaProjects, usePettyCashOverview } from '@/api/petty-cash';
 import { useKekaReimbursements } from '@/api/reimbursements';
 import { useSession } from '@/auth/session';
+import { inboxPlugins } from '@/features/domains';
 import { type InboxItem, KIND_COPY, timeValue } from '@/features/inbox/format';
 import { awaitingMyApproval, isKekaCodeOwner, isPettyCashApprover, list, roleSeesPettyCash } from '@/features/petty-cash/logic';
-import { useAccess } from '@/lib/use-access';
+import type { InboxPluginResult } from '@/features/plugin-types';
+import { type Access, useAccess } from '@/lib/use-access';
+import type { ModuleKey } from '@/theme/tokens';
 
 type QueueBase = { label: string; pending: number | null; error: boolean };
+/** A domain plug-in's queue (features/plugin-types InboxKindPlugin). */
+export type PluginQueue = QueueBase & {
+  type: 'plugin';
+  key: string;
+  module: ModuleKey;
+  icon: LucideIcon;
+  /** An approval queue (Waiting / Done today cards), not a notice. */
+  decides: boolean;
+  /** Has Past decisions (the plug-in's History). */
+  hasHistory: boolean;
+  /** Decisions the plug-in found in its cache, for "Done today". */
+  decided: { id: string; at: string; decision: Decision }[];
+};
 export type InboxQueue =
   | (QueueBase & { type: 'hr'; key: HrKindKey })
   | (QueueBase & { type: 'keka'; key: 'keka' })
   | (QueueBase & { type: 'petty'; key: 'petty' })
-  | (QueueBase & { type: 'visitors'; key: 'visitors' });
+  | (QueueBase & { type: 'visitors'; key: 'visitors' })
+  | PluginQueue;
 export type InboxQueueKey = InboxQueue['key'];
+
+/** Queues with a Past decisions list: HR requests, project claims, and plug-ins with a History. */
+export const hasPastDecisions = (q: InboxQueue) => q.type === 'hr' || q.type === 'keka' || (q.type === 'plugin' && q.hasHistory);
+
+const NO_RESULT: InboxPluginResult = { visible: false, items: [] };
+
+/**
+ * Every plug-in's useItems(access), in registry order. The list is fixed for the life of the bundle
+ * (features/domains inboxPlugins), so the hooks run in the same order on every render, which is why
+ * calling them in a loop is safe here; the compiler is told to leave this one hook alone. A plug-in
+ * that throws counts as a failed queue instead of taking the tab bar down.
+ */
+function usePluginResults(access: Access): InboxPluginResult[] {
+  'use no memo';
+  const out: InboxPluginResult[] = [];
+  for (const p of inboxPlugins()) {
+    let r: InboxPluginResult;
+    try {
+      // A fixed list: the same hooks in the same order on every render (see above).
+      r = p.useItems(access);
+    } catch (e) {
+      if (__DEV__) console.warn(`[inbox] plug-in "${p.key}" failed`, e);
+      r = { visible: true, items: [], pending: null, error: true };
+    }
+    out.push(r && typeof r === 'object' ? r : NO_RESULT);
+  }
+  return out;
+}
 
 const rowsOf = <T>(v: T[] | null | undefined): T[] => (Array.isArray(v) ? v : []).filter((r): r is T => !!r && typeof r === 'object');
 const enc = encodeURIComponent;
@@ -77,6 +131,10 @@ export function useInboxSummary() {
   const visitorsOn = canSeeVisitors(user);
   const visitors = useQuery(visitorsQuery(userId, { enabled: visitorsOn }));
 
+  // Domain plug-ins (features/domains): each gates and reads its own queue.
+  const plugins = inboxPlugins();
+  const pluginResults = usePluginResults(access);
+
   const queues: InboxQueue[] = kinds.map((k, i): InboxQueue => {
     const q = hr[i];
     return { type: 'hr', key: k.key, label: KIND_COPY[k.key].chip, pending: Array.isArray(q?.data) ? q.data.length : null, error: !!q?.isError };
@@ -102,6 +160,25 @@ export function useInboxSummary() {
       error: visitors.isError,
     });
   }
+
+  plugins.forEach((p, i) => {
+    const r = pluginResults[i];
+    if (!r?.visible) return;
+    const list = rowsOf(r.items);
+    const loaded = r.pending !== undefined ? r.pending : r.discovering ? null : list.length;
+    queues.push({
+      type: 'plugin',
+      key: p.key,
+      label: p.label,
+      module: p.module,
+      icon: p.icon,
+      decides: p.decides !== false,
+      hasHistory: !!p.History,
+      decided: rowsOf(r.decided),
+      pending: typeof loaded === 'number' && Number.isFinite(loaded) ? loaded : null,
+      error: !!r.error,
+    });
+  });
 
   // Everything waiting, as one list: visitors first (they are standing at reception), then newest first.
   const items: InboxItem[] = [];
@@ -129,10 +206,33 @@ export function useInboxSummary() {
       items.push({ kind: 'visitors', key: `visitors:${v.id}`, id: v.id, at: v.createdAt ?? '', who: nameOr(v.visitorName, 'Visitor'), href: `/inbox/visitors/${enc(v.id)}`, record: v });
     }
   }
-  items.sort((a, b) => Number(b.kind === 'visitors') - Number(a.kind === 'visitors') || timeValue(b.at) - timeValue(a.at));
+  plugins.forEach((p, i) => {
+    const r = pluginResults[i];
+    if (!r?.visible) return;
+    for (const it of rowsOf(r.items)) {
+      if (!it.id) continue;
+      items.push({
+        kind: 'plugin',
+        plugin: p.key,
+        key: `${p.key}:${it.id}`,
+        id: String(it.id),
+        at: typeof it.at === 'string' ? it.at : '',
+        who: nameOr(it.who, 'Someone'),
+        href: `/inbox/${enc(p.key)}/${enc(String(it.id))}`,
+        record: it.record,
+        look: { module: p.module, icon: p.icon },
+        decides: p.decides !== false,
+        pin: p.pin,
+        row: (ctx) => p.row(it, ctx),
+      });
+    }
+  });
+  // Visitors first, then any plug-in's pinned group (people at a desk), then newest first.
+  const rank = (i: InboxItem) => (i.kind === 'visitors' ? 2 : i.kind === 'plugin' && i.pin ? 1 : 0);
+  items.sort((a, b) => rank(b) - rank(a) || timeValue(b.at) - timeValue(a.at));
 
   const total = queues.reduce((n, q) => n + (q.pending ?? 0), 0);
-  const discovering = access.loading || kekaOwner.isLoading || pettyProjects.isLoading;
+  const discovering = access.loading || kekaOwner.isLoading || pettyProjects.isLoading || pluginResults.some((r) => !!r?.discovering);
   // Ready once we know which queues this person has and each has answered (or failed) once.
   const ready = !discovering && queues.every((q) => q.pending !== null || q.error);
   // Every queue failed and none has anything cached (offline on a first run, say).
@@ -160,7 +260,10 @@ export function useInboxSummary() {
 // cash screen does (on focus, on return to the app, on pull to refresh).
 const isCountQuery = (q: Query) => {
   const k = q.queryKey;
-  return k[0] === 'inbox' && ((k[1] === 'hr' && k[3] === 'pending') || k[1] === 'keka' || k[1] === 'visitors');
+  if (k[0] !== 'inbox') return false;
+  if ((k[1] === 'hr' && k[3] === 'pending') || k[1] === 'keka' || k[1] === 'visitors') return true;
+  // Plug-ins keep their queues under ['inbox', <key>, …] and are polled unless they opt out.
+  return typeof k[1] === 'string' && inboxPlugins().some((p) => p.key === k[1] && p.poll !== false);
 };
 
 let pollers = 0;

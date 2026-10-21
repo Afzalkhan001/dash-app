@@ -231,9 +231,10 @@ export function IconPillGroup({ items, style }: { items: NavAction[]; style?: St
     <View style={[styles.pill, style]}>
       {list.map((it, i) => {
         const Icon = it.icon;
-        return (
+        const key = it.key ?? `${it.label}-${i}`;
+        const button = (
           <PressableScale
-            key={it.key ?? `${it.label}-${i}`}
+            key={key}
             onPress={it.onPress}
             disabled={it.disabled}
             scaleTo={it.disabled ? 1 : 0.9}
@@ -247,6 +248,14 @@ export function IconPillGroup({ items, style }: { items: NavAction[]; style?: St
               {it.dot ? <View style={styles.pillDot} pointerEvents="none" /> : null}
             </View>
           </PressableScale>
+        );
+        // A tour can point at one button of the group (NavAction.tourId), as it can at a NavButton.
+        return it.tourId ? (
+          <TourTarget key={key} id={it.tourId} shape="circle">
+            {button}
+          </TourTarget>
+        ) : (
+          button
         );
       })}
     </View>

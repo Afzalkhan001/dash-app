@@ -165,7 +165,8 @@ function ItemRow({ item, now, today, names, open }: { item: InboxItem; now: numb
   const m = itemRow(item, today, now, names);
   // A visitor's name can carry a note ("Manoj (Blue Dart)"); the initials come from the name only.
   const avatar = item.kind === 'visitors' ? nameWords(item.who).join(' ') : item.who;
-  const badge = KIND_BADGE[item.kind];
+  // A domain plug-in's item carries its own look (features/plugin-types).
+  const badge = item.kind === 'plugin' ? item.look : KIND_BADGE[item.kind];
   return (
     <ActivityRow
       left={

@@ -104,9 +104,14 @@ export function useDecideVisit() {
     mutationFn: ({ id, decision }: { id: string; decision: 'approve' | 'reject' }) =>
       unwrap(api.post<{ ok: true; id: string; status: string }>(`/visitors/${encodeURIComponent(id)}/decide`, { decision })),
     // Reload either way, exactly like the web: a 409 ("already approved") still means the list is stale.
-    // The Inbox keeps its own copy of who is waiting (['inbox', 'visitors', …]) — refresh that too.
+    // The Inbox keeps its own copy of who is waiting (['inbox', 'visitors', …]) — refresh that too, and
+    // the visitor desk's board (['inbox', 'desk', …], api/desk.ts) for a Super Admin who is also a host.
     onSettled: () =>
-      Promise.all([qc.invalidateQueries({ queryKey: visitorKeys.mine(userId) }), qc.invalidateQueries({ queryKey: ['inbox', 'visitors'] })]),
+      Promise.all([
+        qc.invalidateQueries({ queryKey: visitorKeys.mine(userId) }),
+        qc.invalidateQueries({ queryKey: ['inbox', 'visitors'] }),
+        qc.invalidateQueries({ queryKey: ['inbox', 'desk'] }),
+      ]),
   });
 }
 

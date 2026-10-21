@@ -673,3 +673,27 @@ export const pettyCashRoutes: Route[] = [
   ],
   ['POST', /^\/petty_cash_bill_submissions$/, (_p, body) => submitBills(body)],
 ];
+
+// ── Exports for the domain fixtures (Wave 0, docs/port/EXTENSION-POINTS.md §10) ──
+// The live petty cash stores the routes above read (requests, bills, bill submissions, expense types),
+// so the Accounts desk and the requester's own screens agree.
+export type DemoPettyRequest = Req;
+export type DemoPettySubmission = Sub;
+export const pettyStore: Req[] = REQUESTS;
+export const pettyBillStore = BILLS;
+export const pettySubmissionStore: Sub[] = SUBS;
+export const expenseHeadStore = HEADS;
+
+/**
+ * Move a request to another stage the way the server records it: the status, any extra fields
+ * (approvedByName, rejectionReason, payment…), and — for the payment stages — a paymentHistory entry
+ * by `by` (the demo person by default). The caller applies the role rules first. Null when missing.
+ */
+export function setPettyStage(id: string, status: string, patch: Partial<Req> = {}, by: { id: string; name: string } = ME): Req | null {
+  const r = find(id);
+  if (!r) return null;
+  const at = nowIso();
+  const paying = ['ready_for_payment', 'payment_processing', 'paid', 'received', 'not_received'].includes(status);
+  Object.assign(r, patch, { status }, paying ? { paymentHistory: [...(r.paymentHistory ?? []), hist(status, at, by)] } : null);
+  return r;
+}

@@ -523,3 +523,37 @@ export const taskRoutes: Route[] = [
   ['GET', /^\/clients$/, () => CLIENTS],
   ['GET', /^\/my_pending_otps$/, () => pendingOtps()],
 ];
+
+// ── Exports for the domain fixtures (Wave 0, docs/port/EXTENSION-POINTS.md §10) ──
+// The live stores the routes above read, and the writes the routes make, so a domain's own routes
+// (team tasks, booking approvals, reports) change the same data My Tasks and Home show. Rows carry
+// `onlyFor` (personas that see them) and may hold a live `otp`; the GET routes strip both.
+export type DemoTask = TaskRow;
+export type DemoBooking = BookingRow;
+export const taskStore: TaskRow[] = TASKS;
+export const bookingStore: BookingRow[] = BOOKINGS;
+export const clientStore: Client[] = CLIENTS;
+
+/** POST /tasks as routes/tasks.js does it (no dedupe: call it once per new task). Returns the stored row. */
+export function createTask(row: Partial<TaskRow>): TaskRow {
+  const task: TaskRow = { timestamps: {}, elapsedSeconds: 0, startedAt: null, createdAt: nowIso(), ...row, id: row.id || `tk${Date.now()}${Math.floor(Math.random() * 1000)}` } as TaskRow;
+  TASKS.push(task);
+  return task;
+}
+
+/** PUT /tasks/:id as routes/tasks.js does it (a merge; a stopped timer records its timesheet segment). Null when missing. */
+export function patchTask(id: string, changes: Partial<TaskRow>): TaskRow | null {
+  const t = TASKS.find((x) => x.id === id);
+  if (!t) return null;
+  recordSegment(t, changes as Record<string, unknown>);
+  Object.assign(t, changes);
+  return t;
+}
+
+/** Remove a task (DELETE /tasks/:id). True when it existed. */
+export function removeTask(id: string): boolean {
+  const i = TASKS.findIndex((x) => x.id === id);
+  if (i < 0) return false;
+  TASKS.splice(i, 1);
+  return true;
+}

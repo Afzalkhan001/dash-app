@@ -13,6 +13,11 @@
 // fixtures store the demo person once, as DEMO_USER ('demo-user', 'Afzal Employee'); this file shows
 // that id and name as the persona's ('demo-hr', 'Afzal HR') in every response and maps them back in
 // every path, query and body, so "my" records follow whichever role is being explored.
+//
+// EXTENSION POINT (Wave 0, docs/port/EXTENSION-POINTS.md §10): the domains' fixtures come in through
+// one barrel (demo/fixtures/index.ts → domainRoutes), placed in front of the built-in fixtures so a
+// domain's handlers win. This file does not change when a domain adds routes. Methods: GET, POST, PUT,
+// PATCH, DELETE (demo/state Method).
 
 import { announcementRoutes } from '@/demo/fixtures/announcements';
 import { attendanceRoutes } from '@/demo/fixtures/attendance';
@@ -28,11 +33,14 @@ import { supportRoutes } from '@/demo/fixtures/support';
 import { taskRoutes } from '@/demo/fixtures/tasks';
 import { visitorRoutes } from '@/demo/fixtures/visitors';
 import { DEMO_USER } from '@/demo/config';
+import { domainRoutes } from '@/demo/fixtures/index';
 import { applyPersona, currentPersona, personaFromToken, selfAs } from '@/demo/personas';
 import { type Handler, type Method, type Route } from '@/demo/state';
 import { vendorRoutes } from '@/demo/vendor/routes';
 
+// Domain routes first: they win over the built-in ones (PLAN §2.1.4).
 const routes: Route[] = [
+  ...domainRoutes,
   ...orgRoutes,
   ...attendanceRoutes,
   ...leaveRoutes,
@@ -51,8 +59,16 @@ const routes: Route[] = [
 // Routes whose real handler answers a bare array (getAll and friends). Only these fall back to [];
 // every other unknown request gets a plain `{ ok: true }` object — never an Array carrying `ok`,
 // whose prototype methods (entries, keys, find…) would read as fields to code expecting an object.
-const LIST_ROUTE =
-  /^\/(users|tenants|departments|projects|org\/directory|leaves|tasks|bookings|clients|tickets|support_branches|support_wifi|support_staff|support_temp_staff|announcements|my_pending_otps|bounty_tasks|bounty_tasks\/my_claims|bounty_transactions|bounty_redemptions|petty_cash_requests|petty_cash_bills|petty_cash_departments)$/;
+// The second line is the bare-array lists the ported domains read (getAll, or a handler that answers
+// `res.json(rows)`: rooms.js, locations.js, room_purposes.js, slot_bookings.js, whitelist.js, assets.js,
+// server.js holds / time_corrections / job_openings / referrals / bounty_entries, prof_reviews.js,
+// upload_batches.js).
+const LIST_ROUTE = new RegExp(
+  '^/(' +
+    'users|tenants|departments|projects|org/directory|leaves|tasks|bookings|clients|tickets|support_branches|support_wifi|support_staff|support_temp_staff|announcements|my_pending_otps|bounty_tasks|bounty_tasks/my_claims|bounty_transactions|bounty_redemptions|petty_cash_requests|petty_cash_bills|petty_cash_departments' +
+    '|rooms|locations|room_purposes|room_slot_bookings|loc_time_bookings|holds|whitelist|time_corrections|assets|job_openings|referrals|bounty_entries|prof_reviews|upload_batches' +
+    ')$',
+);
 
 const safeDecode = (s: string | undefined) => {
   if (s === undefined) return '';

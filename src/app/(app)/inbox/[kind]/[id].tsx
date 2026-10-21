@@ -26,11 +26,13 @@
 //
 // This is the only place anything is approved or rejected: Expense claims and Petty cash send their
 // approvers here.
+//
+// Any other `kind` that is a domain plug-in's key (features/domains inboxPlugin) renders that
+// plug-in's own Detail screen with { id, params } (Wave 0 extension point).
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert } from 'react-native';
 
 import { unwrap } from '@/api/client';
 import {
@@ -52,6 +54,7 @@ import { approvePettyCashRequest, type PettyCashOverview, type PettyCashRequest,
 import { useDecideVisit, useMyVisitors } from '@/api/visitors';
 import { useSession } from '@/auth/session';
 import { useNow, useTodayIst } from '@/features/attendance/use-now';
+import { inboxPlugin } from '@/features/domains';
 import { noteDecision } from '@/features/inbox/decided';
 import {
   DecidedSheet,
@@ -96,7 +99,7 @@ import { VisitPhoto } from '@/features/visitors/visit-photo';
 import { durationLabel } from '@/lib/dates';
 import { inr } from '@/lib/format';
 import { useAccess } from '@/lib/use-access';
-import { ErrorState, haptic, NavHeader, Screen, useLayout } from '@/ui';
+import { ConfirmSheet, ErrorState, haptic, NavHeader, Screen, SummaryCard, useLayout } from '@/ui';
 
 export default function InboxItemScreen() {
   const params = useLocalSearchParams<{ kind: string; id: string; status?: string }>();
@@ -106,7 +109,17 @@ export default function InboxItemScreen() {
   if (kind === 'petty') return <PettyItem id={id} />;
   if (kind === 'visitors') return <VisitorItem id={id} />;
   if (isHrKind(kind)) return <HrItem kind={kind} id={id} status={typeof params.status === 'string' ? params.status : undefined} />;
+  // A domain plug-in's kind (features/plugin-types InboxKindPlugin): its own decision screen.
+  const plugin = inboxPlugin(kind);
+  if (plugin) return <PluginItem pluginKey={plugin.key} id={id} params={params} />;
   return <MissingItem title="Request" />;
+}
+
+function PluginItem({ pluginKey, id, params }: { pluginKey: string; id: string; params: Record<string, string | string[] | undefined> }) {
+  const Detail = inboxPlugin(pluginKey)?.Detail;
+  const flat: Record<string, string | undefined> = {};
+  for (const [k, v] of Object.entries(params ?? {})) flat[k] = Array.isArray(v) ? v[0] : v;
+  return Detail ? <Detail id={id} params={flat} /> : <MissingItem title="Request" />;
 }
 
 const finiteAmount = (n: unknown) => (n != null && n !== '' && Number.isFinite(Number(n)) ? Number(n) : undefined);
@@ -552,6 +565,7 @@ function VisitorItem({ id }: { id: string }) {
   const outcome = useOutcome();
   // Frozen while a decision is on its way: the visit leaves the waiting list before the screen closes.
   const [held, setHeld] = useState<VisitorView | null>(null);
+  const [askReject, setAskReject] = useState(false);
   const title = KIND_COPY.visitors.title;
 
   const pending = Array.isArray(mine.data?.pending) ? mine.data.pending : [];
@@ -576,6 +590,7 @@ function VisitorItem({ id }: { id: string }) {
         onSuccess: () => {
           // Let in already buzzed "success" when the swipe confirmed it; turning away buzzes "warning".
           if (decision === 'reject') haptic.warning();
+          setAskReject(false);
           noteDecision(`visitors:${visit.id}`, user?.id, decision);
           outcome.show({
             decision,
@@ -590,17 +605,15 @@ function VisitorItem({ id }: { id: string }) {
         onError: (e) => {
           haptic.error();
           setHeld(null);
+          setAskReject(false);
           explainDecisionError(e, close);
         },
       },
     );
   };
-  // Turning someone away tells them at the desk and on WhatsApp, so it asks first (as the Visitors screen does).
-  const reject = () =>
-    Alert.alert(`Turn ${name} away?`, 'They’ll be told at the desk and on WhatsApp that you can’t meet them.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Turn away', style: 'destructive', onPress: () => run('reject') },
-    ]);
+  // Turning someone away tells them at the desk and on WhatsApp, so it asks first with a swipe
+  // (ConfirmSheet, as the desk does; Alert does nothing on web).
+  const first = name.split(/\s+/)[0] || name;
 
   return (
     <>
@@ -611,11 +624,12 @@ function VisitorItem({ id }: { id: string }) {
             ? null
             : {
                 onApprove: () => run('approve'),
-                onReject: reject,
+                onReject: () => setAskReject(true),
                 approving: decide.isPending && decide.variables?.decision === 'approve',
                 disabled: decide.isPending,
                 approveLabel: 'Let in',
                 rejectLabel: 'Turn away',
+                note: `${first} gets a WhatsApp with your answer.`,
               }
         }>
         <VisitorHero
@@ -635,6 +649,21 @@ function VisitorItem({ id }: { id: string }) {
           ]}
         />
       </DecisionScreen>
+      <ConfirmSheet
+        visible={askReject}
+        onClose={() => {
+          if (!decide.isPending) setAskReject(false);
+        }}
+        title={`Turn ${first} away?`}
+        from={{ title: 'You', subtitle: 'Their host', avatar: { name: user?.name || 'You' } }}
+        to={{ title: name, subtitle: 'Visitor', avatar: { name } }}
+        detailsTitle="Visit"
+        confirmLabel="Swipe to turn away"
+        onConfirm={() => run('reject')}
+        loading={decide.isPending && decide.variables?.decision === 'reject'}
+        note={`${first} is told at the desk and gets a WhatsApp that you can’t meet them.`}>
+        <SummaryCard hideEmpty rows={[{ label: 'Here for', value: textOr(visit.purpose) || null }]} />
+      </ConfirmSheet>
       <DecidedSheet outcome={outcome.done} visible={outcome.open} onDone={close} />
     </>
   );

@@ -17,7 +17,10 @@ import { useCreateActions } from '@/features/create/create-sheet';
 import { useShortcuts } from '@/features/home/shortcuts';
 import { useWhosIn } from '@/features/home/whos-in';
 import { hasInboxSummary } from '@/features/inbox/summary';
-import { useInboxSummary } from '@/features/inbox/use-inbox';
+import { hasPastDecisions, useInboxSummary } from '@/features/inbox/use-inbox';
+import { domainHomeCards } from '@/features/domains';
+import { chipKeyOf } from '@/features/inbox/format';
+import { buildWorkspace } from '@/features/more/workspace';
 import { useLeaveAccess } from '@/features/leave/use-leave-access';
 import { meSegmentsFor } from '@/features/me/tabs';
 import { buildMoreMenu } from '@/features/more/menu';
@@ -71,15 +74,19 @@ export function StaffTourHost({ creating }: { creating: boolean }) {
     needsYou: summary.total > 0 || toRead > 0,
     approvals: Array.isArray(access.approvals) ? access.approvals.length : 0,
     inboxItems: items.length,
-    inboxRequests: items.filter((i) => i.kind !== 'visitors').length,
-    inboxKinds: new Set(items.map((i) => i.kind)).size,
-    inboxReviews: queues.some((q) => q.type === 'hr' || q.type === 'keka'),
+    inboxRequests: items.filter((i) => i.kind !== 'visitors' && !(i.kind === 'plugin' && !i.decides)).length,
+    inboxKinds: new Set(items.map(chipKeyOf)).size,
+    inboxReviews: queues.some(hasPastDecisions),
     inboxSummary: hasInboxSummary(queues),
     createLabels: create.map((a) => a.label),
     moreTiles: menu.tiles.map((t) => t.key),
     hasTeam: hasTeam(role),
     lockAvailable: !!(lock.support?.hardware && lock.support.enrolled),
     demo,
+    // What the domain plug-ins show this person (features/domains), for their tour steps.
+    workspaceRows: buildWorkspace(access).keys,
+    createKeys: create.map((a) => a.key),
+    homeCards: domainHomeCards(access).map((c) => c.key),
   };
 
   useRoleTour({

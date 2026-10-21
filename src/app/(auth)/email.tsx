@@ -13,11 +13,18 @@
 // The in-app demo (dev builds only, demo/config.ts): afzal.demo@tamadamedia.com with Demo@123 walks the
 // same steps without the network — straight to choosing how to get the code (the
 // WhatsApp step wants 8328617610), then 123456 and the "Explore DASH as…" role picker.
+//
+// The sign-in extras (signin domain, docs/port/signin-push.md §5): "Forgot password?" under the password
+// opens /forgot with the typed email, and "New here? Create your account" under the "Or" divider opens
+// /signup. Both come back here through router.dismissTo with params:
+//   ?email=…            fill the email in (a new `n` each time, so coming back twice still applies it)
+//   &resume=factor      sign-up already ran /auth/login with the new password and left the challenge
+//                       in the flow (loginChallengeId, channels): start at "Get a sign-in code".
 
-import { useRouter } from 'expo-router';
-import { Building2, LockKeyhole, type LucideIcon, Mail, MessageCircle, ShieldCheck, Smartphone } from 'lucide-react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Building2, LockKeyhole, type LucideIcon, Mail, MessageCircle, ShieldCheck, Smartphone, UserPlus } from 'lucide-react-native';
 import { type ComponentRef, useRef, useState } from 'react';
-import { ActivityIndicator, TextInput } from 'react-native';
+import { ActivityIndicator, TextInput, View } from 'react-native';
 
 import { digitsOnly, isSessionPayload, type LoginChannel, passwordLogin, sendLoginEmailOtp, sendPhoneOtp } from '@/api/auth';
 import { isApiError } from '@/api/client';
@@ -25,18 +32,40 @@ import { AuthDivider, AuthShell, BackButton, maskSentTo, PhoneLead, SIGN_IN_FAIL
 import { useAuthFlow } from '@/auth/flow';
 import { useSession } from '@/auth/session';
 import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_PHONE, isDemoEmail, isDemoPhone } from '@/demo/config';
-import { palette } from '@/theme/tokens';
-import { Banner, Button, haptic, IconBadge, isDarkScheme, ListCard, ListRow, PillField } from '@/ui';
+import { canSignUp, canUseForgotPassword } from '@/features/signin/access';
+import { themedStyles } from '@/theme/themed';
+import { palette, space } from '@/theme/tokens';
+import { Banner, Button, haptic, IconBadge, isDarkScheme, ListCard, ListRow, PillField, useLayout } from '@/ui';
 
-type Account = { accountId: string; companyName: string; name: string; role: string };
+type Account = {
+  accountId: string;
+  companyName: string;
+  name: string;
+  role: string;
+};
 type Step = 'credentials' | 'account' | 'factor' | 'phone';
 
 // The first step has no icon, so the shell shows the logo there (it is a way in, like the mobile screen).
 const COPY: Record<Step, { title: string; subtitle: string; icon?: LucideIcon }> = {
-  credentials: { title: 'Sign in with email', subtitle: 'Use the work email and password you use on the DASH website.' },
-  account: { title: 'Pick your company', subtitle: 'Your email is linked to more than one company.', icon: Building2 },
-  factor: { title: 'Get a sign-in code', subtitle: 'One more step. Where should we send it?', icon: ShieldCheck },
-  phone: { title: 'Confirm your number', subtitle: 'We’ll send the code on WhatsApp.', icon: Smartphone },
+  credentials: {
+    title: 'Sign in with email',
+    subtitle: 'Use the work email and password you use on the DASH website.',
+  },
+  account: {
+    title: 'Pick your company',
+    subtitle: 'Your email is linked to more than one company.',
+    icon: Building2,
+  },
+  factor: {
+    title: 'Get a sign-in code',
+    subtitle: 'One more step. Where should we send it?',
+    icon: ShieldCheck,
+  },
+  phone: {
+    title: 'Confirm your number',
+    subtitle: 'We’ll send the code on WhatsApp.',
+    icon: Smartphone,
+  },
 };
 
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
@@ -46,20 +75,32 @@ const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 // number or the demo email.
 const DEMO_CHANNELS: LoginChannel[] = [
   { id: 'mobile', label: 'Mobile', to: `+91 ••••• •${DEMO_PHONE.slice(-4)}` },
-  { id: 'email', label: 'Email', to: `${DEMO_EMAIL.slice(0, 2)}•••${DEMO_EMAIL.slice(DEMO_EMAIL.indexOf('@'))}` },
+  {
+    id: 'email',
+    label: 'Email',
+    to: `${DEMO_EMAIL.slice(0, 2)}•••${DEMO_EMAIL.slice(DEMO_EMAIL.indexOf('@'))}`,
+  },
 ];
 
 export default function EmailLogin() {
   const router = useRouter();
   const flow = useAuthFlow();
   const signIn = useSession((s) => s.signIn);
+  const { compact } = useLayout();
+  const params = useLocalSearchParams<{
+    email?: string;
+    n?: string;
+    resume?: string;
+  }>();
+  // Sign-up hands over a live /auth/login challenge (see the header).
+  const resumeFactor = params.resume === 'factor' && !!flow.loginChallengeId;
   const passwordRef = useRef<ComponentRef<typeof TextInput>>(null);
-  const [step, setStep] = useState<Step>('credentials');
-  const [email, setEmail] = useState('');
+  const [step, setStep] = useState<Step>(() => (resumeFactor ? 'factor' : 'credentials'));
+  const [email, setEmail] = useState(() => str(params.email));
   const [password, setPassword] = useState('');
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [channels, setChannels] = useState<LoginChannel[]>([]);
-  const [challengeId, setChallengeId] = useState('');
+  const [channels, setChannels] = useState<LoginChannel[]>(() => (resumeFactor ? flow.channels : []));
+  const [challengeId, setChallengeId] = useState(() => (resumeFactor ? (flow.loginChallengeId ?? '') : ''));
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
   // Which choice row is working (an account id, or 'email'), so only that row shows a spinner.
@@ -67,6 +108,34 @@ export default function EmailLogin() {
   const [error, setError] = useState<string | null>(null);
   // The demo credentials were accepted: the next steps are answered on the phone.
   const [demo, setDemo] = useState(false);
+
+  // Back from forgot password or sign-up (router.dismissTo with new params): apply them once, during
+  // render (React's "adjust state when a prop changes"), so there is no effect and no flash.
+  const paramKey = `${params.email ?? ''}|${params.n ?? ''}|${params.resume ?? ''}`;
+  const [seenParams, setSeenParams] = useState(paramKey);
+  if (seenParams !== paramKey) {
+    setSeenParams(paramKey);
+    if (str(params.email)) setEmail(str(params.email));
+    setPassword('');
+    setError(null);
+    setDemo(false);
+    setPending(null);
+    setBusy(false);
+    if (resumeFactor) {
+      setChallengeId(flow.loginChallengeId ?? '');
+      setChannels(flow.channels);
+      setStep('factor');
+    } else {
+      setStep('credentials');
+    }
+  }
+
+  const toForgot = () =>
+    router.push({
+      pathname: '/forgot',
+      params: email.trim() ? { email: email.trim() } : {},
+    });
+  const toSignup = () => router.push('/signup');
 
   function fail(message?: string | null) {
     haptic.error();
@@ -93,14 +162,23 @@ export default function EmailLogin() {
     }
     if (isSessionPayload(r) && r.token) {
       // Only happens against a localhost dev server, which skips OTP.
-      return signIn({ kind: 'staff', token: r.token, tokenExpiresAt: r.tokenExpiresAt, user: r.user });
+      return signIn({
+        kind: 'staff',
+        token: r.token,
+        tokenExpiresAt: r.tokenExpiresAt,
+        user: r.user,
+      });
     }
     if ('otpRequired' in r) {
       const list = Array.isArray(r.channels) ? r.channels.filter((c) => !!c && typeof c === 'object') : [];
       setChallengeId(r.challengeId);
       setChannels(list);
       flow.reset();
-      flow.set({ loginChallengeId: r.challengeId, channels: list, name: r.name });
+      flow.set({
+        loginChallengeId: r.challengeId,
+        channels: list,
+        name: r.name,
+      });
       return setStep('factor');
     }
     fail();
@@ -142,13 +220,22 @@ export default function EmailLogin() {
     const full = `+91${d}`;
     if (demo) {
       if (!isDemoPhone(d)) return fail('That number doesn’t match the one on your profile.');
-      flow.set({ purpose: 'demo', phone: full, sentTo: `+91 ${d.slice(0, 5)} ${d.slice(5)}` });
+      flow.set({
+        purpose: 'demo',
+        phone: full,
+        sentTo: `+91 ${d.slice(0, 5)} ${d.slice(5)}`,
+      });
       return router.push('/otp');
     }
     const r = await sendPhoneOtp(full);
     setBusy(false);
     if (isApiError(r) || !r?.challengeId) return fail(isApiError(r) ? r.error : null);
-    flow.set({ purpose: 'password-phone', phone: full, phoneChallengeId: r.challengeId, sentTo: `+91 ${d.slice(0, 5)} ${d.slice(5)}` });
+    flow.set({
+      purpose: 'password-phone',
+      phone: full,
+      phoneChallengeId: r.challengeId,
+      sentTo: `+91 ${d.slice(0, 5)} ${d.slice(5)}`,
+    });
     router.push('/otp');
   }
 
@@ -181,6 +268,17 @@ export default function EmailLogin() {
           <>
             <AuthDivider />
             <Button variant="ghost" title="Sign in with mobile number" icon={<Smartphone />} onPress={toMobile} disabled={busy} />
+            {/* No icon on the narrowest phones with large text, so the label never truncates. */}
+            {canSignUp() ? (
+              <Button
+                variant="text"
+                title="New here? Create your account"
+                icon={compact ? undefined : <UserPlus />}
+                onPress={toSignup}
+                disabled={busy}
+                style={styles.center}
+              />
+            ) : null}
           </>
         ) : undefined
       }>
@@ -204,23 +302,37 @@ export default function EmailLogin() {
             submitBehavior="submit"
             onSubmitEditing={() => passwordRef.current?.focus()}
           />
-          <PillField
-            ref={passwordRef}
-            icon={LockKeyhole}
-            accessibilityLabel="Password"
-            value={password}
-            onChangeText={(t) => {
-              setPassword(t);
-              setError(null);
-            }}
-            placeholder="Password"
-            secureTextEntry
-            autoCapitalize="none"
-            textContentType="password"
-            autoComplete="current-password"
-            returnKeyType="go"
-            onSubmitEditing={() => login()}
-          />
+          <View style={styles.passwordBlock}>
+            <PillField
+              ref={passwordRef}
+              icon={LockKeyhole}
+              accessibilityLabel="Password"
+              value={password}
+              onChangeText={(t) => {
+                setPassword(t);
+                setError(null);
+              }}
+              placeholder="Password"
+              secureTextEntry
+              autoCapitalize="none"
+              textContentType="password"
+              autoComplete="current-password"
+              returnKeyType="go"
+              onSubmitEditing={() => login()}
+            />
+            {/* Payno "Forgot Password": a brand link on the right, close under the field (as on vendor sign-in). */}
+            {canUseForgotPassword() ? (
+              <Button
+                variant="text"
+                size="md"
+                title="Forgot password?"
+                onPress={toForgot}
+                disabled={busy}
+                style={styles.forgot}
+                accessibilityHint="Verify your number on WhatsApp, then set a new password"
+              />
+            ) : null}
+          </View>
           {errorBanner}
           <Button title="Continue" onPress={() => login()} loading={busy} disabled={!email.trim() || !password} />
         </>
@@ -330,3 +442,11 @@ export default function EmailLogin() {
     </AuthShell>
   );
 }
+
+const styles = themedStyles(() => ({
+  // The text button's 12 dp padding lines the link up with the pill's right edge; the block keeps the
+  // link close under its field instead of a full form gap away.
+  passwordBlock: { gap: 2 },
+  forgot: { alignSelf: 'flex-end', marginRight: -space.xs },
+  center: { alignSelf: 'center' },
+}));

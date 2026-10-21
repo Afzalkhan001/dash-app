@@ -5,6 +5,8 @@
 //   bell   → News (the company announcements), only for people who can see announcements; the dot
 //            shows while something was posted in the last 2 days
 //   inbox  → Inbox; the dot shows while something waits on me
+//   chat   → (slot) the chat domain's button, before the inbox, when features/chat/header-action
+//            useChatHeaderAction() returns one (a Wave 0 stub that returns null until chat ships)
 // No logo.
 //
 // The greeting and the "new news" window are India time and re-read every minute (useNow), so a Home
@@ -20,6 +22,7 @@ import { useMyProfile, useMyTenant } from '@/api/me';
 import { useSession } from '@/auth/session';
 import { postedWithin } from '@/features/announcements/parts';
 import { useNow } from '@/features/attendance/use-now';
+import { useChatHeaderAction } from '@/features/chat/header-action';
 import { useInboxCount } from '@/features/inbox/use-inbox-count';
 import { canSeeAnnouncements } from '@/features/more/menu';
 import { greeting } from '@/lib/dates';
@@ -36,6 +39,7 @@ export function HomeTopBar() {
   const avatar = useMyProfile().data?.avatar;
   const photo = typeof avatar === 'string' && avatar ? avatar : null;
   const inbox = useInboxCount();
+  const chat = useChatHeaderAction();
   const now = useNow();
   const hello = greeting(new Date(now));
 
@@ -63,7 +67,7 @@ export function HomeTopBar() {
       onBellPress={news ? () => router.push('/announcements') : undefined}
       bellDot={freshNews}
       bellLabel={freshNews ? 'News, new posts' : 'News'}
-      actions={[inboxAction]}
+      actions={chat ? [chat, inboxAction] : [inboxAction]}
     />
   );
 }

@@ -33,7 +33,7 @@ const TOUR_IDS: Record<string, string> = {
   announcements: 'more.news',
   bounty: 'more.bounty',
 };
-const tourIdOf = (it: MenuItem) => (it.key === 'people' ? (it.href === '/team' ? 'more.myTeam' : 'more.people') : TOUR_IDS[it.key]);
+const tourIdOf = (it: MenuItem) => it.tourId ?? (it.key === 'people' ? (it.href === '/team' ? 'more.myTeam' : 'more.people') : TOUR_IDS[it.key]);
 
 const countOf = (it: MenuItem) => (typeof it.count === 'number' && Number.isFinite(it.count) && it.count > 0 ? Math.round(it.count) : 0);
 

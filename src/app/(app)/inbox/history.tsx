@@ -3,7 +3,8 @@
 // back button, centred title). The list is one titled ActivityList per day the decisions were made
 // (features/inbox/history). Opened from the Inbox's History button, its "Done today" card and the
 // link at its foot; the Inbox itself only lists what is still waiting. Same queues and gating as the
-// Inbox (useInboxSummary).
+// Inbox (useInboxSummary). A domain plug-in with a History (features/plugin-types) gets its own chip
+// after the built-in ones and renders its own list.
 
 import { useQueryClient } from '@tanstack/react-query';
 import { History } from 'lucide-react-native';
@@ -13,11 +14,11 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { inboxKeys } from '@/api/inbox';
 import { CHIP_ROW_PAD, FollowChipRow } from '@/features/inbox/follow-chip-row';
-import { KIND_COPY } from '@/features/inbox/format';
 import { HrHistory, KekaHistory } from '@/features/inbox/history';
 import { InboxListSkeleton } from '@/features/inbox/inbox-list';
 import { KindDot } from '@/features/inbox/kind-look';
-import { type InboxQueueKey, useInboxSummary } from '@/features/inbox/use-inbox';
+import { hasPastDecisions, type InboxQueueKey, useInboxSummary } from '@/features/inbox/use-inbox';
+import { inboxPlugin } from '@/features/domains';
 import { motion, palette, radius, space } from '@/theme/tokens';
 import { Chip, EmptyState, NavHeader, Row, Screen, Skeleton } from '@/ui';
 
@@ -26,7 +27,7 @@ export default function InboxHistoryScreen() {
   const qc = useQueryClient();
   const summary = useInboxSummary();
   const [picked, setPicked] = useState<InboxQueueKey | null>(null);
-  const queues = (Array.isArray(summary.queues) ? summary.queues : []).filter((q) => q.type === 'hr' || q.type === 'keka');
+  const queues = (Array.isArray(summary.queues) ? summary.queues : []).filter(hasPastDecisions);
   const current = queues.find((q) => q.key === picked) ?? queues[0];
 
   const refresh = () => Promise.all([qc.refetchQueries({ queryKey: inboxKeys.all, type: 'active' }, { cancelRefetch: false }), summary.refetchAccess()]);
@@ -54,8 +55,8 @@ export default function InboxHistoryScreen() {
             key: q.key,
             chip: (
               <Chip
-                label={KIND_COPY[q.key].chip}
-                icon={<KindDot kind={q.key} on={q.key === current.key} />}
+                label={q.label}
+                icon={q.type === 'plugin' ? <KindDot module={q.module} on={q.key === current.key} /> : <KindDot kind={q.key} on={q.key === current.key} />}
                 selected={q.key === current.key}
                 onPress={() => setPicked(q.key)}
               />
@@ -66,7 +67,7 @@ export default function InboxHistoryScreen() {
     list = (
       // Re-keyed by type: switching cross-fades the new list in (opacity only, 160 ms).
       <Animated.View key={current.key} entering={FadeIn.duration(motion.fast)}>
-        {current.type === 'hr' ? <HrHistory kind={current.key} /> : <KekaHistory />}
+        {current.type === 'hr' ? <HrHistory kind={current.key} /> : current.type === 'plugin' ? <PluginHistory pluginKey={current.key} /> : <KekaHistory />}
       </Animated.View>
     );
   }
@@ -78,6 +79,12 @@ export default function InboxHistoryScreen() {
       {list ? <>{list}</> : null}
     </Screen>
   );
+}
+
+// A plug-in's own Past decisions list (its History component).
+function PluginHistory({ pluginKey }: { pluginKey: string }) {
+  const History = inboxPlugin(pluginKey)?.History;
+  return History ? <History /> : null;
 }
 
 const styles = themedStyles(() => ({

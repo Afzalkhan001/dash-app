@@ -28,41 +28,20 @@ import {
 
 import type { Tenant } from '@/api/me';
 import { hasTeam } from '@/features/team/team';
-import { tenantFeatureOn } from '@/lib/access';
+import { webNav } from '@/lib/access';
 import type { useAccess } from '@/lib/use-access';
 import type { ModuleKey } from '@/theme/tokens';
 
 type NavId = 'tasks' | 'mytasks' | 'announcements' | 'bounty' | 'accounts' | 'support' | 'profile';
 
-const SUPER: NavId[] = ['accounts', 'bounty', 'announcements', 'support'];
-const NAV: Record<string, NavId[]> = {
-  master_admin: [], // tenants, company wallets, features, overrides — nothing the app has
-  super_admin: SUPER,
-  ceo: SUPER,
-  coo: SUPER,
-  admin: ['tasks', 'announcements', 'bounty', 'profile', 'accounts', 'support'],
-  hr: ['announcements', 'bounty', 'accounts', 'support'],
-  it_admin: ['tasks', 'announcements', 'bounty', 'accounts', 'support'],
-  manager: ['tasks', 'mytasks', 'announcements', 'bounty', 'profile', 'accounts', 'support'],
-  employee: ['mytasks', 'announcements', 'bounty', 'profile', 'accounts', 'support'],
-  professional: ['mytasks', 'announcements', 'bounty', 'profile', 'accounts', 'support'],
-  accounts: ['profile', 'accounts', 'support'],
-  visitor_manager: ['profile', 'support'],
-  app_manager: ['tasks', 'announcements', 'bounty', 'profile', 'accounts', 'support'],
-  announcement_viewer: [],
-};
-
-// The ids among these that a company can switch off (FEATURE_REGISTRY, dash.html:1373).
-const SWITCHABLE = new Set<NavId>(['tasks', 'mytasks', 'announcements', 'bounty']);
-
+/**
+ * The website's sidebar test by role alone (lib/access webNav — the full navFor port). Only for these
+ * role-table ids, which need nothing but the role and the company's switches. master_admin's own
+ * "bounty" item is Company Wallets (`wallets` in webNav), so `bounty` stays false for it.
+ */
 export function webNavHas(role: string | undefined, id: NavId, tenant: Tenant | null | undefined) {
   if (!role) return false;
-  const list = NAV[role] ?? NAV.employee!;
-  if (!list.includes(id)) return false;
-  // bountySystemOn: absent means on.
-  if (id === 'bounty' && tenant?.bountyEnabled === false) return false;
-  if (role !== 'master_admin' && SWITCHABLE.has(id) && !tenantFeatureOn(tenant, id)) return false;
-  return true;
+  return webNav({ id: '', role }, id, tenant);
 }
 
 export type MenuItem = {
@@ -75,6 +54,8 @@ export type MenuItem = {
   count?: number;
   /** A few plain words under a tile whose name alone doesn't say what it is for. */
   caption?: string;
+  /** A <TourTarget id> for the tile (Workspace rows promoted to tiles keep their row's id). */
+  tourId?: string;
 };
 
 type Access = ReturnType<typeof useAccess>;

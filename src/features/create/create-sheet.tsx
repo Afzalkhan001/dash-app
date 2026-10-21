@@ -10,22 +10,29 @@
 //   Raise a ticket     More's "Help & support" tile            → /support/new             (buildMoreMenu)
 //   Invite a visitor   More's "Visitors" tile                  → /visitors/invite         (buildMoreMenu)
 //   Salary advance     usePayAccess().advances                 → /pay/loans               (Me › Pay)
+//   …then every domain's createActions(access) (features/<domain>/nav.ts via features/domains), in
+//   the integrator's CREATE_ORDER (Assign task, Book, New chat, Raise for someone, Add asset, Start
+//   kiosk, Invite visitor, Add employee) — the EXTENSION POINT from Wave 0
+//   (docs/port/EXTENSION-POINTS.md §4). A domain action whose key or screen repeats a built-in one is
+//   dropped, and the sheet holds at most CREATE_CAP actions (12: three rows of four).
 // Choosing one closes the sheet, then opens the screen after the close animation (like MenuSheet).
 // With nothing to start (a display or platform account) the sheet says so instead of showing a grid.
 
-import { type Href, useRouter } from 'expo-router';
-import { Banknote, CalendarClock, CalendarPlus, HandCoins, Laptop, type LucideIcon, ReceiptIndianRupee, TicketPlus, UserPlus } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Banknote, CalendarClock, CalendarPlus, HandCoins, Laptop, ReceiptIndianRupee, TicketPlus, UserPlus } from 'lucide-react-native';
 
 import { useSession } from '@/auth/session';
+import { CREATE_CAP, domainCreateActions } from '@/features/domains';
 import { useLeaveAccess } from '@/features/leave/use-leave-access';
 import { buildMoreMenu } from '@/features/more/menu';
 import { usePayAccess } from '@/features/pay/use-pay-access';
+import type { CreateAction } from '@/features/plugin-types';
 import { canSeeReimbursements } from '@/features/reimbursements/access';
 import { useAccess } from '@/lib/use-access';
-import { type ModuleKey, palette } from '@/theme/tokens';
+import { palette } from '@/theme/tokens';
 import { EmptyState, type QuickAction, QuickActions, Sheet } from '@/ui';
 
-export type CreateAction = { key: string; label: string; href: Href; icon: LucideIcon; module: ModuleKey; hint?: string };
+export type { CreateAction };
 
 /** What this person can start from the "+" button, in a fixed order, each only when they have access. */
 export function useCreateActions(): CreateAction[] {
@@ -61,7 +68,14 @@ export function useCreateActions(): CreateAction[] {
   if (pay.advances) {
     list.push({ key: 'advance', label: 'Salary advance', href: '/pay/loans', icon: HandCoins, module: 'pay', hint: 'Ask HR for a salary advance' });
   }
-  return list;
+  // The domains' actions come after the built-in ones (their keys and screens never repeat one of
+  // these), in the integrator's order, trimmed so the sheet stays at most CREATE_CAP (3 rows of 4).
+  const extra = domainCreateActions(
+    access,
+    list.map((a) => a.key),
+    list.map((a) => String(a.href)),
+  );
+  return [...list, ...extra.slice(0, Math.max(0, CREATE_CAP - list.length))];
 }
 
 /**

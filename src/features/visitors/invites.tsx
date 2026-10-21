@@ -5,20 +5,22 @@
 // never carries buttons per row. The pass is the server-drawn PNG, downloaded and handed to the share
 // sheet.
 
-import { Share2 } from 'lucide-react-native';
+import { Ban, Share2, Ticket } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 
 import { type Invite, shareInvitePass, useCancelInvite } from '@/api/visitors';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { dateLabel, inviteStatus, nameWords, phoneLabel, stampLabel, timeWindow } from '@/features/visitors/format';
 import { space } from '@/theme/tokens';
-import { ActionRow, ActivityList, ActivityRow, Button, haptic, OtpBoxes, Sheet, StatusPill, SummaryCard, Text, toast, useLayout } from '@/ui';
+import { ActionRow, ActivityList, ActivityRow, Button, ConfirmSheet, haptic, OtpBoxes, Sheet, StatusPill, SummaryCard, Text, toast, useLayout } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 
 const codeLabel = (code?: string) => `Code ${String(code ?? '').split('').join(' ')}`;
 const noop = () => {};
+// How long the invitation sheet takes to slide away before the confirm sheet opens.
+const SHEET_SWAP_MS = 380;
 
 /** Downloads an invitation's pass (server-drawn PNG) and hands it to the share sheet. */
 export function useSharePass(invite: { id: string; guestName?: string } | null | undefined) {
@@ -29,7 +31,8 @@ export function useSharePass(invite: { id: string; guestName?: string } | null |
     try {
       await shareInvitePass(invite);
     } catch (e: any) {
-      Alert.alert('The pass could not be downloaded', e?.message || 'Try again.');
+      // A toast, not Alert: react-native-web's Alert does nothing, so the failure would go unseen there.
+      toast.show(`The pass could not be downloaded. ${e?.message || 'Try again.'}`, 'danger');
     } finally {
       setBusy(false);
     }
@@ -98,34 +101,12 @@ function InviteRow({ invite, showStatus, today, onPress }: { invite: Invite; sho
   );
 }
 
-function InviteSheet({ invite, open, onClose }: { invite: Invite | null; open: boolean; onClose: () => void }) {
+function InviteSheet({ invite, open, onClose, onCancel }: { invite: Invite | null; open: boolean; onClose: () => void; onCancel: () => void }) {
   const today = useTodayIst();
-  const cancel = useCancelInvite();
   const pass = useSharePass(invite);
   const st = inviteStatus(invite?.status);
   const active = invite?.status === 'active';
   const win = invite ? timeWindow(invite.timeFrom, invite.timeTo) : '';
-  const name = invite?.guestName || 'this guest';
-
-  const ask = () => {
-    if (!invite) return;
-    Alert.alert('Cancel this invite?', `${name}’s code will stop working. They are not told, so let them know yourself.`, [
-      { text: 'Keep', style: 'cancel' },
-      {
-        text: 'Cancel invite',
-        style: 'destructive',
-        onPress: () =>
-          cancel.mutate(invite.id, {
-            onSuccess: () => {
-              haptic.success();
-              onClose();
-              toast.show('Invite cancelled', 'info');
-            },
-            onError: (e) => Alert.alert('Could not cancel', e.message),
-          }),
-      },
-    ]);
-  };
 
   return (
     <Sheet
@@ -136,7 +117,7 @@ function InviteSheet({ invite, open, onClose }: { invite: Invite | null; open: b
       footer={
         invite && active ? (
           <ActionRow context="sheet">
-            <Button variant="danger" title="Cancel invite" loading={cancel.isPending} onPress={ask} />
+            <Button variant="danger" title="Cancel invite" onPress={onCancel} />
             <Button variant="primary" title="Share pass" icon={<Share2 />} loading={pass.busy} onPress={pass.share} />
           </ActionRow>
         ) : undefined
@@ -177,6 +158,31 @@ export function InviteList({ invites }: { invites: Invite[] }) {
     setOpen(true);
   };
 
+  // Cancel invite can't be undone, so it is a ConfirmSheet with a swipe (PLAN §2.1.6). The invitation
+  // sheet closes first and the confirm opens once it has gone (one sheet at a time).
+  const cancel = useCancelInvite();
+  const [confirming, setConfirming] = useState<Invite | null>(null);
+  const askCancel = () => {
+    if (!selected) return;
+    const inv = selected;
+    setOpen(false);
+    setTimeout(() => setConfirming(inv), SHEET_SWAP_MS);
+  };
+  const doCancel = () => {
+    if (!confirming || cancel.isPending) return;
+    const name = guestName(confirming);
+    cancel.mutate(confirming.id, {
+      onSuccess: () => {
+        haptic.success();
+        setConfirming(null);
+        toast.show(`${name}’s invite cancelled`, 'info');
+      },
+      onError: (e) => toast.show(`Could not cancel. ${e.message || 'Try again.'}`, 'danger'),
+    });
+  };
+  const cName = confirming ? guestName(confirming) : '';
+  const cWin = confirming ? timeWindow(confirming.timeFrom, confirming.timeTo) : '';
+
   return (
     <View style={{ gap }}>
       {upcoming.length ? (
@@ -193,7 +199,29 @@ export function InviteList({ invites }: { invites: Invite[] }) {
           ))}
         </ActivityList>
       ) : null}
-      <InviteSheet invite={selected} open={open && !!selected} onClose={() => setOpen(false)} />
+      <InviteSheet invite={selected} open={open && !!selected} onClose={() => setOpen(false)} onCancel={askCancel} />
+      <ConfirmSheet
+        visible={!!confirming}
+        onClose={() => setConfirming(null)}
+        title={`Cancel ${cName}’s invite?`}
+        from={{ title: 'Invited', subtitle: confirming?.code ? `Code ${confirming.code}` : undefined, icon: Ticket, module: 'visitors' }}
+        to={{ title: 'Cancelled', subtitle: 'The code stops working', icon: Ban }}
+        detailsTitle="Invitation"
+        confirmLabel="Swipe to cancel invite"
+        onConfirm={doCancel}
+        loading={cancel.isPending}
+        note={`Nobody is messaged, so tell ${cName || 'the guest'} yourself. This can’t be undone.`}>
+        {confirming ? (
+          <SummaryCard
+            hideEmpty
+            rows={[
+              { label: 'Guest', value: cName },
+              { label: 'Day', value: dateLabel(confirming.visitDate, today) },
+              { label: 'Time', value: cWin || 'Any time' },
+            ]}
+          />
+        ) : null}
+      </ConfirmSheet>
     </View>
   );
 }

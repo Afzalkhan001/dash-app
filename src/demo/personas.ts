@@ -9,6 +9,11 @@
 // Each persona is what hr.js /hr/me, routes/users.js and the role menus would give that role in the
 // demo company (the role map in docs: modules, approvals, department admin, Keka Code owner). The
 // fixtures read currentPersona() at request time and react to a switch through onPersonaChange().
+//
+// Integrator-owned (docs/port/PLAN.md §2.1.2): a domain that needs a persona tweak lists it in its
+// HANDOFF.md. Wave 0 gave Afzal HR and Afzal Super Admin the `payroll` and `tax` modules; the Config
+// grants (audit, subscriptions, creators) and Team Roster live on the company (fixtures/org.ts TENANT).
+// The owner's rule stands: no CEO or COO persona.
 
 import type { LucideIcon } from 'lucide-react-native';
 import {
@@ -76,6 +81,9 @@ export type StaffPersona = {
 
 // The company's HR modules (the demo company has every one switched on).
 const ALL = ['attendance', 'regularization', 'shifts', 'holidays', 'leave', 'wfh', 'comp_off', 'policies', 'salary', 'payslips', 'reimbursements'];
+// HR admins also hold payroll runs and income tax (hr.js module ids `payroll`, `tax`): the Payroll
+// screens (PayrollAdminPanel, dash.html:5289) need one of payroll / salary / tax. Not approval queues.
+const ADMIN_ALL = [...ALL, 'payroll', 'tax'];
 // What a department admin approves (hr.js: the union of their departments' modules that have a queue).
 const QUEUES = ['regularization', 'leave', 'wfh', 'comp_off', 'reimbursements'];
 // The IT & Admin department's modules (no shifts: a system role that is not an HR admin would get a
@@ -139,7 +147,7 @@ export const STAFF_PERSONAS: StaffPersona[] = [
     role: 'manager',
     label: 'Afzal Manager',
     short: 'Manager',
-    note: 'Approves your team’s leave, attendance fixes and claims',
+    note: 'Approves the team’s leave and claims, assigns tasks and books crew',
     module: 'leave',
     icon: Users,
     jobTitle: 'Creative Manager',
@@ -158,7 +166,7 @@ export const STAFF_PERSONAS: StaffPersona[] = [
     role: 'hr',
     label: 'Afzal HR',
     short: 'HR',
-    note: 'Approves leave and salary advances for the whole company',
+    note: 'Approves company-wide leave, runs the roster and HR setup',
     module: 'people',
     icon: HeartHandshake,
     jobTitle: 'HR Executive',
@@ -166,7 +174,7 @@ export const STAFF_PERSONAS: StaffPersona[] = [
     deptId: 'dept-hr',
     employeeNumber: 'TM-1095',
     manager: ['u-lakshmi', 'Lakshmi Prasad'],
-    hr: hr(ALL, { isHrAdmin: true, approverModules: ALL }),
+    hr: hr(ADMIN_ALL, { isHrAdmin: true, approverModules: ALL }),
     bio: 'HR executive — leave, attendance, salary advances and onboarding for every team.',
   },
   {
@@ -175,7 +183,7 @@ export const STAFF_PERSONAS: StaffPersona[] = [
     role: 'accounts',
     label: 'Afzal Accounts',
     short: 'Accounts',
-    note: 'Signs off petty cash for every team',
+    note: 'Runs the Accounts desk: petty cash, claims, vendor bills',
     module: 'pettyCash',
     icon: Banknote,
     jobTitle: 'Accounts Officer',
@@ -192,7 +200,7 @@ export const STAFF_PERSONAS: StaffPersona[] = [
     role: 'super_admin',
     label: 'Afzal Super Admin',
     short: 'Super Admin',
-    note: 'Oversees every team, claim and approval',
+    note: 'Oversees every team, plus company settings and users',
     module: 'security',
     icon: ShieldCheck,
     jobTitle: 'Head of Operations',
@@ -200,7 +208,7 @@ export const STAFF_PERSONAS: StaffPersona[] = [
     deptId: 'dept-leadership',
     employeeNumber: 'TM-1092',
     manager: ['u-kiran', 'Kiran Rao'],
-    hr: hr(ALL, { isHrAdmin: true, canConfigure: true, approverModules: ALL }),
+    hr: hr(ADMIN_ALL, { isHrAdmin: true, canConfigure: true, approverModules: ALL }),
     bio: 'Head of operations — sets the company up on DASH and keeps an eye on every approval.',
   },
   {
@@ -227,7 +235,7 @@ export const STAFF_PERSONAS: StaffPersona[] = [
     role: 'it_admin',
     label: 'Afzal IT Admin',
     short: 'IT Admin',
-    note: 'Fixes IT tickets and approves the IT team’s requests',
+    note: 'Runs the service desk and approves the IT team’s requests',
     module: 'support',
     icon: MonitorCog,
     jobTitle: 'IT Administrator',
@@ -245,7 +253,7 @@ export const STAFF_PERSONAS: StaffPersona[] = [
     role: 'visitor_manager',
     label: 'Afzal Visitor Manager',
     short: 'Visitors',
-    note: 'Runs reception — the visitor desk itself is on the website',
+    note: 'Runs reception: the visitor desk, log, invites and check-in link',
     module: 'visitors',
     icon: DoorOpen,
     jobTitle: 'Front Office Executive',
@@ -280,7 +288,7 @@ export const STAFF_PERSONAS: StaffPersona[] = [
     role: 'app_manager',
     label: 'Afzal App Manager',
     short: 'App Manager',
-    note: 'Watches tasks and the bounty board, without claiming',
+    note: 'Watches tasks, booking reviews and the bounty board',
     module: 'bounty',
     icon: AppWindow,
     jobTitle: 'Application Manager',

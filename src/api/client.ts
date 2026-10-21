@@ -108,6 +108,8 @@ export const api = {
   get: <T = any>(path: string, signal?: AbortSignal) => apiFetch<T>(path, { signal }),
   post: <T = any>(path: string, body?: unknown) => apiFetch<T>(path, { method: 'POST', body: withActor(body ?? {}) }),
   put: <T = any>(path: string, body?: unknown) => apiFetch<T>(path, { method: 'PUT', body: withActor(body ?? {}) }),
+  // The server's only PATCH routes: meets.js conversations / meetings and tv.js devices.
+  patch: <T = any>(path: string, body?: unknown) => apiFetch<T>(path, { method: 'PATCH', body: withActor(body ?? {}) }),
   del: <T = any>(path: string) => apiFetch<T>(path, { method: 'DELETE' }),
 };
 

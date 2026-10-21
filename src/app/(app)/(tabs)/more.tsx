@@ -6,6 +6,9 @@
 //   2. "Apps": ONE CategoryGrid of the secondary modules (at most 9), frosted round tiles on the canvas,
 //      each shown only when the website would show it to this person (features/more/menu.ts); the only
 //      badge is "policies to read";
+//   2b. Workspace (features/more/workspace.ts): the domains' rows — first an untitled card of plain
+//      links (Chat & calls, Refer & earn), then one titled card per section (Work · People & HR ·
+//      Money · IT & office · Company · Platform · Reception), each only when it has rows;
 //   3. "Attendance": Holidays and Timesheets as plain rows (only for people without Me › Attendance);
 //   4. "Account": Change password, App lock and Appearance in one frosted list, then Sign out in a card
 //      of its own, so Sign out is never one slip away from a link (this is the only place for password,
@@ -30,6 +33,8 @@ import { useDemoRolePicker } from '@/features/demo/role-picker';
 import { AppearanceRow } from '@/features/more/appearance';
 import { buildMoreMenu } from '@/features/more/menu';
 import { MenuGrid, MenuGridSkeleton, ProfileCard } from '@/features/more/menu-grid';
+import { buildWorkspace } from '@/features/more/workspace';
+import type { WorkspaceRow } from '@/features/plugin-types';
 import { AppLockRow, useAppLock } from '@/features/more/security-card';
 import { personTitle } from '@/features/people/directory';
 import { usePolicyPendingCount } from '@/features/policies/use-policy-actions';
@@ -66,6 +71,34 @@ export default function MoreTab() {
   const rolePicker = useDemoRolePicker({ onPicked: (_id, kind) => kind === 'staff' && router.navigate('/') });
 
   const menu = buildMoreMenu(access, { policiesToRead });
+  // The domains' rows (empty until a domain fills its nav.ts); hidden while access is still loading.
+  const workspace = accessPending ? null : buildWorkspace(access);
+  // A role whose Workspace rows are its job (the Visitor Manager's Reception) gets them as the first
+  // tiles of the grid instead of a list (features/more/workspace TILE_SECTIONS); the grid stays ≤ 9.
+  const tiles = [
+    ...(workspace?.tiles ?? []).map((r) => ({ key: r.key, label: r.label, href: String(r.href), icon: r.icon, module: r.module, caption: r.subtitle, tourId: r.tourId })),
+    ...menu.tiles,
+  ].slice(0, 9);
+  const wsRow = (r: WorkspaceRow) => {
+    const row = (
+      <ListRow
+        key={r.key}
+        left={<ModuleBadge module={r.module} icon={r.icon} />}
+        title={r.label}
+        subtitle={r.subtitle}
+        subtitleLines={2}
+        chevron
+        onPress={() => router.push(r.href)}
+      />
+    );
+    return r.tourId ? (
+      <TourTarget key={r.key} id={r.tourId}>
+        {row}
+      </TourTarget>
+    ) : (
+      row
+    );
+  };
   const me = profile.data ?? user;
   const avatar = profile.data?.avatar;
   const photo = typeof avatar === 'string' && avatar ? avatar : null;
@@ -110,12 +143,25 @@ export default function MoreTab() {
       ) : null}
 
       {/* Same key for the placeholder and the grid, so the grid swaps in place when /hr/me arrives. */}
-      {accessPending || menu.tiles.length ? (
+      {accessPending || tiles.length ? (
         <View key="grid" style={styles.section}>
           <SectionHeader title="Apps" />
-          {accessPending ? <MenuGridSkeleton /> : <MenuGrid items={menu.tiles} />}
+          {accessPending ? <MenuGridSkeleton /> : <MenuGrid items={tiles} />}
         </View>
       ) : null}
+
+      {workspace?.links.length ? (
+        <ListCard key="ws-links" tone="surface">
+          {workspace.links.map(wsRow)}
+        </ListCard>
+      ) : null}
+
+      {(workspace?.sections ?? []).map((sec) => (
+        <View key={`ws-${sec.key}`} style={styles.section}>
+          <SectionHeader title={sec.title} />
+          <ListCard tone="surface">{sec.rows.map(wsRow)}</ListCard>
+        </View>
+      ))}
 
       {menu.links.length ? (
         <View key="links" style={styles.section}>

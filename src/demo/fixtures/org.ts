@@ -8,13 +8,21 @@
 // Everyone else in the company exists only here; the demo person is DEMO_USER (demo/config.ts), and
 // which role they are is the persona (demo/personas.ts): the profile, /hr/me, the department they
 // run, who reports to them and which Keka Codes they own all follow it (onPersonaChange below).
+//
+// Wave 0 (docs/port/EXTENSION-POINTS.md §10) — exported for the domain fixtures, which must change this
+// data only through these and never edit this file:
+//   stores    PEOPLE, profile, DEPARTMENTS, PROJECTS, TENANT, allPeople(), personById, personByName
+//   mutators  upsertPerson, removePerson, upsertProject, upsertDepartment, removeDepartment, patchTenant
+// Seeds for the ported screens: Team Roster on for the company and for Creative + Production; three
+// bookable professionals (Sanjay editor, Sneha graphic designer, Farhan cinematographer); the
+// company's professional categories; one grant in each Config "Who can…" list.
 
 import type { HrMe, Tenant } from '@/api/me';
 import type { Department, DirectoryPerson, ProfileRecord } from '@/api/people';
 import type { Project } from '@/api/reimbursements';
 import { DEMO_TENANT_ID, DEMO_USER } from '@/demo/config';
 import { currentPersona, onPersonaChange } from '@/demo/personas';
-import { addDays, clone, DEMO_CODE, fail, notFound, today, type Route } from '@/demo/state';
+import { addDays, clone, DEMO_CODE, fail, notFound, today, workingDayFrom, type Route } from '@/demo/state';
 
 export type Person = ProfileRecord & { id: string; name: string; dept: string; employeeNumber: string; email: string };
 
@@ -22,14 +30,25 @@ const T0 = today();
 const yearsAgo = (n: number, ymd: string) => `${Number(ymd.slice(0, 4)) - n}${ymd.slice(4)}`;
 
 // ── Departments (stored on a person by name, as DEMO_USER's `dept` is) ─────────
-export const DEPARTMENTS: (Department & { tenantId: string; adminId: string; managerIds: string[]; managerId: string; mode: string })[] = [
-  { id: 'dept-creative', name: 'Creative', adminId: DEMO_USER.id, managerIds: ['u-priya'], managerId: 'u-priya' },
-  { id: 'dept-production', name: 'Production', adminId: 'u-deepa', managerIds: ['u-deepa'], managerId: 'u-deepa' },
-  { id: 'dept-marketing', name: 'Marketing', adminId: 'u-vikram', managerIds: ['u-vikram'], managerId: 'u-vikram' },
-  { id: 'dept-leadership', name: 'Leadership', adminId: 'u-kiran', managerIds: [], managerId: '' },
-  { id: 'dept-accounts', name: 'Accounts', adminId: 'u-ramesh', managerIds: [], managerId: '' },
-  { id: 'dept-hr', name: 'Human Resources', adminId: 'u-lakshmi', managerIds: [], managerId: '' },
-  { id: 'dept-it', name: 'IT & Admin', adminId: 'u-naveen', managerIds: [], managerId: '' },
+export type DemoDepartment = Department & {
+  tenantId: string;
+  adminId: string;
+  managerIds: string[];
+  managerId: string;
+  mode: string;
+  /** Team Roster on for this department (routes/departments.js; the company switch is TENANT.teamRosterEnabled). */
+  teamRosterEnabled: boolean;
+};
+
+// Team Roster is on for Creative (Afzal Manager runs it) and Production (Afzal Admin runs it).
+export const DEPARTMENTS: DemoDepartment[] = [
+  { id: 'dept-creative', name: 'Creative', adminId: DEMO_USER.id, managerIds: ['u-priya'], managerId: 'u-priya', teamRosterEnabled: true },
+  { id: 'dept-production', name: 'Production', adminId: 'u-deepa', managerIds: ['u-deepa'], managerId: 'u-deepa', teamRosterEnabled: true },
+  { id: 'dept-marketing', name: 'Marketing', adminId: 'u-vikram', managerIds: ['u-vikram'], managerId: 'u-vikram', teamRosterEnabled: false },
+  { id: 'dept-leadership', name: 'Leadership', adminId: 'u-kiran', managerIds: [], managerId: '', teamRosterEnabled: false },
+  { id: 'dept-accounts', name: 'Accounts', adminId: 'u-ramesh', managerIds: [], managerId: '', teamRosterEnabled: false },
+  { id: 'dept-hr', name: 'Human Resources', adminId: 'u-lakshmi', managerIds: [], managerId: '', teamRosterEnabled: false },
+  { id: 'dept-it', name: 'IT & Admin', adminId: 'u-naveen', managerIds: [], managerId: '', teamRosterEnabled: false },
 ].map((d) => ({ ...d, tenantId: DEMO_TENANT_ID, mode: 'regular' }));
 
 // Who runs each department when the demo person doesn't (the persona's `runs` takes these over).
@@ -145,10 +164,46 @@ export const personByName = (name: string) => everyone().find((p) => p.name === 
 for (const p of PEOPLE) byId.set(p.id, p);
 // Manager names, from the ids above (the web stores both).
 for (const p of PEOPLE) p.reportingManager = p.reportingTo ? personById(p.reportingTo)?.name ?? '' : '';
+
+// Bookable professionals (Book a professional, dash.html availProfsBase: professionalAvailable &&
+// professionalType, matched on city). Sanjay and Sneha are on the Creative floor; Farhan is Production.
+// Farhan is away two days next week (leaveDates), so a booking for those days shows him as away.
+const BOOKABLE: Record<string, Record<string, unknown>> = {
+  'u-sanjay': {
+    professionalType: 'editor',
+    designation: 'Senior Video Editor',
+    specializations: ['Brand films', 'Music videos'],
+    skills: ['Premiere Pro', 'DaVinci Resolve', 'After Effects'],
+  },
+  'u-sneha': {
+    professionalType: 'graphic_designer',
+    designation: 'Motion Designer',
+    specializations: ['Explainers', 'Title design'],
+    skills: ['After Effects', 'Illustrator', 'Figma'],
+  },
+  'u-farhan': {
+    professionalType: 'cinematographer',
+    designation: 'Camera Operator',
+    specializations: ['Product shoots', 'Interviews'],
+    skills: ['Sony FX6', 'Gimbal', 'Lighting'],
+    leaveDates: [workingDayFrom(T0, -3), workingDayFrom(T0, -4)],
+  },
+};
+for (const [id, extra] of Object.entries(BOOKABLE)) {
+  const p = byId.get(id);
+  if (p) Object.assign(p, { professionalAvailable: true, location: 'Hyderabad', city: 'Hyderabad', workLinks: [], ...extra });
+}
+// A second manager on one of the Creative floor (routes/users.js additionalManager is a display name).
+{
+  const rahul = byId.get('u-rahul');
+  if (rahul) rahul.additionalManager = 'Deepa Menon';
+}
 // Who each of the Creative floor reports to when the demo person does not run Creative.
 const SEED_MANAGER = new Map(CREATIVE_FLOOR.map((id) => [id, String(byId.get(id)?.reportingTo || 'u-priya')]));
 
 export const teammatesOf = (dept: string) => everyone().filter((p) => p.dept === dept && p.id !== profile.id);
+/** Everyone in the demo company: the demo person first, then PEOPLE (live arrays, read-only use). */
+export const allPeople = () => everyone();
 
 // Roster rows of people invited to DASH who have not signed up yet (whitelist).
 const PENDING_ROSTER: DirectoryPerson[] = [
@@ -168,22 +223,48 @@ const PENDING_ROSTER: DirectoryPerson[] = [
 ];
 
 // ── The company ──────────────────────────────────────────────────────────────
+// The Config "Who can…" grants name personas by their own ids and employee numbers, never by the demo
+// person's stored id / name (DEMO_USER): demo/server.ts rewrites those to whichever persona is
+// active, which would hand the grant to every role.
 export const TENANT: Tenant = {
   id: DEMO_TENANT_ID,
   name: 'Tamada Media (Demo)',
   logo: 'TM',
   status: 'active',
   address: 'Plot 42, Road No. 36, Jubilee Hills, Hyderabad, Telangana 500033',
+  phone: '+91 40 4012 3456',
+  superAdmin: 'kiran.rao.demo@tamadamedia.com',
+  maxUsers: 60,
   bountyEnabled: true,
   bountyMonthlyEarnCap: 3000,
-  bountyCreators: [],
+  // Afzal Manager may post bounty tasks (and still take part: managers are exempt, dash.html:11893).
+  bountyCreators: [{ name: 'Afzal Manager', empNo: 'TM-1042', userId: 'demo-manager' }],
+  announcementCreators: [{ name: 'Priya Sharma', empNo: 'TM-1007' }],
+  projectCreators: [{ name: 'Vikram Singh', empNo: 'TM-1011' }],
+  // Afzal HR may read the activity audit (not download it); Afzal Accounts may see subscriptions.
+  auditAccess: [
+    {
+      name: 'Afzal HR',
+      empNo: 'TM-1095',
+      userId: 'demo-hr',
+      permissions: { viewLogs: true, searchUsers: true, viewDetail: true, downloadReports: false },
+    },
+  ],
+  subscriptionAccess: [{ name: 'Afzal Accounts', empNo: 'TM-1097', userId: 'demo-accounts' }],
+  // dash.html PROF_TYPE_DEFAULTS (:1703).
+  profTypes: [
+    { id: 'cinematographer', label: 'Cinematographer', dayStart: '07:00', dayEnd: '22:00', gapMinutes: 60, active: true },
+    { id: 'editor', label: 'Editor', dayStart: '07:00', dayEnd: '22:00', gapMinutes: 0, active: true },
+    { id: 'graphic_designer', label: 'Graphic Designer', dayStart: '07:00', dayEnd: '22:00', gapMinutes: 0, active: true },
+  ],
   orgEnabled: true,
-  teamRosterEnabled: false,
+  teamRosterEnabled: true,
+  appManagerBountyApprovalsOn: false,
   birthdayAutoOn: true,
   anniversaryAutoOn: true,
+  visitorApprovalTimeoutMin: 10,
+  visitorPhotoRetentionDays: 30,
   featureFlags: {},
-  projectCreators: [],
-  auditAccess: [],
 };
 
 // hr.js GET /hr/me for the persona: its modules, and what it approves (department admin or HR admin).
@@ -262,6 +343,102 @@ onPersonaChange((p) => {
     pr.costCodeOwner = ownerOf(pr)?.name ?? '';
   }
 });
+
+// ── Mutators for the domain fixtures (Wave 0) ─────────────────────────────────
+// Each changes the live store the built-in routes read, so every screen agrees. They never touch the
+// demo person's role, id or persona fields (the persona owns those).
+
+/** Add a person, or merge into an existing one by id (the demo person's own record included). */
+export function upsertPerson(patch: Partial<Person> & { id: string }): Person {
+  const { id } = patch;
+  if (id === profile.id) {
+    const { role: _r, id: _i, tenantId: _t, employeeNumber: _e, kekaCode: _k, ...rest } = patch;
+    Object.assign(profile, rest);
+    return profile;
+  }
+  const cur = byId.get(id);
+  if (cur) {
+    Object.assign(cur, patch);
+    if (patch.dept !== undefined) cur.departmentId = deptIdOf(String(patch.dept));
+    return cur;
+  }
+  const name = String(patch.name || 'New person');
+  const empNo = String(patch.employeeNumber || '');
+  const person: Person = {
+    role: 'employee',
+    tenantId: DEMO_TENANT_ID,
+    email: emailOf(name),
+    status: 'active',
+    resigned: false,
+    location: 'Hyderabad',
+    ...patch,
+    id,
+    name,
+    dept: String(patch.dept || ''),
+    employeeNumber: empNo,
+    kekaCode: String(patch.kekaCode || empNo),
+    departmentId: deptIdOf(String(patch.dept || '')),
+  } as Person;
+  PEOPLE.push(person);
+  byId.set(id, person);
+  return person;
+}
+
+/** Remove a person (never the demo person). True when someone was removed. */
+export function removePerson(id: string): boolean {
+  if (id === profile.id) return false;
+  const i = PEOPLE.findIndex((p) => p.id === id);
+  if (i < 0) return false;
+  PEOPLE.splice(i, 1);
+  byId.delete(id);
+  return true;
+}
+
+type DemoProject = (typeof PROJECTS)[number];
+/** Add a project (Keka Code) or merge into one by id; the code and owner name are re-derived. */
+export function upsertProject(patch: Partial<DemoProject> & { id: string }): DemoProject {
+  const cur = PROJECTS.find((p) => p.id === patch.id);
+  const next = (cur ? Object.assign(cur, patch) : { status: 'active', tenantId: DEMO_TENANT_ID, createdAt: new Date().toISOString(), ...patch }) as DemoProject;
+  if (next.meta1 || next.meta2 || next.meta3) next.kekaCode = [next.meta1, next.meta2, next.meta3].filter(Boolean).join('_');
+  next.costCodeOwner = ownerOf(next)?.name ?? next.costCodeOwner ?? '';
+  if (!cur) PROJECTS.push(next);
+  return next;
+}
+
+/**
+ * Add a department or merge into one by id. A new admin given here also becomes the department's usual
+ * admin, so it survives a demo role switch (the persona listener above only hands the departments the
+ * persona runs to the demo person).
+ */
+export function upsertDepartment(patch: Partial<DemoDepartment> & { id: string }): DemoDepartment {
+  const cur = DEPARTMENTS.find((d) => d.id === patch.id);
+  if (typeof patch.adminId === 'string' && patch.adminId !== profile.id) USUAL_ADMIN[patch.id] = patch.adminId;
+  if (cur) return Object.assign(cur, patch);
+  const d: DemoDepartment = { name: 'New department', adminId: '', managerIds: [], managerId: '', teamRosterEnabled: false, tenantId: DEMO_TENANT_ID, mode: 'regular', ...patch };
+  DEPARTMENTS.push(d);
+  return d;
+}
+
+/** Remove a department by id (routes/departments.js DELETE). False when there is none. */
+export function removeDepartment(id: string): boolean {
+  const i = DEPARTMENTS.findIndex((d) => d.id === id);
+  if (i < 0) return false;
+  DEPARTMENTS.splice(i, 1);
+  delete USUAL_ADMIN[id];
+  return true;
+}
+
+/**
+ * PUT /tenants/:id as routes/tenants.js:53 applies it: a shallow merge, `featureFlags` deep-merged,
+ * every array replaced whole. Role rules (featureFlags only for master_admin, the earn cap only for
+ * super/master) are the caller's to apply, exactly as the route does.
+ */
+export function patchTenant(patch: Partial<Tenant>): Tenant {
+  const { featureFlags, id: _id, ...rest } = patch ?? {};
+  Object.assign(TENANT, rest);
+  if (featureFlags && typeof featureFlags === 'object') TENANT.featureFlags = { ...(TENANT.featureFlags ?? {}), ...featureFlags };
+  return TENANT;
+}
 
 // ── Responses ────────────────────────────────────────────────────────────────
 const stripAvatar = ({ avatar, ...rest }: Person) => ({ ...rest, hasAvatar: !!avatar });

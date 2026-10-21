@@ -17,6 +17,14 @@
 //   5 people    kit AvatarTiles: who's in today (HR and department admins), then this week's
 //               birthdays / work anniversaries
 //   6 news      the announcement banner, or the latest announcement as one news card
+// Domain cards (Wave 0 extension point, docs/port/EXTENSION-POINTS.md §6): every domain's
+// homeCards(access) (features/<domain>/nav.ts via features/domains), placed by `placement`:
+//   hero   instead of the "Today" card, for people without the clock card (the desk hero)
+//   top    after the hero and the shortcuts (leadership KPIs)
+//   needs  after "Needs you" (Team today, Tomorrow)
+//   end    after the celebrations, before News
+// A domain returns a card only when the person should see it, so no empty slot is ever drawn.
+//
 // Every section is left out entirely when it has nothing to show (an empty one would still take a
 // slot and a stack gap in <Screen>), so Home never ends in a blank gap; Screen withTabBar keeps the
 // last one clear of the floating tab bar and its raised + button. Everything else about my work lives
@@ -32,6 +40,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useHrMe } from '@/api/me';
+import { domainHomeCards } from '@/features/domains';
 import { AnnouncementBanner, useHomeAnnouncements } from '@/features/announcements/home-banner';
 import { ClockCard } from '@/features/attendance/clock-card';
 import { ComingUp, useComingUp } from '@/features/home/coming-up';
@@ -43,7 +52,11 @@ import { useWhosIn, WhosInToday } from '@/features/home/whos-in';
 import { CelebrationsCard, useCelebrations } from '@/features/people/celebrations';
 import { useAccess } from '@/lib/use-access';
 import { radius, space } from '@/theme/tokens';
+import type { HomeCard, HomeCardPlacement } from '@/features/plugin-types';
 import { Screen, TourTarget, useLayout } from '@/ui';
+
+// One domain card, keyed so its slot never re-keys the sections around it.
+const renderCard = ({ key, Card }: HomeCard) => <Card key={`card-${key}`} />;
 
 export default function HomeTab() {
   const qc = useQueryClient();
@@ -58,8 +71,12 @@ export default function HomeTab() {
   const news = useHomeAnnouncements();
   const celebrations = useCelebrations();
   const clock = access.sections.clock;
-  // No clock card (and we know it): the light "Today" card is Home's hero instead.
+  // No clock card (and we know it): the light "Today" card is Home's hero instead — or a domain's
+  // hero card (the desk), when there is one.
   const noClock = !accessPending && !clock;
+  const cards = accessPending ? [] : domainHomeCards(access);
+  const at = (p: HomeCardPlacement) => cards.filter((c) => (c.placement ?? 'needs') === p);
+  const hero = noClock ? at('hero')[0] : undefined;
 
   return (
     <Screen
@@ -69,24 +86,27 @@ export default function HomeTab() {
       contentStyle={{ gap: compact ? space.lg : space.xl, paddingTop: space.xs }}
       header={<HomeTopBar />}>
       {clock ? <ClockCard key="clock" tourId="home.clockButton" /> : null}
-      {noClock ? <TodayHero key="today" /> : null}
+      {hero ? renderCard(hero) : noClock ? <TodayHero key="today" /> : null}
       {shortcuts.length > 1 ? (
         <TourTarget key="shortcuts" id="home.shortcuts" radius={radius.xl}>
           <Shortcuts items={shortcuts} />
         </TourTarget>
       ) : null}
+      {at('top').map(renderCard)}
       {comingUp.length > 0 ? <ComingUp key="coming" items={comingUp} /> : null}
       {needs.rows.length > 0 ? (
         <TourTarget key="needs" id="home.needsYou" radius={radius.xl}>
           <NeedsYouCard data={needs} />
         </TourTarget>
       ) : null}
+      {at('needs').map(renderCard)}
       {whosIn ? (
         <TourTarget key="whos-in" id="home.whosIn" radius={radius.xl}>
           <WhosInToday data={whosIn} />
         </TourTarget>
       ) : null}
       {celebrations ? <CelebrationsCard key="celebrations" data={celebrations} /> : null}
+      {at('end').map(renderCard)}
       {news ? <AnnouncementBanner key="news" data={news} /> : null}
     </Screen>
   );

@@ -580,3 +580,33 @@ export const bountyRoutes: Route[] = [
   ['GET', /^\/bounty\/leaderboard$/, (_p, _b, q) => leaderboard(Number(q.get('limit')) || 5)],
   ['GET', /^\/bounty\/monthly-status\/([^/]+)$/, ([, id]) => (id === ME.id ? capStatus() : fail('You are not authorized to view this.', 403))],
 ];
+
+// ── Exports for the domain fixtures (Wave 0, docs/port/EXTENSION-POINTS.md §10) ──
+// The live bounty board, ledger and use-coins requests the routes above read, so bounty admin (coin
+// distribution, creators, approvals) and the employee's own Bounty screens agree.
+export const bountyTaskStore = TASKS;
+export const txStore = TXNS;
+export const redemptionStore = REDEMPTIONS;
+
+// Wallets of people other than the demo person, made on first use (all zero, earnings from the ledger).
+const OTHER_WALLETS = new Map<string, BountyWallet>();
+
+/** The wallet of `id`: the demo person's own live wallet, or another person's (created empty on first use). */
+export function walletOf(id: string, name?: string): BountyWallet {
+  if (id === ME.id) return wallet;
+  let w = OTHER_WALLETS.get(id);
+  if (!w) {
+    const earned = TXNS.filter((x) => x.toWalletId === id).reduce((s, x) => s + x.amount, 0);
+    w = { id, name: name ?? personById(id)?.name ?? 'Employee', allocated: 0, reserved: 0, spent: 0, earned, redeemed: 0, available: 0, referralAllocated: 0, referralReserved: 0, referralSpent: 0, referralEarned: 0 };
+    OTHER_WALLETS.set(id, w);
+  }
+  return w;
+}
+
+/** Write one ledger row (status 'completed', this company) and recompute the demo person's balances. */
+export function addTx(t: Omit<BountyTxn, 'status'> & Partial<BountyTxn>): BountyTxn {
+  const row = txn(t);
+  TXNS.unshift(row);
+  rebalance();
+  return row;
+}

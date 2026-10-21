@@ -1,6 +1,7 @@
 // Company policies — the website's PoliciesPanel "Policies" tab (dash.html ~L5023): the published
-// policies meant for me (GET /hr/policies). HR's "Manage" tab (drafting, publishing, tracking
-// acknowledgements) stays on the website.
+// policies meant for me (GET /hr/policies). HR admins (Super Admin and HR — dash.html PoliciesPanel
+// admin) also get a pencil in the header that opens "Manage" (drafting, publishing, archiving and
+// who has read them) in HR setup (app/(app)/admin/hr-time/policies, the hrtime domain).
 //
 // Payno list (docs/REFERENCE-COMPONENTS.md §3): NavHeader "Policies"; a light SummaryHero holding the
 // Lendora RadialArc of the acknowledgements (§2 #22): "2/4" confirmed, with "Confirmed" and "To read"
@@ -12,11 +13,12 @@
 // whole row is the button.
 
 import { useRouter } from 'expo-router';
-import { ScrollText } from 'lucide-react-native';
+import { PenLine, ScrollText } from 'lucide-react-native';
 
 import { useHrMe } from '@/api/me';
 import { needsAck, type PolicySummary, usePolicies } from '@/api/policies';
 import { useTodayIst } from '@/features/attendance/use-now';
+import { canManagePolicies } from '@/features/hrtime/access';
 import { istDate } from '@/features/policies/format';
 import { useAccess } from '@/lib/use-access';
 import { palette } from '@/theme/tokens';
@@ -72,7 +74,13 @@ export default function PoliciesScreen() {
   // screen doesn't flash "Policies aren’t on for you" / "No policies yet" before the data is back.
   const hrPending = useHrMe().isPending;
 
-  const header = <NavHeader title="Policies" />;
+  const manage = canManagePolicies(access.hr, access.user);
+  const header = (
+    <NavHeader
+      title="Policies"
+      actions={manage ? [{ icon: PenLine, label: 'Manage policies', onPress: () => router.push('/admin/hr-time/policies') }] : undefined}
+    />
+  );
 
   if (access.loading || hrPending) {
     return (

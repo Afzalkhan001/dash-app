@@ -15,12 +15,18 @@
 //
 // Formats are the app's one way: dates "Mon, 19 Oct" (the year only when it isn't this year), times
 // "9:42 AM", money in list rows without paise (₹1,24,500) and with paise on the detail screen.
+//
+// EXTENSION POINT (Wave 0): domain plug-ins' items are the `PluginInboxItem` variant (kind 'plugin');
+// they bring their own row and look, and are filtered by chipKeyOf(). Plug-ins may import the helpers
+// here (ago, shortDay, rangeLabel, rowInr, dateTime…) — this file never imports a domain.
+
+import type { LucideIcon } from 'lucide-react-native';
 
 import type { HrKindKey, HrRequest, KekaHistoryEntry, KekaReimbursement, WaitingVisitor } from '@/api/inbox';
 import type { PettyCashRequest } from '@/api/petty-cash';
 import { dateLabel, dayLabel, hmLabel, istParts, monthYear, timeOf, todayIst } from '@/lib/dates';
 import { days as daysText, inr, titleCase } from '@/lib/format';
-import type { StatusTone } from '@/theme/tokens';
+import type { ModuleKey, StatusTone } from '@/theme/tokens';
 
 // Server text, whatever an old cache or an odd row handed us: titleCase() calls string methods, so a
 // number or an object there would throw during render.
@@ -61,12 +67,36 @@ type ItemBase = {
   href: string;
 };
 
+/**
+ * A domain plug-in's item (features/plugin-types InboxKindPlugin, collected by use-inbox): `kind` is
+ * always 'plugin' and `plugin` is the plug-in's key, which is also its chip / filter key (chipKeyOf).
+ * It carries its own look and row, so nothing here needs to know the domains.
+ */
+export type PluginInboxItem = ItemBase & {
+  kind: 'plugin';
+  plugin: string;
+  record: unknown;
+  look: { module: ModuleKey; icon: LucideIcon };
+  /** False for notices (people at a desk): not a request to decide. */
+  decides: boolean;
+  /** Its own pinned group at the top of the list (like visitors "At reception"). */
+  pin?: { key: string; label: string };
+  row: (ctx: { today: string; now: number }) => RowModel;
+};
+
 /** One thing waiting on the signed-in person, with the server's own record. */
 export type InboxItem =
   | (ItemBase & { kind: HrKindKey; record: HrRequest })
   | (ItemBase & { kind: 'keka'; record: KekaReimbursement })
   | (ItemBase & { kind: 'petty'; record: PettyCashRequest })
-  | (ItemBase & { kind: 'visitors'; record: WaitingVisitor });
+  | (ItemBase & { kind: 'visitors'; record: WaitingVisitor })
+  | PluginInboxItem;
+
+/** The key an item is filtered and counted by: its kind, or a plug-in's own key. */
+export const chipKeyOf = (item: InboxItem): string => (item.kind === 'plugin' ? item.plugin : item.kind);
+
+/** Built-in kinds (not plug-ins), for narrowing a chip key. */
+export const isBuiltInKind = (key: string): key is InboxKind => Object.prototype.hasOwnProperty.call(KIND_COPY, key);
 
 // ── Dates ────────────────────────────────────────────────────────────────────
 const D_M: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
@@ -329,6 +359,16 @@ export function itemRow(item: InboxItem, today: string, now: number, names?: Lea
         meta: v.status === 'no_response' ? 'No answer yet. You can still decide.' : undefined,
         age: ago(v.createdAt, now),
       };
+    }
+    case 'plugin': {
+      // A plug-in's own words; a broken one still shows who and when instead of taking the list down.
+      let m: RowModel;
+      try {
+        m = item.row({ today, now });
+      } catch {
+        m = { title: item.who, subtitle: '' };
+      }
+      return { ...m, title: str(m?.title) || item.who, subtitle: str(m?.subtitle), age: m?.age ?? ago(item.at, now) };
     }
     default:
       return { ...hrRow(item.kind, item.record, today, names), age: ago(item.record.created_at, now) };

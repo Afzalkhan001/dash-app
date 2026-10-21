@@ -132,3 +132,9 @@ export const announcementRoutes: Route[] = [
   ['GET', /^\/announcements\/([^/]+)\/banner$/, () => ({ homeBannerImage: '', homeBannerImageName: '' })],
   ['GET', /^\/announcements\/([^/]+)\/photo$/, () => ({ photo: '' })],
 ];
+
+// ── Exports for the domain fixtures (Wave 0, docs/port/EXTENSION-POINTS.md §10) ──
+// The live news list GET /announcements answers from, so a post made in the News studio (newsroom
+// domain) shows on Home and in News at once. `makeAnnouncement` fills the server's defaults.
+export const newsStore: Announcement[] = ANNOUNCEMENTS;
+export const makeAnnouncement = base;
