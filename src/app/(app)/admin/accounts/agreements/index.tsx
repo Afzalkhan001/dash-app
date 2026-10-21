@@ -1,17 +1,18 @@
-// Vendor agreements — the website's AgreementsSignTab (dash.html:34511) without drafting (drafting needs
-// the PDF page viewer; it stays on the website until D4 approves react-native-webview):
+// Vendor agreements — the website's AgreementsSignTab (dash.html:34511). Drafting is the docs domain's
+// agreements/new (header + action, integrator pass 3):
 //   1. "Waiting for your signature": agreements the vendor signed that name you as the countersigner;
 //   2. the company's agreements (Accounts and the super admin oversee them all) or the ones you drafted,
 //      with a status filter and a project code filter. Rows open the agreement (draft, signatures,
 //      Extend deadline, Countersign).
 
 import { Redirect, useRouter } from 'expo-router';
-import { FileSignature, PenLine } from 'lucide-react-native';
+import { FilePlus2, FileSignature, PenLine } from 'lucide-react-native';
 import { useState } from 'react';
 
 import { useAgreements, useBillVendors, usePendingMySignature } from '@/api/accounts';
 import { useNow, useTodayIst } from '@/features/attendance/use-now';
 import { canSeeAgreements } from '@/features/accounts/access';
+import { canDraftAgreement } from '@/features/docs/access';
 import { agreementExpired, agreementStatus } from '@/features/accounts/vendor-format';
 import { shortDate } from '@/features/petty-cash/logic';
 import { plural } from '@/lib/format';
@@ -58,7 +59,13 @@ export default function AgreementsScreen() {
   const open = (id: string) => router.push({ pathname: '/admin/accounts/agreements/[id]', params: { id } });
 
   return (
-    <Screen header={<NavHeader title="Vendor agreements" />} onRefresh={() => Promise.all([listQ.refetch(), pendingQ.refetch(), allQ.refetch()])}>
+    <Screen
+      header={
+        <NavHeader
+          title="Vendor agreements"
+          actions={canDraftAgreement(access) ? [{ key: 'new', icon: FilePlus2, label: 'New agreement', onPress: () => router.push('/admin/accounts/agreements/new') }] : undefined}
+        />
+      } onRefresh={() => Promise.all([listQ.refetch(), pendingQ.refetch(), allQ.refetch()])}>
       <SummaryHero
         icon={FileSignature}
         module="vendor"
@@ -66,7 +73,7 @@ export default function AgreementsScreen() {
         value={listQ.data ? rows.length : undefined}
         unit={rows.length === 1 ? 'agreement' : 'agreements'}
         info={mine.length ? { label: 'Waiting for your signature', value: String(mine.length) } : undefined}
-        sub="New agreements are drafted on the DASH website."
+        sub={canDraftAgreement(access) ? "Draft a new one with the + at the top." : undefined}
       />
 
       {pendingQ.isError && !pendingQ.data ? <Banner tone="warning" title="Couldn’t check what waits for your signature" message={pendingQ.error?.message} /> : null}
@@ -122,7 +129,7 @@ export default function AgreementsScreen() {
         <EmptyState
           icon={<FileSignature color={palette.textMuted} strokeWidth={1.8} />}
           title="No agreements here"
-          message={code || filter !== 'all' ? 'Nothing matches this filter.' : 'Agreements drafted on the DASH website show up here.'}
+          message={code || filter !== 'all' ? 'Nothing matches this filter.' : 'Agreements you or Accounts draft show up here.'}
         />
       )}
     </Screen>

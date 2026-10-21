@@ -11,7 +11,8 @@
 // Removing an office can't be undone, so it goes through ConfirmSheet + SwipeToConfirm. Nobody is
 // messaged by anything here.
 
-import { Building2, Crosshair, MapPin, Pencil, Plus, Trash2 } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { Building2, Crosshair, Map as MapIcon, MapPin, Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -116,6 +117,8 @@ export default function OfficesScreen() {
           ))}
         </ActivityList>
       )}
+      {/* Integrator pass 3: the website's map (OsmMap) is admin/advanced/office-map, same gate (canSetUpAttendance). */}
+      <Button variant="text" title="Place offices on a map" icon={<MapIcon />} onPress={() => router.push('/admin/advanced/office-map')} />
 
       {settings.isPending ? (
         <Skeleton height={320} radius={radius.xl} />

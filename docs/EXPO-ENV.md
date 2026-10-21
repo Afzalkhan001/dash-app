@@ -84,6 +84,23 @@ npx eas-cli@latest env:list --environment production
 - Older versions of the Expo command line called this `eas env:create`, with the same flags.
 - On Windows PowerShell, put each command on one line (drop the `\` line breaks).
 
+## Optional: Google sign-in (three more variables)
+
+Only add these after the Google Cloud steps in `docs/GOOGLE-SIGNIN.md`. Without them the app simply
+has no "Continue with Google" button (test builds still show a sample one for the demo).
+
+| Name | development | preview | production | Visibility | What it is |
+|---|---|---|---|---|---|
+| `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` | optional | yes | yes | Plain text | The **Android** OAuth client id, ends in `.apps.googleusercontent.com` |
+| `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | optional | yes | yes | Plain text | The **iOS** OAuth client id |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | optional | optional | do not add | Plain text | The **Web** client id. Only the web preview on a computer uses it |
+
+- A client id is **not a secret**. Google prints it in every sign-in link. Never add a *client secret*.
+- A phone build shows the Google button only when its own platform's id is set.
+- Expo Go never shows the real Google button (Google refuses Expo Go's return address). See
+  `docs/GOOGLE-SIGNIN.md`, "Expo Go".
+- Changed one? Build again.
+
 ## How each build picks its variables
 
 `eas.json` ties each build type to one environment on expo.dev:
@@ -158,6 +175,7 @@ npx eas-cli@latest submit --profile production --platform ios
 
 - `src/config.ts` reads `EXPO_PUBLIC_DASH_URL` (falls back to `https://dash.tamadamedia.in`).
 - `src/demo/config.ts` reads `EXPO_PUBLIC_DEMO` and `EXPO_PUBLIC_BUILD_PROFILE` (`DEMO_ENABLED`).
+- `src/features/signin/google.ts` reads the three `EXPO_PUBLIC_GOOGLE_*_CLIENT_ID` values.
 - `eas.json` sets `environment` and `EXPO_PUBLIC_BUILD_PROFILE` for each build profile.
 - `.env.example` is the committed template.
 

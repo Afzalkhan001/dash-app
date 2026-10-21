@@ -32,6 +32,7 @@ import { AuthDivider, AuthShell, BackButton, maskSentTo, PhoneLead, SIGN_IN_FAIL
 import { useAuthFlow } from '@/auth/flow';
 import { useSession } from '@/auth/session';
 import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_PHONE, isDemoEmail, isDemoPhone } from '@/demo/config';
+import { GoogleButton } from '@/features/googlesignin/google-button';
 import { canSignUp, canUseForgotPassword } from '@/features/signin/access';
 import { themedStyles } from '@/theme/themed';
 import { palette, space } from '@/theme/tokens';
@@ -268,6 +269,8 @@ export default function EmailLogin() {
           <>
             <AuthDivider />
             <Button variant="ghost" title="Sign in with mobile number" icon={<Smartphone />} onPress={toMobile} disabled={busy} />
+            {/* Google (googlesignin domain): hidden unless this build can sign in with Google, or is a demo build. */}
+            <GoogleButton onError={setError} disabled={busy} />
             {/* No icon on the narrowest phones with large text, so the label never truncates. */}
             {canSignUp() ? (
               <Button

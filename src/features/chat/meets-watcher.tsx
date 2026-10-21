@@ -125,13 +125,10 @@ export function MeetsWatcher() {
           if (convId) void qc.invalidateQueries({ queryKey: chatKeys.conversation(me, convId) });
           if (convId && name === 'members') void qc.invalidateQueries({ queryKey: chatKeys.messages(me, convId) });
           return;
-        case 'meeting': {
-          if (chatBus.callLive || !data?.meetingId) return;
-          const who = data.startedBy?.name || 'A colleague';
-          haptic.warning();
-          setNotice({ key: Date.now(), kind: 'call', title: `${who} is calling`, body: 'Calls aren’t in the app yet. Answer on the DASH website.', who, conversationId: convId, meetingId: String(data.meetingId) });
+        case 'meeting':
+          // Incoming calls ring through features/calls IncomingCallWatcher (mounted next to this watcher in
+          // app/(app)/_layout.tsx), so no second notice here (integrator pass 3).
           return;
-        }
         default:
       }
     });

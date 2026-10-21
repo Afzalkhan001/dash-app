@@ -4,6 +4,8 @@
 // changes everyone's tax. What a switched-on section still lacks is listed in red, because payroll
 // refuses to run until it is filled in (hr_payroll.js buildItems).
 
+import { router } from 'expo-router';
+
 import { useStatutory } from '@/api/payroll';
 import { errorText, GateFallback, usePayrollGate } from '@/features/payroll/ui';
 import { inr } from '@/lib/format';
@@ -54,8 +56,9 @@ export default function StatutoryScreen() {
     <Screen header={header} onRefresh={() => q.refetch()}>
       <Banner
         tone="warning"
-        title="Change these on the DASH website"
+        title="Your company’s own values"
         message="No rates or slabs are built in: they are your company’s values, to be confirmed with your CA."
+        action={{ label: 'Edit', onPress: () => router.push('/admin/hr-advanced/statutory') }}
       />
       {missing.length ? (
         <Banner tone="danger" title="Payroll can’t run until these are filled in" message={missing.join(', ')} />

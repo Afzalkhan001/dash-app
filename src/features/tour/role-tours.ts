@@ -23,7 +23,7 @@ import type { TourIntro, TourStep } from '@/ui';
  * Bump only when the steps change in a way people should see again. The integrator bumps it ONCE, at
  * release time (PLAN §2.2.6) — never per domain.
  */
-export const TOUR_VERSION = 1;
+export const TOUR_VERSION = 2; // 2: integrator pass 3 (wave 3: Documents, Import & export, big tables, payroll setup, calls, delete data…)
 
 export type StaffTourId =
   | 'employee'
@@ -470,6 +470,17 @@ const DOMAIN_STEP_PRIORITY = [
   'booking.reviews',
   'booking.hub',
   'chat.chat',
+  // Pass 3 (wave 3), after everything above so the older tours keep their steps.
+  'calls.calls',
+  'docs.hub',
+  'hradvanced.payroll',
+  'hradvanced.extend',
+  'excel.hub',
+  'grids.tables',
+  'hradvanced.branding',
+  'adminadvanced.officemap',
+  'adminadvanced.employees',
+  'push.settings',
 ];
 const DOMAIN_MORE_CAP = 4;
 

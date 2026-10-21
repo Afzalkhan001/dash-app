@@ -181,7 +181,7 @@ export default function CompaniesScreen() {
         <SkeletonList rows={4} />
       )}
 
-      <Banner tone="info" title="On the DASH website" message="Deleting a company, and the wallet reports, stay on the website." />
+      <Banner tone="info" title="Delete a company or get a wallet report" message="Open a company to delete it. Coin reports are under More › Import & export." />
 
       {/* Register a company */}
       <Sheet

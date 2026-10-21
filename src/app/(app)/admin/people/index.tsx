@@ -218,8 +218,9 @@ export default function RosterScreen() {
                 <Banner
                   style={styles.footer}
                   tone="info"
-                  title="Spreadsheets stay on the website"
-                  message="Bulk upload, bulk update and the roster download are on the DASH website."
+                  title="Spreadsheets"
+                  message="Bulk upload, bulk update and the roster download are under Import & export."
+                  action={{ label: 'Open', onPress: () => router.push('/admin/import') }}
                 />
               }
               renderItem={({ item, index }) => (

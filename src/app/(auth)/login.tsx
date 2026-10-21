@@ -4,7 +4,7 @@
 // Payno sign-in (docs/REFERENCE-COMPONENTS.md §3): the centred Tamada logo, "Welcome back" with a muted
 // two-line subtitle, one frosted PillField (phone glyph + "+91"), one full-width primary "Send code".
 // The only alternative for staff, "Sign in with email", is an outlined frosted pill under an "Or"
-// divider. Vendors are a different kind of user, so their way in is the small footer link at the
+// divider, with "Continue with Google" under it when this build has Google (features/googlesignin). Vendors are a different kind of user, so their way in is the small footer link at the
 // bottom of the page ("Are you a vendor? Sign in here").
 // A send failure shows as a danger Banner right above the button (docs/DESIGN.md §12).
 
@@ -19,6 +19,7 @@ import { useAuthFlow } from '@/auth/flow';
 import { useSession } from '@/auth/session';
 import { DEMO_ENABLED, DEMO_PHONE, isDemoPhone } from '@/demo/config';
 import { DemoRolePicker } from '@/features/demo/role-picker';
+import { GoogleButton } from '@/features/googlesignin/google-button';
 import { Banner, Button, haptic, PillField } from '@/ui';
 
 const pretty = (digits: string) => `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
@@ -74,6 +75,8 @@ export default function MobileLogin() {
         <>
           <AuthDivider />
           <Button variant="ghost" title="Sign in with email" icon={<Mail />} onPress={() => router.push('/email')} disabled={busy} />
+          {/* Google (googlesignin domain): hidden unless this build can sign in with Google, or is a demo build. */}
+          <GoogleButton onError={setError} disabled={busy} />
           {DEMO_ENABLED ? (
             <>
               <Button variant="text" title="Try a demo role" icon={<Users />} onPress={() => setChoosingRole(true)} disabled={busy} />

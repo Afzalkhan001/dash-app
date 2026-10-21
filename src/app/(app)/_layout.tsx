@@ -7,9 +7,13 @@
 //     swiped away; a call `call/[meetingId]` opens full screen from the bottom and cannot be swiped away.
 //   - <MeetsWatcher/> (features/chat/meets-watcher), mounted once for the whole signed-in area; it
 //     renders nothing until the chat domain fills it.
+//   Pass 3: <IncomingCallWatcher/> (features/calls: the ring sheet for incoming calls, everywhere in the app)
+//   and <PushBridge/> (features/push: routes a notification tap, even one that cold-starts the app).
 import { Stack } from 'expo-router';
 
+import { IncomingCallWatcher } from '@/features/calls/incoming-call';
 import { MeetsWatcher } from '@/features/chat/meets-watcher';
+import { PushBridge } from '@/features/push/bridge';
 import { palette } from '@/theme/tokens';
 
 export const unstable_settings = { anchor: '(tabs)' };
@@ -33,6 +37,8 @@ export default function AppLayout() {
         <Stack.Screen name="(tabs)" />
       </Stack>
       <MeetsWatcher />
+      <IncomingCallWatcher />
+      <PushBridge />
     </>
   );
 }

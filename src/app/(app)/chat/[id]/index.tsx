@@ -4,7 +4,11 @@
 //   Chips     Today / Yesterday / 'Mon, 19 Oct'; a red "New messages" divider placed from the read
 //             mark captured ONCE when the thread opens (dash.html:7117), and the thread jumps to it.
 //   Bubbles   mine on the right in the brand colour, others on the left with the name in groups;
-//             photos inline (tap = full screen), files and voice notes open the share sheet.
+//             photos inline (tap = full screen), voice notes play inline (one shared player,
+//             features/chatvoice/voice-player.tsx), files open the share sheet.
+//   Call      a phone button when I can post (website: canPost): the calls domain's StartCallSheet
+//             (features/calls/start-call.tsx) — ConfirmSheet + swipe naming who rings, then the call
+//             screen; a demo call in the demo; "Available in the installed app" where WebRTC is missing.
 //   Delete    long-press my own message → "Delete for everyone" → swipe to confirm (cannot be undone).
 //   Read      marked read on open, when a message lands while the thread is on screen, and when the app
 //             comes back to the foreground (dash.html:9881).
@@ -34,12 +38,16 @@ import { isApiError } from '@/api/client';
 import { useMyTenant } from '@/api/me';
 import { useSession } from '@/auth/session';
 import { useTodayIst } from '@/features/attendance/use-now';
+import { canStartCall } from '@/features/calls/access';
+import { CALL_ICON, type CallTarget, StartCallSheet } from '@/features/calls/start-call';
 import { canDeleteMessage, canSeeMeets } from '@/features/chat/access';
 import { DayChip, MessageBubble, NewDivider } from '@/features/chat/bubble';
 import { Composer, type Staged } from '@/features/chat/composer';
 import { captionOf, dayChip, firstUnreadId, readMark, subtitleOf } from '@/features/chat/format';
 import { ImageViewer } from '@/features/chat/image-viewer';
 import { chatBus } from '@/features/chat/realtime';
+import { rememberClip } from '@/features/chatvoice/clips';
+import { VoiceProvider } from '@/features/chatvoice/voice-player';
 import { istDateOf, stampLabel, timeOf } from '@/lib/dates';
 import { FileError, downloadAuthed, shareFile } from '@/lib/files';
 import { themedStyles } from '@/theme/themed';
@@ -75,6 +83,7 @@ export default function ThreadScreen() {
   const [confirmDelete, setConfirmDelete] = useState<MeetsMessage | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [viewer, setViewer] = useState<MeetsMessage | null>(null);
+  const [call, setCall] = useState<CallTarget | null>(null);
   const listRef = useRef<FlatList<Item>>(null);
   const jumped = useRef<string | null>(null);
   const focused = useRef(false);
@@ -186,6 +195,7 @@ export default function ThreadScreen() {
       toast.show(isApiError(r) ? r.error : 'Could not send that.', 'danger');
       return false;
     }
+    if (att?.localUri) rememberClip(r.message.id, att.localUri);
     addMessageToCache(qc, me, r.message);
     if (!bumpRowInCache(qc, me, r.message, false)) void qc.invalidateQueries({ queryKey: chatKeys.conversations(me) });
     requestAnimationFrame(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }));
@@ -312,11 +322,23 @@ export default function ThreadScreen() {
         <NavHeader
           title={title}
           subtitle={subtitle}
-          actions={[{ key: 'info', icon: Info, label: 'Chat details', onPress: () => router.push({ pathname: '/chat/[id]/info', params: { id } }) }]}
+          actions={[
+            ...(canStartCall(detail ?? (row ? { leftAt: row.leftAt } : null))
+              ? [
+                  {
+                    key: 'call',
+                    icon: CALL_ICON,
+                    label: group ? 'Call the group' : 'Start call',
+                    onPress: () => setCall({ kind: 'conversation', conversationId: id, title, memberCount: conv.data ? current.length : (row?.memberCount ?? 2), group }),
+                  },
+                ]
+              : []),
+            { key: 'info', icon: Info, label: 'Chat details', onPress: () => router.push({ pathname: '/chat/[id]/info', params: { id } }) },
+          ]}
         />
       }
       footer={<Composer canPost={canPost} policy={policy.data} sending={sending} onSend={send} />}>
-      {body}
+      <VoiceProvider>{body}</VoiceProvider>
 
       <MenuSheet
         visible={!!menuMsg}
@@ -344,6 +366,8 @@ export default function ThreadScreen() {
           hideEmpty
         />
       </ConfirmSheet>
+
+      <StartCallSheet target={call} onClose={() => setCall(null)} />
 
       <ImageViewer m={viewer} today={today} onClose={() => setViewer(null)} onShare={(m) => void openFile(m)} />
     </Screen>

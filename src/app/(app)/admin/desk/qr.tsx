@@ -1,7 +1,8 @@
 // Check-in link (web: VisitorQrPage, dash.html:35767; GET /visitors/qr, POST /visitors/qr/regenerate).
 // The reception QR code points at the public page DASH_URL + path (/visit/<company>/<token>): a visitor
-// opens it on their own phone — no app, no account — and checks themselves in. Wave 1 shares the LINK
-// (drawing the QR needs an encoder, PLAN D4); the printable poster stays on the website for now.
+// opens it on their own phone — no app, no account — and checks themselves in.
+//   The QR code      drawn on the phone (features/deskqr/qr.tsx), black on white in both themes
+//   Poster           the web's "Print poster" page (same words) as a PDF → share sheet, or straight to print
 //   Share link       the share sheet (WhatsApp, email, …) with a short welcome line
 //   Open the page    the check-in page in the browser, to try it
 //   Make a new link  desk roles only (dash.html:35771 canRegen): a ConfirmSheet with a red notice and a
@@ -9,13 +10,15 @@
 
 import { Redirect } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { ExternalLink, Link2, QrCode, RefreshCcw, Share2 } from 'lucide-react-native';
+import { ExternalLink, FileDown, Link2, Printer, QrCode, RefreshCcw, Share2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Share, View } from 'react-native';
 
 import { isDemoSession } from '@/api/client';
 import { checkInUrl, useDeskQr, useRegenerateQr } from '@/api/desk';
 import { canRegenerateQr, canRunDesk, canSeeDeskQr } from '@/features/desk/access';
+import { posterHtml, printNow, printOrShare } from '@/features/deskqr/print';
+import { QrImage } from '@/features/deskqr/qr';
 import { useAccess } from '@/lib/use-access';
 import { themedStyles } from '@/theme/themed';
 import { palette, radius, space } from '@/theme/tokens';
@@ -43,6 +46,7 @@ export default function CheckInLinkScreen() {
   const qr = useDeskQr(allowed);
   const regen = useRegenerateQr();
   const [confirm, setConfirm] = useState(false);
+  const [making, setMaking] = useState<'' | 'pdf' | 'print'>('');
 
   if (!allowed) return <Redirect href="/" />;
 
@@ -67,6 +71,19 @@ export default function CheckInLinkScreen() {
     }
     void WebBrowser.openBrowserAsync(url).catch(() => toast.show('Couldn’t open the page.', 'danger'));
   };
+  const poster = async (kind: 'pdf' | 'print') => {
+    if (!url || making) return;
+    setMaking(kind);
+    try {
+      const html = posterHtml(company, url);
+      if (kind === 'pdf') await printOrShare(html, 'Check-in poster');
+      else await printNow(html);
+    } catch (e) {
+      toast.show(e instanceof Error && e.message ? e.message : 'Couldn’t make the poster. Try again.', 'danger');
+    } finally {
+      setMaking('');
+    }
+  };
   const makeNew = () => {
     if (regen.isPending) return;
     regen.mutate(undefined, {
@@ -83,7 +100,7 @@ export default function CheckInLinkScreen() {
   };
 
   return (
-    <Screen header={<NavHeader title="Check-in link" />} onRefresh={() => qr.refetch()}>
+    <Screen header={<NavHeader title="Check-in QR" />} onRefresh={() => qr.refetch()}>
       <SummaryHero
         icon={QrCode}
         module="visitors"
@@ -102,6 +119,17 @@ export default function CheckInLinkScreen() {
 
       {data ? (
         <>
+          <Card style={styles.qrCard}>
+            <QrImage value={url} size={220} label={`QR code for the ${company} visitor check-in page`} />
+            <Text variant="label" muted align="center">
+              Visitors scan this with their phone camera.
+            </Text>
+            <ActionRow>
+              <Button variant="ghost" title="Print" icon={<Printer />} loading={making === 'print'} disabled={!!making} onPress={() => void poster('print')} />
+              <Button title="Poster PDF" icon={<FileDown />} loading={making === 'pdf'} disabled={!!making} onPress={() => void poster('pdf')} />
+            </ActionRow>
+          </Card>
+
           <Card style={styles.linkCard}>
             <View style={styles.linkHead}>
               <Link2 size={18} color={palette.textMuted} strokeWidth={1.8} />
@@ -126,7 +154,6 @@ export default function CheckInLinkScreen() {
               { label: 'Step 3', value: 'Take a quick photo and wait to be let in' },
             ]}
           />
-          <Banner tone="info" message="The QR code poster to print is on the DASH website for now. It points at this same link." />
 
           {canRegenerateQr(access.user) ? (
             <View style={styles.danger}>
@@ -165,6 +192,7 @@ export default function CheckInLinkScreen() {
 }
 
 const styles = themedStyles(() => ({
+  qrCard: { gap: space.sm, alignItems: 'stretch' },
   linkCard: { gap: space.sm },
   linkHead: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   link: { backgroundColor: palette.surfaceSunken, borderRadius: radius.sm, paddingHorizontal: space.sm, paddingVertical: space.xs },

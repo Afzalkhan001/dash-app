@@ -7,15 +7,18 @@
 // Each tab and the + are first-sign-in tour targets (tabs.*, docs/TOUR.md); StaffTourHost starts that
 // tour once Home is calm (never while the + sheet is open).
 import { TabList, Tabs, TabSlot, TabTrigger } from 'expo-router/ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { CreateSheet } from '@/features/create/create-sheet';
 import { useInboxCount } from '@/features/inbox/use-inbox-count';
 import { StaffTourHost } from '@/features/tour/hosts';
+import { setAppBadge } from '@/lib/push';
 import { TabBarFrame, TabButton, TabFab } from '@/ui/tab-bar';
 
 export default function TabsLayout() {
   const inboxCount = useInboxCount();
+  // The app icon's number follows the Inbox badge (features/push; a no-op in Expo Go and on the web).
+  useEffect(() => setAppBadge(inboxCount), [inboxCount]);
   const [creating, setCreating] = useState(false);
   return (
     <Tabs>

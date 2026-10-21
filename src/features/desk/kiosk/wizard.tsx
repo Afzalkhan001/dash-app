@@ -2,13 +2,15 @@
 // (dash.html:35318-35536) and VisitKioskOverlay (35859). Same steps, same words, same rules:
 //
 //   start          "How can we help you today?" → meet someone · I have an invite code
-//                  (+ "check in on your own phone": the reception QR poster / the link — no QR drawing yet)
+//                  (+ "check in on your own phone": a real QR of the check-in link, features/deskqr/qr)
 //   host           ≥ 2 letters, 250 ms pause, then GET base/employees?q (≤ 25; never the whole staff list)
-//   selfie         the front camera (or a photo), shrunk to ≤ 640 px / ≤ 550 KB like visitShrink
+//   selfie         a live front-camera preview (features/deskqr/camera; the camera app or a photo as the
+//                  fallback), shrunk to ≤ 640 px / ≤ 550 KB like visitShrink
 //   details        name · mobile (visitMobileOk) · purpose (VISIT_PURPOSES, Other = free text) · consent
 //                  (the web's exact words) → a ConfirmSheet + swipe naming who gets the WhatsApp
 //   waiting        polls GET base/status/:id every 5 s → approved / rejected / no answer (the web's copy)
-//   code           6 digits on the kit's OtpBoxes + NumericKeypad → POST base/invite
+//   code           6 digits on the kit's OtpBoxes + NumericKeypad, or "Scan my pass" (front camera reads the
+//                  pass QR, features/deskqr/pass) → POST base/invite
 //   invite_selfie  "Welcome, <guest>" → photo → ConfirmSheet + swipe → POST base/invite/:id/arrive
 //   invite_done    "You are checked in"
 // After any result the screen clears itself 15 s later ("Next visitor in 15s · Done"), so the next
@@ -29,6 +31,7 @@ import {
   Link2Off,
   type LucideIcon,
   QrCode,
+  ScanLine,
   Search,
   Ticket,
   UserRound,
@@ -51,6 +54,9 @@ import {
   kioskStatus,
 } from '@/api/desk';
 import { takeSelfie, type Selfie } from '@/features/desk/kiosk/selfie';
+import { PhotoCapture, QrScanner } from '@/features/deskqr/camera';
+import { codeFromScan, notAPassMessage } from '@/features/deskqr/pass';
+import { QrImage } from '@/features/deskqr/qr';
 import { mobileOk, timeWindow } from '@/features/visitors/format';
 import { firstName } from '@/lib/format';
 import { themedStyles } from '@/theme/themed';
@@ -126,6 +132,8 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
   const [doneAt, setDoneAt] = useState<number | null>(null);
   const [left, setLeft] = useState(RESET_AFTER);
   const [pollTrouble, setPollTrouble] = useState(false);
+  const [live, setLive] = useState(false);
+  const [scanPass, setScanPass] = useState(false);
 
   const reset = () => {
     setStep('start');
@@ -142,6 +150,8 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
     setDoneAt(null);
     setLeft(RESET_AFTER);
     setPollTrouble(false);
+    setLive(false);
+    setScanPass(false);
   };
   const go = (to: Step) => {
     setMsg(null);
@@ -219,8 +229,13 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
   }, [doneAt]);
 
   // ── actions ──────────────────────────────────────────────────────────────────
-  const shoot = async (source: 'camera' | 'library') => {
+  const shoot = async (source: 'camera' | 'library' | 'live') => {
     setMsg(null);
+    if (source === 'live') {
+      setLive(true);
+      return;
+    }
+    setLive(false);
     try {
       const shot = await takeSelfie(source);
       if (shot) setPhoto(shot);
@@ -325,12 +340,15 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
             </Text>
           </View>
           <Text variant="label" muted>
-            Scan the QR code poster at reception with your phone camera. No app required.
+            Scan this QR code with your phone camera. No app required.
           </Text>
           {linkUrl ? (
-            <Text variant="caption" muted selectable style={styles.link} accessibilityLabel={`Or open ${linkUrl}`}>
-              {linkUrl}
-            </Text>
+            <>
+              <QrImage value={linkUrl} size={168} label="QR code for checking in on your own phone" />
+              <Text variant="caption" muted selectable align="center" style={styles.link} accessibilityLabel={`Or open ${linkUrl}`}>
+                {linkUrl}
+              </Text>
+            </>
           ) : null}
         </Card>
       </Screen>
@@ -405,7 +423,7 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
           <ActionBar>
             {photo ? (
               <ActionRow context="bar">
-                <Button variant="ghost" size="lg" title="Retake" icon={<Camera />} onPress={() => void shoot('camera')} disabled={busy} />
+                <Button variant="ghost" size="lg" title="Retake" icon={<Camera />} onPress={() => void shoot('live')} disabled={busy} />
                 <Button
                   size="lg"
                   title="Use this photo"
@@ -422,15 +440,26 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
             ) : (
               <ActionRow context="bar">
                 <Button variant="ghost" size="lg" title="Choose a photo" icon={<ImageUp />} onPress={() => void shoot('library')} />
-                <Button size="lg" title="Take photo" icon={<Camera />} onPress={() => void shoot('camera')} />
+                <Button size="lg" title="Take photo" icon={<Camera />} onPress={() => void shoot('live')} />
               </ActionRow>
             )}
           </ActionBar>
         }>
         {back(forInvite ? 'code' : 'host')}
         <Heading title={title} sub={sub} />
-        <PhotoFrame photo={photo} onPress={() => void shoot('camera')} />
+        <PhotoFrame photo={photo} onPress={() => void shoot('live')} />
         {error}
+        <PhotoCapture
+          visible={live}
+          title="Look at the camera"
+          facing="front"
+          onClose={() => setLive(false)}
+          onFallback={() => void shoot('camera')}
+          onPhoto={(p) => {
+            setPhoto(p);
+            setLive(false);
+          }}
+        />
         {forInvite && invite ? (
           <ConfirmSheet
             visible={confirm}
@@ -587,6 +616,31 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
         <OtpBoxes value={code} onChange={setCode} onComplete={(c) => void checkCode(c)} withKeypad error={!!msg && !msg.busy} disabled={busy} accessibilityLabel="Invite code" />
         {error}
         <Button size="lg" title={busy ? 'Checking…' : 'Continue'} loading={busy} disabled={code.length !== 6} onPress={() => void checkCode()} />
+        <Button
+          variant="ghost"
+          size="lg"
+          title="Scan my pass instead"
+          icon={<ScanLine />}
+          disabled={busy}
+          onPress={() => {
+            setMsg(null);
+            setScanPass(true);
+          }}
+        />
+        <QrScanner
+          visible={scanPass}
+          facing="front"
+          title="Scan your visitor pass"
+          hint="Hold the QR on your pass up to this screen."
+          onClose={() => setScanPass(false)}
+          onScanned={(data) => {
+            const c = codeFromScan(data);
+            if (!c) return notAPassMessage(data);
+            setScanPass(false);
+            setCode(c);
+            void checkCode(c);
+          }}
+        />
       </Screen>
     );
   }

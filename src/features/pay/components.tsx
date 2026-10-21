@@ -114,7 +114,7 @@ export function PayUnavailable({ systemRole, feature }: { systemRole: boolean; f
     <EmptyState
       icon={<Wallet color={moduleTone.pay.fg} strokeWidth={1.8} />}
       title={systemRole ? 'Not available for this account' : title}
-      message={systemRole ? 'Pay is for employees. Payroll is run on the DASH website.' : `Ask HR to switch ${feature ? 'them' : 'it'} on.`}
+      message={systemRole ? 'Pay is for employees. Payroll is run under More › Payroll.' : `Ask HR to switch ${feature ? 'them' : 'it'} on.`}
     />
   );
 }

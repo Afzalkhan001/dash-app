@@ -131,8 +131,9 @@ export default function OfficeTvsScreen() {
           />
         ))}
       </ActivityList>
+      <Button variant="text" title="Make or change playlists" onPress={() => router.push('/admin/advanced/playlists')} />
       <Text variant="caption" muted align="center">
-        Make or change playlists on the website. Here you choose which one each TV plays.
+        Here you choose which one each TV plays.
       </Text>
 
       <ActivityList

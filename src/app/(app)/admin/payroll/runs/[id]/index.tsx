@@ -259,9 +259,12 @@ export default function PayrollRunScreen() {
         }
         ListFooterComponent={
           items.length ? (
-            <Text variant="caption" muted align="center" style={styles.foot}>
-              The full register table is on the DASH website. Export it as CSV from the ••• menu.
-            </Text>
+            <View style={styles.foot}>
+              <Button variant="text" title="Open the full register table" onPress={() => router.push('/admin/grids/payroll')} />
+              <Text variant="caption" muted align="center">
+                Or export it as CSV from the ••• menu.
+              </Text>
+            </View>
           ) : null
         }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={palette.primaryText} colors={[palette.primaryText]} progressBackgroundColor={palette.surface} />}

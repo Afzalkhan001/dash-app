@@ -6,6 +6,7 @@
 // website (spec §4.3). Retiring has no way back in the app or on the website, so it goes through
 // ConfirmSheet + SwipeToConfirm. Nobody is messaged.
 
+import { router } from 'expo-router';
 import { Archive, Layers } from 'lucide-react-native';
 import { useState } from 'react';
 
@@ -30,7 +31,7 @@ export default function StructuresScreen() {
       {q.error && !q.data ? (
         <Banner tone="danger" title="Couldn’t load structures" message={errorText(q.error)} action={{ label: 'Retry', onPress: () => void q.refetch() }} />
       ) : null}
-      <ActivityList title="Active structures" loading={q.isPending} empty={q.error ? 'Couldn’t load.' : 'No structures yet. Create one on the DASH website.'}>
+      <ActivityList title="Active structures" loading={q.isPending} empty={q.error ? 'Couldn’t load.' : 'No structures yet. Create one with Create or edit.'}>
         {list.map((s) => (
           <ActivityRow
             key={s.id}
@@ -45,8 +46,9 @@ export default function StructuresScreen() {
           />
         ))}
       </ActivityList>
+      <Button variant="text" title="Create or edit" onPress={() => router.push('/admin/hr-advanced/structures')} />
       <Text variant="caption" muted align="center">
-        Create and edit structures on the DASH website. Changing a structure never changes anyone’s current salary.
+        Changing a structure never changes anyone’s current salary.
       </Text>
       {open ? <StructureSheet key={open.id} structure={open} onClose={() => setOpenId(null)} /> : null}
     </Screen>

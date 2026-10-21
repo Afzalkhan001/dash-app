@@ -141,6 +141,9 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   signOut: async () => {
+    // While the token still works: let hooks undo server-side state for this phone (push removes the
+    // device, PLAN §2.4). Best effort and time-boxed, so signing out never waits on the network.
+    await runBeforeSignOut();
     await clearStored();
     set({ kind: null, token: null, tokenExpiresAt: null, user: null });
     onSignOutListeners.forEach((fn) => fn());
@@ -149,6 +152,22 @@ export const useSession = create<SessionState>((set, get) => ({
 
 async function clearStored() {
   await Promise.allSettled([secure.del(TOKEN_KEY), AsyncStorage.removeItem(USER_KEY)]);
+}
+
+// Hooks that run at the start of signOut(), before the token is forgotten (push: remove this phone
+// from the server). Each gets at most BEFORE_SIGN_OUT_MS; errors are swallowed.
+const BEFORE_SIGN_OUT_MS = 3000;
+const beforeSignOutHooks = new Set<() => Promise<unknown>>();
+export function onBeforeSignOut(fn: () => Promise<unknown>): () => void {
+  beforeSignOutHooks.add(fn);
+  return () => {
+    beforeSignOutHooks.delete(fn);
+  };
+}
+async function runBeforeSignOut() {
+  if (!beforeSignOutHooks.size) return;
+  const timeout = new Promise<void>((resolve) => setTimeout(resolve, BEFORE_SIGN_OUT_MS));
+  await Promise.race([Promise.allSettled([...beforeSignOutHooks].map((fn) => Promise.resolve().then(fn))), timeout]);
 }
 
 // Lets the query cache clear itself on sign-out without this module importing it.

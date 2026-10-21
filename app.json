@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "dashmobile",
+    "scheme": ["dashmobile", "com.tamadamedia.dashmobile"],
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": {
@@ -33,7 +33,8 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.RECORD_AUDIO",
         "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT"
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -105,7 +106,33 @@
       "expo-font",
       "expo-image",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "DASH uses the camera to scan visitor passes and asset tags, and to capture bills and documents.",
+          "microphonePermission": "DASH uses the microphone to record voice notes and for calls.",
+          "recordAudioAndroid": true,
+          "barcodeScannerEnabled": true
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "DASH uses the microphone to record voice notes and for calls.",
+          "recordAudioAndroid": true,
+          "enableBackgroundRecording": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#C33B02",
+          "defaultChannel": "default"
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": false,

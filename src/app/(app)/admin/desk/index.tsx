@@ -4,11 +4,12 @@
 //   3. Waiting for a host: each row's "Respond" opens /inbox/desk/<id> (Let in / Turn away for the host).
 //   4. Inside now: a row opens the visit, where Check out is (a swipe in a ConfirmSheet; no undo).
 //   5. Earlier today: everyone else, with their status.
+//   "Scan a pass" (features/deskqr): check in an invited guest from the QR on their visitor pass.
 // Refreshes every 10 s while in front, like the web. Only the desk roles (features/desk/access.ts);
 // anyone else is sent home (the server answers 403 to them anyway).
 
 import { Redirect, useIsFocused, useRouter } from 'expo-router';
-import { DoorOpen, History, MonitorSmartphone, QrCode, UserPlus } from 'lucide-react-native';
+import { DoorOpen, History, MonitorSmartphone, QrCode, ScanLine, UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -19,11 +20,13 @@ import { canRunDesk, canSeeKiosk } from '@/features/desk/access';
 import { plural, splitToday } from '@/features/desk/format';
 import { DESK_ROUTES } from '@/features/desk/routes';
 import { DeskVisitRow, WaitingVisitRow } from '@/features/desk/visit-row';
+import { canScanPass } from '@/features/deskqr/access';
+import { DESKQR_ROUTES } from '@/features/deskqr/routes';
 import { useDeskVisitSheet } from '@/features/desk/visit-sheet';
 import { useAccess } from '@/lib/use-access';
 import { themedStyles } from '@/theme/themed';
 import { palette, radius, space } from '@/theme/tokens';
-import { ActivityList, Button, Chip, ChipRow, EmptyState, ErrorState, NavHeader, Screen, SectionHeader, Skeleton, SkeletonList, SummaryHero, Text } from '@/ui';
+import { ActivityList, Button, Chip, ChipRow, EmptyState, ErrorState, ListCard, ListRow, NavHeader, Screen, SectionHeader, Skeleton, SkeletonList, SummaryHero, Text } from '@/ui';
 
 type Focus = 'waiting' | 'no_response' | 'rejected' | 'all';
 
@@ -68,7 +71,7 @@ export default function VisitorDeskScreen() {
           title="Visitor desk"
           actions={[
             { icon: History, label: 'Visitor log', onPress: () => router.push(DESK_ROUTES.log) },
-            { icon: QrCode, label: 'Check-in link', onPress: () => router.push(DESK_ROUTES.qr) },
+            { icon: QrCode, label: 'Check-in QR', onPress: () => router.push(DESK_ROUTES.qr) },
           ]}
         />
       }
@@ -91,6 +94,18 @@ export default function VisitorDeskScreen() {
           <Chip label="No answer" count={s.noResponse} selected={focus === 'no_response'} onPress={() => toggle('no_response')} />
           <Chip label="Rejected" count={s.rejected} selected={focus === 'rejected'} onPress={() => toggle('rejected')} />
         </ChipRow>
+      ) : null}
+
+      {canScanPass(access) ? (
+        <ListCard>
+          <ListRow
+            left={<ScanLine size={22} color={palette.primaryText} strokeWidth={1.8} />}
+            title="Scan a pass"
+            subtitle="Check in an invited guest from their QR"
+            chevron
+            onPress={() => router.push(DESKQR_ROUTES.scan)}
+          />
+        </ListCard>
       ) : null}
 
       {!data ? (

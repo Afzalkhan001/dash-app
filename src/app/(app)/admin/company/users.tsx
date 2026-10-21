@@ -368,7 +368,7 @@ export default function CompanyUsersScreen() {
         confirmLabel="Swipe to send the invite"
         onConfirm={send}
         loading={provision.isPending}
-        note="They sign up on the DASH website with this email.">
+        note="They sign up in the DASH app or on the website with this email.">
         <SummaryCard
           rows={[
             { key: 'email', label: 'Email', value: form.email.trim().toLowerCase() },
@@ -383,7 +383,7 @@ export default function CompanyUsersScreen() {
         visible={!!sent}
         onClose={() => setSent(null)}
         title="Invite sent"
-        subtitle={sent ? `${sent.name} can now sign up on the DASH website with ${sent.email}.` : undefined}>
+        subtitle={sent ? `${sent.name} can now sign up in the DASH app or on the website with ${sent.email}.` : undefined}>
         {sent ? <SummaryCard rows={[{ key: 'role', label: 'Role', value: roleLabel(sent.role) }, { key: 'status', label: 'Status', value: 'Not signed up', status: 'pending' }]} /> : null}
       </SuccessSheet>
     </Screen>

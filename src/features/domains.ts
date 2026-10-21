@@ -78,6 +78,21 @@ import * as pushTour from '@/features/push/tour';
 import * as callsInbox from '@/features/calls/inbox';
 import * as callsNav from '@/features/calls/nav';
 import * as callsTour from '@/features/calls/tour';
+import * as docsInbox from '@/features/docs/inbox';
+import * as docsNav from '@/features/docs/nav';
+import * as docsTour from '@/features/docs/tour';
+import * as excelInbox from '@/features/excel/inbox';
+import * as excelNav from '@/features/excel/nav';
+import * as excelTour from '@/features/excel/tour';
+import * as gridsInbox from '@/features/grids/inbox';
+import * as gridsNav from '@/features/grids/nav';
+import * as gridsTour from '@/features/grids/tour';
+import * as hradvancedInbox from '@/features/hradvanced/inbox';
+import * as hradvancedNav from '@/features/hradvanced/nav';
+import * as hradvancedTour from '@/features/hradvanced/tour';
+import * as adminadvancedInbox from '@/features/adminadvanced/inbox';
+import * as adminadvancedNav from '@/features/adminadvanced/nav';
+import * as adminadvancedTour from '@/features/adminadvanced/tour';
 
 import type { Access, CreateAction, DomainTourCtx, HomeCard, InboxKindPlugin, TourStep, WorkspaceRow } from '@/features/plugin-types';
 
@@ -103,6 +118,7 @@ const DOMAINS: Domain[] = [
   { domain: 'people', nav: peopleNav, inbox: peopleInbox, tour: peopleTour },
   { domain: 'hrtime', nav: hrtimeNav, inbox: hrtimeInbox, tour: hrtimeTour },
   { domain: 'accounts', nav: accountsNav, inbox: accountsInbox, tour: accountsTour },
+  { domain: 'docs', nav: docsNav, inbox: docsInbox, tour: docsTour },
   { domain: 'company', nav: companyNav, inbox: companyInbox, tour: companyTour },
   { domain: 'signin', nav: signinNav, inbox: signinInbox, tour: signinTour },
   { domain: 'teamboard', nav: teamboardNav, inbox: teamboardInbox, tour: teamboardTour },
@@ -114,6 +130,11 @@ const DOMAINS: Domain[] = [
   { domain: 'platform', nav: platformNav, inbox: platformInbox, tour: platformTour },
   { domain: 'push', nav: pushNav, inbox: pushInbox, tour: pushTour },
   { domain: 'calls', nav: callsNav, inbox: callsInbox, tour: callsTour },
+  // Wave 3 (pass 3): the items PLAN §4 had kept website-only (owner: "everything in the website should be in the app").
+  { domain: 'hradvanced', nav: hradvancedNav, inbox: hradvancedInbox, tour: hradvancedTour },
+  { domain: 'grids', nav: gridsNav, inbox: gridsInbox, tour: gridsTour },
+  { domain: 'excel', nav: excelNav, inbox: excelInbox, tour: excelTour },
+  { domain: 'adminadvanced', nav: adminadvancedNav, inbox: adminadvancedInbox, tour: adminadvancedTour },
 ];
 
 export const DOMAIN_NAMES = DOMAINS.map((d) => d.domain);
@@ -162,18 +183,22 @@ export function domainWorkspaceRows(access: Access): WorkspaceRow[] {
 
 /**
  * + sheet, after the built-in 8: Assign task, Book, New chat, Raise for someone, Add asset, Start kiosk,
- * Invite visitor, Add employee, then (pass 2) Post news, Post job, Post task. The everyday actions come
+ * Invite visitor, Add employee, then (pass 2) Post news, Post job, Post task; pass 3 adds Start call after
+ * New chat, Scan a pass after Start kiosk and Agreement after Add employee. The everyday actions come
  * first, so the per-role cap trims the occasional ones.
  */
 export const CREATE_ORDER: readonly string[] = [
   'work.assign',
   'booking.book',
   'chat.new',
+  'calls.start',
   'servicedesk.raise',
   'itdesk.asset',
   'desk.kiosk',
+  'desk.scan',
   'desk.invite',
   'people.add',
+  'docs.agreement',
   'newsroom.post',
   'hiring.post',
   'bountyadmin.post',

@@ -13,6 +13,22 @@ It also draws on `docs/DEMO-ACCOUNTS.md`, `src/lib/access.ts`, `src/features/mor
 - Calls, Google sign-in and remote push need a **development build** plus owner decisions (section 3).
 - The kit rule is "no new dependencies". About five optional Expo Go packages need a yes or no (D4).
 
+## Status (integrator pass 3)
+
+- **Waves 0, 1, 2 and 3: done**, and integrator passes 1, 2 and 3. Every domain is registered in
+  `src/features/domains.ts` and every fixture in `src/demo/fixtures/index.ts`.
+- **Owner decision (wave 3):** "everything in the website should be in the app". Section 4's web-only list
+  was built too, except dead features and pages for people without the app. Where each website page now
+  lives: [PARITY.md](PARITY.md) (118 rows: 101 done, 7 partial, 3 blocked, 7 n/a).
+- **Wave 3 domains:** calls, chatvoice (voice notes, Excel export), googlesignin, push, deskqr (QR, passes,
+  scanning, kiosk keep-awake), docs (PDFs, agreement drafting, signed copies), excel (bulk uploads and
+  every Excel download), grids (the wide tables), hradvanced (structure editor, statutory/TDS, branding,
+  professional categories, extend a shoot, HR db check), adminadvanced (delete a company / all assets /
+  a service request with the name typed, TV playlists, office map, Employees, Managers).
+- **Still blocked outside the app:** calls on phones (D3: `react-native-webrtc` + TURN), remote push (D1:
+  the `feature/mobile-push` server branch is local and unmerged), real Google sign-in (D2: client ids).
+- `TOUR_VERSION` is 2 (bumped once in pass 3).
+
 Effort scale, as in the domain docs: **S** is about half a day to 1 day, **M** is 2–3 days, **L** is 4–6 days. Each includes its demo fixtures.
 
 ---
@@ -238,7 +254,7 @@ Gate before Wave 1: `npx tsc --noEmit` and `expo lint` must be clean. The app mu
 | **2**, about 2 weeks | **teamboard** → `admin/team-board/**`; **insights** → `admin/insights/**` (reports, devices); **itdesk** → `admin/it-desk/**` (assets, rooms, locations, purposes, support centre); **payroll** → `admin/payroll/**`; **hiring** → `admin/hiring/**` (+ Refer & earn); **newsroom** → `admin/news/**` (studio, office TVs); **bountyadmin** → `admin/bounty/**`; **desk** (continued) → kiosk | Needs Wave-1 data: IT rooms use booking's stores, reports read work's tasks, payroll needs hrtime's leave and attendance, and the kiosk builds on the board |
 | Integrator pass 2 | Same as pass 1. Also mount `hiring/refer-card.tsx` on the bounty hub and the "+" News studio entry on the News screen | |
 | **3**: gated on section 3 decisions | **platform** → `admin/platform/**` (needs bountyadmin's wallet stores; no decision needed); **push** (app side `src/lib/push.ts`, `src/api/push.ts`, `features/push/**`; server side only after D1); **signin** Google (D2); **calls** → `call/**` (D3); chat voice notes (D4, `expo-audio`); desk QR render (D4, QR encoder); accounts agreement drafting (D4, WebView); optional `expo-print` PDFs, asset scanning, office map | Each item needs owner approval or a development build |
-| Integrator pass 3 | Final tours, update `TOUR_VERSION` and `DEMO-ACCOUNTS.md`, persona walk-through on a phone | |
+| Integrator pass 3 (**done**) | Final tours, update `TOUR_VERSION` and `DEMO-ACCOUNTS.md`, persona walk-through on a phone; parity audit in `PARITY.md` | |
 
 ### 2.4 Existing files handed to exactly one domain
 | Existing file(s) | Owner (wave) | Change |
@@ -356,7 +372,10 @@ Remote push cannot be tested in Expo Go; it needs a development or preview build
 
 ---
 
-## 4. What stays web-only (please confirm)
+## 4. What stays web-only (superseded in wave 3)
+
+The owner decided everything moves to the app. Every row below is now built (see [PARITY.md](PARITY.md)) except the public pages, the dead features, Overrides, the password-reset button and the audit backfill, which have nothing to port, and vendor Google sign-in, which is not built yet.
+
 | Item | Why |
 |---|---|
 | Bulk Excel/CSV uploads: projects, employees (upload and update), assets, subscriptions | Desktop file work with SheetJS and a preview grid |

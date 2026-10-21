@@ -6,7 +6,7 @@
 //   Invite    when the Super Admin's email has neither a login nor an invitation (the invite failed when
 //             the company was registered, or the email was changed), "Send the invite" → swipe →
 //             POST /whitelist (super_admin) — the server emails them.
-// Not ported: "Reset Super Admin Password" (no API behind it) and Delete (website only).
+// Not ported: "Reset Super Admin Password" (no API behind it). Delete lives in admin/advanced/delete-company.
 
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Building2, Coins, MailPlus, Pencil, ToggleRight, UserRound } from 'lucide-react-native';
@@ -265,9 +265,12 @@ export default function CompanyScreen() {
         </ListCard>
       ) : null}
 
-      <Text variant="caption" muted align="center">
-        To delete a company, use the DASH website.
-      </Text>
+      <Button
+        variant="text"
+        title="Delete this company"
+        onPress={() => router.push(`/admin/advanced/delete-company?company=${encodeURIComponent(t.id)}`)}
+        accessibilityHint="Opens the delete screen. It lists what goes and asks you to type the company’s name"
+      />
 
       {/* Edit */}
       <Sheet

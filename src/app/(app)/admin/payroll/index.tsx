@@ -233,7 +233,7 @@ function RunSheet({ visible, onClose, thisMonth, taken, onCreated }: { visible: 
             <Banner
               tone="danger"
               title="Couldn’t run payroll"
-              message={/statutory/i.test(error) ? `${error} Statutory settings are changed on the DASH website.` : error}
+              message={/statutory/i.test(error) ? `${error} Fill them in under More › Payroll setup › Statutory and TDS.` : error}
             />
           ) : null}
           <Button title={month ? `Calculate ${monthName(month)}` : 'Every recent month has a run'} onPress={() => void go()} loading={create.isPending} disabled={!month} />

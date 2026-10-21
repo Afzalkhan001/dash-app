@@ -195,7 +195,7 @@ export default function BookLocationScreen() {
               ))}
             </ListCard>
           ) : (
-            <EmptyState icon={<MapPin color={palette.textMuted} />} title="No locations here" message="IT Admin adds shooting locations on the DASH website." />
+            <EmptyState icon={<MapPin color={palette.textMuted} />} title="No locations here" message="IT Admin adds shooting locations in the IT desk." />
           )}
         </Screen>
         <MenuSheet

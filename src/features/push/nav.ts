@@ -1,24 +1,39 @@
-// Push domain (wave 3) — nav.ts. What this domain adds to More, the + sheet and Home.
-// Stub created by the integrator in Wave 0 and already wired into the shared screens through
-// features/domains.ts, so filling it in needs no shared edit. Owner: the push agent (docs/port/PLAN.md
-// §2.1; spec docs/port/signin-push.md). Scope: Push notifications (app side; the server side waits on owner decision D1). Routes: src/features/push/**, src/lib/push.ts, src/api/push.ts.
-// API and rules: docs/port/EXTENSION-POINTS.md.
-//   workspaceRows(access)  rows in More › Workspace (section: work, people, money, it, company,
-//                          platform, reception, or links for a plain link under the app grid)
-//   createActions(access)  round actions in the + sheet, after the built-in 8
-//   homeCards(access)      Home cards (placement: hero, top, needs, end)
-// Pure: read `access` only (access.web(id) is the website's sidebar test), return [] without the gate.
+// Push domain — what it adds to More and Home (docs/port/signin-push.md §4.3, §5.4).
+//   More › (links)  "Notifications" for every staff member, next to Chat & calls (the integrator may
+//                   move it beside App lock in More's own settings card — HANDOFF.md).
+//   Home (top)      the one-time soft ask "Know the moment something needs you" (it also starts the
+//                   push bridge). No + action: there is nothing to create.
+// Pure: decided from `access` only.
+
+import { Bell } from 'lucide-react-native';
 
 import type { Access, CreateAction, HomeCard, WorkspaceRow } from '@/features/plugin-types';
+import { canUsePush } from '@/features/push/access';
+import { PushAskCard } from '@/features/push/home-card';
+import { PUSH_ROUTES } from '@/features/push/routes';
 
 export function workspaceRows(access: Access): WorkspaceRow[] {
-  return [];
+  if (!canUsePush(access)) return [];
+  return [
+    {
+      key: 'push.settings',
+      section: 'links',
+      label: 'Notifications',
+      subtitle: 'Visitors, approvals and tasks on your lock screen',
+      href: PUSH_ROUTES.settings,
+      icon: Bell,
+      module: 'security',
+      order: 90,
+      tourId: 'more.push.settings',
+    },
+  ];
 }
 
-export function createActions(access: Access): CreateAction[] {
+export function createActions(_access: Access): CreateAction[] {
   return [];
 }
 
 export function homeCards(access: Access): HomeCard[] {
-  return [];
+  if (!canUsePush(access)) return [];
+  return [{ key: 'push.ask', placement: 'top', order: 5, Card: PushAskCard }];
 }

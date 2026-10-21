@@ -384,7 +384,7 @@ export default function ApplyLeaveScreen() {
         <EmptyState
           icon={<CalendarX color={moduleTone.leave.fg} />}
           title="Leave isn’t on for you"
-          message={access.managesOnly ? 'You set up leave for the company on the DASH website.' : 'Ask HR to switch it on.'}
+          message={access.managesOnly ? 'You set up leave for the company under More › HR setup.' : 'Ask HR to switch it on.'}
           action={<Button title="Go back" variant="accent" size="md" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />}
         />
       </Screen>

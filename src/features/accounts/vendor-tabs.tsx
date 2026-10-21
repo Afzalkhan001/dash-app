@@ -104,7 +104,7 @@ export function VendorAgreementsTab({ vendorId }: { vendorId: string }) {
   if (q.isPending) return <SkeletonList rows={3} avatar />;
   if (q.isError && !q.data) return <ErrorState message={q.error?.message || 'Couldn’t load the agreements.'} onRetry={() => void q.refetch()} />;
   const rows = q.data?.agreements ?? [];
-  if (!rows.length) return <EmptyState icon={<FileSignature color={palette.textMuted} strokeWidth={1.8} />} title="No agreements yet" message="Agreements are drafted on the DASH website for now." />;
+  if (!rows.length) return <EmptyState icon={<FileSignature color={palette.textMuted} strokeWidth={1.8} />} title="No agreements yet" message="Draft one from Vendor agreements › New agreement." />;
   return (
     <ActivityList title={plural(rows.length, 'agreement')}>
       {rows.map((a) => {

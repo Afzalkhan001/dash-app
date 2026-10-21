@@ -189,7 +189,7 @@ export default function BookRoomScreen() {
             ))}
           </ListCard>
         ) : (
-          <EmptyState icon={<DoorClosed color={palette.textMuted} />} title="No rooms yet" message="IT Admin adds conference rooms on the DASH website." />
+          <EmptyState icon={<DoorClosed color={palette.textMuted} />} title="No rooms yet" message="IT Admin adds conference rooms in the IT desk." />
         )}
       </Screen>
     );

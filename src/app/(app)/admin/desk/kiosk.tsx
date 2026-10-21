@@ -2,13 +2,14 @@
 // (Stack options by route name in (app)/_layout.tsx: no swipe-down, fade).
 //   1. The intro: what kiosk mode does, how to pin the phone (App pinning / Guided Access — Expo Go can't
 //      lock the phone itself), and Start kiosk. GET /visitors/qr gives the public check-in base.
-//   2. Running: the check-in wizard (features/desk/kiosk/wizard.tsx). The status bar is hidden and the
-//      Android Back button does nothing. "Exit kiosk" asks for the phone's own lock or the DASH password.
+//   2. Running: the check-in wizard (features/desk/kiosk/wizard.tsx). The screen stays on (expo-keep-awake),
+//      the status bar is hidden and the Android Back button does nothing. "Exit kiosk" asks for the phone's own lock or the DASH password.
 //   3. If the link stops working (someone made a new one) the kiosk says so and asks to be restarted.
 // Desk roles only (features/desk/access.ts canSeeKiosk); anyone else is sent home.
 
 import { useQuery } from '@tanstack/react-query';
 import { Redirect, useRouter } from 'expo-router';
+import { useKeepAwake } from 'expo-keep-awake';
 import { StatusBar } from 'expo-status-bar';
 import { BatteryCharging, Lock, MonitorSmartphone, Play, RefreshCcw, ShieldCheck, Ticket, WifiOff } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -59,6 +60,7 @@ export default function KioskScreen() {
     return (
       <>
         <StatusBar hidden />
+        <KeepAwake />
         <KioskLinkDead companyName={company} onAskExit={() => setAsking(true)} />
         <KioskExitSheet visible={asking} onClose={() => setAsking(false)} onExited={() => exitTo('intro')} />
       </>
@@ -69,6 +71,7 @@ export default function KioskScreen() {
     return (
       <>
         <StatusBar hidden />
+        <KeepAwake />
         <RunningKiosk base={base} companyName={company} linkUrl={checkInUrl(data.path)} onLinkDead={() => setPhase('dead')} onAskExit={() => setAsking(true)} />
         <KioskExitSheet visible={asking} onClose={() => setAsking(false)} onExited={() => exitTo('intro')} />
       </>
@@ -113,12 +116,18 @@ export default function KioskScreen() {
           Before you start
         </Text>
         <Tip icon={Lock} title="Pin the app" text="Android: Settings › Security › App pinning. iPhone: Settings › Accessibility › Guided Access. Then visitors can’t leave the kiosk." />
-        <Tip icon={BatteryCharging} title="Keep it charging" text="Set the screen to stay on while charging, so it doesn’t lock between visitors." />
+        <Tip icon={BatteryCharging} title="Keep it charging" text="The screen stays on while the kiosk runs, so keep the phone on its charger." />
         <Tip icon={Ticket} title="Invite codes" text="Guests with a code from their host check in without waiting for an answer." />
       </View>
       <Banner tone="info" icon={ShieldCheck} message="For a lobby tablet that runs all day, the DASH Visitors tablet app is still the best setup. This is great as a backup." />
     </Screen>
   );
+}
+
+/** Keeps the screen on while mounted (the kiosk runs all day on a stand). Web: the Wake Lock API, if any. */
+function KeepAwake() {
+  useKeepAwake('dash-kiosk', { suppressDeactivateWarnings: true });
+  return null;
 }
 
 function Tip({ icon: Icon, title, text }: { icon: typeof Lock; title: string; text: string }) {

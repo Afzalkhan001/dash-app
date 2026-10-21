@@ -3,19 +3,28 @@
 // Same pieces as the employee's Your invitations: a light SummaryHero (guests coming, who is next,
 // "Invite a visitor"), then upcoming and earlier invitations; a row opens the code with Share pass /
 // Cancel invite (features/visitors/invites). New invites use the shared form, /visitors/invite.
+// "Passes with a QR" (features/deskqr/pass-sheet): each active upcoming invite's pass with a real QR of its
+// code, to print or share — reception scans it at the door (Scan a pass).
 
 import { Redirect, useRouter } from 'expo-router';
-import { Ticket, UserPlus } from 'lucide-react-native';
+import { QrCode, ScanLine, Ticket, UserPlus } from 'lucide-react-native';
+import { useState } from 'react';
 
-import { useMyInvites } from '@/api/visitors';
+import { useDeskQr } from '@/api/desk';
+
+import { type Invite, useMyInvites } from '@/api/visitors';
+import { useSession } from '@/auth/session';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { canRunDesk, canSeeDeskInvites } from '@/features/desk/access';
 import { DESK_ROUTES } from '@/features/desk/routes';
-import { dateLabel } from '@/features/visitors/format';
+import { canScanPass } from '@/features/deskqr/access';
+import { PassSheet } from '@/features/deskqr/pass-sheet';
+import { DESKQR_ROUTES } from '@/features/deskqr/routes';
+import { dateLabel, timeWindow } from '@/features/visitors/format';
 import { asInvites, guestName, InviteList, splitInvites } from '@/features/visitors/invites';
 import { useAccess } from '@/lib/use-access';
 import { palette, radius } from '@/theme/tokens';
-import { EmptyState, ErrorState, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero } from '@/ui';
+import { EmptyState, ErrorState, ListCard, ListRow, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero } from '@/ui';
 
 export default function DeskInvitesScreen() {
   const access = useAccess();
@@ -23,6 +32,9 @@ export default function DeskInvitesScreen() {
   const today = useTodayIst();
   const allowed = canRunDesk(access) && canSeeDeskInvites(access);
   const invites = useMyInvites(allowed);
+  const qr = useDeskQr(allowed);
+  const me = useSession((s) => s.user?.name) ?? '';
+  const [pass, setPass] = useState<Invite | null>(null);
 
   if (!allowed) return <Redirect href="/" />;
 
@@ -35,7 +47,14 @@ export default function DeskInvitesScreen() {
   const dueToday = upcoming.filter((i) => i.visitDate === today).length;
 
   return (
-    <Screen header={<NavHeader title="Invites" />} onRefresh={() => invites.refetch()}>
+    <Screen
+      header={
+        <NavHeader
+          title="Invites"
+          actions={canScanPass(access) ? [{ icon: ScanLine, label: 'Scan a pass', onPress: () => router.push(DESKQR_ROUTES.scan) }] : undefined}
+        />
+      }
+      onRefresh={() => invites.refetch()}>
       <SummaryHero
         icon={Ticket}
         module="visitors"
@@ -47,6 +66,21 @@ export default function DeskInvitesScreen() {
         sub={next ? `Next: ${guestName(next)} · ${dateLabel(next.visitDate, today)}` : list.length ? 'Nobody is due. Invite someone when you need to.' : undefined}
         action={{ title: 'Invite a visitor', icon: <UserPlus />, onPress: () => router.push(DESK_ROUTES.invite) }}
       />
+      {upcoming.length ? (
+        <ListCard title="Passes with a QR">
+          {upcoming.map((i) => (
+            <ListRow
+              key={i.id}
+              left={<QrCode size={22} color={palette.primaryText} strokeWidth={1.8} />}
+              title={guestName(i)}
+              subtitle={[dateLabel(i.visitDate, today), timeWindow(i.timeFrom, i.timeTo)].filter(Boolean).join(' · ')}
+              chevron
+              onPress={() => setPass(i)}
+              accessibilityHint="Shows the visitor pass with its QR code"
+            />
+          ))}
+        </ListCard>
+      ) : null}
       {list.length ? (
         <InviteList invites={list} />
       ) : loading ? (
@@ -56,6 +90,7 @@ export default function DeskInvitesScreen() {
       ) : (
         <EmptyState icon={<Ticket color={palette.textMuted} />} title="No invitations yet" message="Guests you invite show up here with their check-in code." />
       )}
+      <PassSheet invite={pass} company={qr.data?.companyName ?? ''} host={me} today={today} onClose={() => setPass(null)} />
     </Screen>
   );
 }

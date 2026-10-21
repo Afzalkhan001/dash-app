@@ -1,6 +1,6 @@
 # Chat (Meets text chat + attachments) — hand-off for the integrator
 
-Wave 1, spec `docs/port/meets.md`. Calls and voice notes are not built (they wait for D3 / D4).
+Wave 1, spec `docs/port/meets.md`. **Wave 3 update:** voice notes, Excel export and the thread's call button are now built; see `features/chatvoice/HANDOFF.md`. Calls themselves belong to the calls domain.
 
 ## Plug-ins filled
 - [x] **More › links**: `chat.chat` "Chat" → `/chat` (tourId `more.chat`, order 10). It is labelled "Chat", not "Chat & calls", until calls ship.

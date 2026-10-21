@@ -5,22 +5,26 @@
 //          server checks again.
 //   text   up to 4000 characters; Enter adds a new line, the Send button sends.
 //   Send   a caption alone, a file alone, or both. Server errors (size, kind, rate limit) show as a toast.
-// Voice notes need expo-audio (owner decision D4), so there is no mic yet.
+//   mic    shown while the draft is empty: records a voice note (features/chatvoice/recorder.tsx),
+//          staged with Play / Discard / Send. Not while a call is live (website: disabled in a call).
 // A former member gets a muted note instead: "You left this conversation. You can still read and export it."
 
-import { Camera, FileUp, ImageIcon, Paperclip, Plus, SendHorizontal, X } from 'lucide-react-native';
+import { Camera, FileUp, ImageIcon, Mic, Paperclip, Plus, SendHorizontal, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { type AttachmentPolicy, DEFAULT_POLICY, MAX_BODY } from '@/api/chat';
 import { isAudioType, sendableType, sizeLabel, withType } from '@/features/chat/format';
+import { chatBus } from '@/features/chat/realtime';
+import { VoiceRecorder } from '@/features/chatvoice/recorder';
 import { FileError, pickDocument, pickImage, type PickedFile } from '@/lib/files';
 import { themedStyles } from '@/theme/themed';
 import { font, palette, radius, space } from '@/theme/tokens';
 import { MenuSheet, Text, toast, useLayout } from '@/ui';
 
-export type Staged = { name: string; type: string; size: number; dataUrl: string };
+/** `localUri`: a voice note recorded on this phone (played back from the file after it is sent). */
+export type Staged = { name: string; type: string; size: number; dataUrl: string; localUri?: string };
 
 export function Composer({
   canPost,
@@ -40,6 +44,7 @@ export function Composer({
   const [staged, setStaged] = useState<Staged | null>(null);
   const [menu, setMenu] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [voice, setVoice] = useState(false);
   const p = policy ?? DEFAULT_POLICY;
 
   if (!canPost) {
@@ -80,6 +85,28 @@ export function Composer({
 
   const body = draft.trim();
   const ready = (!!body || !!staged) && !sending && !picking;
+  const showMic = !body && !staged && !sending;
+
+  const startVoice = () => {
+    if (chatBus.callLive) {
+      toast.show('You can’t record a voice message during a call.', 'info');
+      return;
+    }
+    setVoice(true);
+  };
+
+  if (voice) {
+    return (
+      <View style={[styles.bar, { paddingHorizontal: gutter, paddingBottom: Math.max(insets.bottom, space.sm) }]}>
+        <VoiceRecorder
+          maxBytes={p.maxAudioBytes}
+          sending={sending}
+          onDone={() => setVoice(false)}
+          onSend={(c) => onSend('', { name: c.name, type: c.type, size: c.size, dataUrl: c.dataUrl, localUri: c.localUri })}
+        />
+      </View>
+    );
+  }
   const send = async () => {
     if (!ready) return;
     const ok = await onSend(body, staged);
@@ -130,6 +157,17 @@ export function Composer({
           style={styles.input}
           maxFontSizeMultiplier={1.4}
         />
+        {showMic ? (
+          <Pressable
+            onPress={startVoice}
+            disabled={picking}
+            accessibilityRole="button"
+            accessibilityLabel="Record a voice message"
+            accessibilityHint={`Up to 2 minutes. You can play it back before sending`}
+            style={({ pressed }) => [styles.round, styles.send, picking && styles.dim, pressed && styles.pressed]}>
+            <Mic size={20} color={palette.onPrimary} strokeWidth={1.9} />
+          </Pressable>
+        ) : (
         <Pressable
           onPress={send}
           disabled={!ready}
@@ -139,6 +177,7 @@ export function Composer({
           style={({ pressed }) => [styles.round, styles.send, !ready && styles.dim, pressed && styles.pressed]}>
           {sending ? <ActivityIndicator color={palette.onPrimary} /> : <SendHorizontal size={20} color={palette.onPrimary} strokeWidth={1.9} />}
         </Pressable>
+        )}
       </View>
       {draft.length > MAX_BODY - 200 ? (
         <Text variant="caption" muted align="right">

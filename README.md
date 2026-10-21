@@ -37,6 +37,18 @@ domain plugs in through `src/features/<domain>/{nav,inbox,tour,access}.ts` (regi
 `src/features/domains.ts`); its demo data is `src/demo/fixtures/<domain>.ts`, and clashes between
 domains are settled in `src/demo/fixtures/integration.ts`.
 
+**Wave 3 (owner: "everything in the website should be in the app"):** voice and video calls with the
+incoming-call ring (real calls need an installed build with `react-native-webrtc`; Expo Go says
+"Available in the installed app"); chat voice notes and Excel export; Google sign-in; push
+notifications (app side, plus the server branch in `docs/SERVER-CHANGES.md`); the desk's real QR,
+QR passes and pass scanning; **Documents** (the website's PDFs, signed agreement copies, and drafting
+agreements with signature spots); **Import & export** (the bulk Excel uploads and every Excel download);
+**Big tables** (attendance month, leave balances grid, payroll register, salaries, petty cash ledger,
+roster); **Payroll setup** (salary-structure editor, statutory and TDS), Branding, Professional
+categories, Extend a shoot; and the admin tools: Delete data (a company, all assets, a service request,
+each needing the item's name typed), TV playlists, the office map, Employees and Managers. Where each
+website page lives in the app: `docs/port/PARITY.md`.
+
 ## Run it on your phone (Expo Go)
 
 1. Install **Expo Go** from the Play Store / App Store.
@@ -143,6 +155,6 @@ npx expo-doctor    # dependency health
 
 ## Known limits (need a backend change, deliberately not done)
 
-- **Push notifications**: the server has no device-token endpoint. Counts refresh while the app is open.
+- **Push notifications**: the app side is built, but the device-token endpoints live on the unmerged server branch `feature/mobile-push` (`docs/PUSH.md`, `docs/SERVER-CHANGES.md`). Until it is deployed, counts refresh while the app is open.
 - **Sign-out** only forgets the token on the phone (the server has no staff logout endpoint — same as the website).
-- **Meets calls** need a development build (`react-native-webrtc`), not Expo Go. Chat works; an incoming call says "answer on the DASH website".
+- **Meets calls** run on the web build and in the demo. On phones they need an installed build with `react-native-webrtc` (not installed yet; `src/lib/capabilities.ts` `loadWebRTC()`), so Expo Go shows "Available in the installed app" on the call screens and the ring sheet.

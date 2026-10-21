@@ -579,6 +579,8 @@ export function Avatar({ name, uri, size = 40, ring = true }: { name?: string; u
   const initials =
     (name || '')
       .split(/\s+/)
+      // Letters and digits only, so "Afzal (personal)" reads "AP", not "A(".
+      .map((p) => p.replace(/[^\p{L}\p{N}]/gu, ''))
       .filter(Boolean)
       .slice(0, 2)
       .map((p) => p[0]!.toUpperCase())

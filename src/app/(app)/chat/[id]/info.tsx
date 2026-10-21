@@ -5,8 +5,8 @@
 //               - Remove someone (never the owner) → swipe to confirm; they keep the history up to now
 //                 and can't post again;
 //               - Rename the group → PATCH (new on the phone; the endpoint exists, meets.js:947).
-//   Export    .txt or .csv of what I can read (GET …/export; the server records every export).
-//             Excel stays on the website (it needs SheetJS).
+//   Export    Excel (.xlsx, like the website), .txt or .csv of what I can read (GET …/export; the
+//             server records every export). Excel: features/chatvoice/excel.ts.
 //   Leave     a group I'm still in → swipe to confirm; someone must add me back.
 // Nobody is emailed or WhatsApped by any of these: chat lists update live.
 
@@ -25,6 +25,7 @@ import { useTodayIst } from '@/features/attendance/use-now';
 import { canLeaveGroup, canManageGroup, canRemoveMember, canSeeMeets } from '@/features/chat/access';
 import { subtitleOf } from '@/features/chat/format';
 import { PeopleList } from '@/features/chat/people-list';
+import { shareChatXlsx } from '@/features/chatvoice/excel';
 import { shareCsv } from '@/lib/csv';
 import { dateLabel } from '@/lib/dates';
 import { FileError, shareFile } from '@/lib/files';
@@ -199,7 +200,7 @@ export default function ChatInfoScreen() {
     router.back();
   };
 
-  const doExport = async (kind: 'txt' | 'csv') => {
+  const doExport = async (kind: 'xlsx' | 'txt' | 'csv') => {
     setExporting(true);
     const r = await chatApi.exportChat(id);
     if (isApiError(r)) {
@@ -207,9 +208,10 @@ export default function ChatInfoScreen() {
       toast.show(r.error, 'danger');
       return;
     }
-    const base = `${safeFileName(title)}_${today}`;
+    const base = `DASH_Meets_${safeFileName(title)}_${today}`; // the website's file name (dash.html:10107)
     try {
-      if (kind === 'txt') await shareText(`${base}.txt`, String(r.txt ?? ''));
+      if (kind === 'xlsx') await shareChatXlsx(base, Array.isArray(r.rows) ? r.rows : []);
+      else if (kind === 'txt') await shareText(`${base}.txt`, String(r.txt ?? ''));
       else
         await shareCsv<ExportRow>(base, Array.isArray(r.rows) ? r.rows : [], [
           { label: 'Timestamp (IST)', value: (x) => x.timestamp },
@@ -306,7 +308,7 @@ export default function ChatInfoScreen() {
               <ListRow
                 left={<Download size={22} color={palette.primaryText} strokeWidth={1.8} />}
                 title={exporting ? 'Preparing…' : 'Export chat'}
-                subtitle="A text file or spreadsheet of the messages you can read. DASH records each export."
+                subtitle="Excel, text or CSV of the messages you can read. DASH records each export."
                 subtitleLines={3}
                 chevron
                 disabled={exporting}
@@ -323,8 +325,9 @@ export default function ChatInfoScreen() {
         title="Export chat"
         subtitle="Times are India time. Deleted messages are left out; files are named, not included."
         items={[
+          { key: 'xlsx', label: 'Excel (.xlsx)', hint: 'The same workbook the website makes', icon: FileSpreadsheet, onPress: () => void doExport('xlsx') },
           { key: 'txt', label: 'Text file (.txt)', hint: 'Easy to read or forward', icon: FileText, onPress: () => void doExport('txt') },
-          { key: 'csv', label: 'Spreadsheet (.csv)', hint: 'Opens in Excel or Google Sheets', icon: FileSpreadsheet, onPress: () => void doExport('csv') },
+          { key: 'csv', label: 'CSV (.csv)', hint: 'Plain rows that open in any spreadsheet app', icon: Download, onPress: () => void doExport('csv') },
         ]}
       />
 

@@ -289,8 +289,9 @@ export default function CompanySettingsScreen() {
 
       <Banner
         tone="info"
-        title="On the DASH website"
-        message="Change the logo, the report logo, professional categories, and TV and display pairing there."
+        title="Branding, categories and TVs"
+        message="The logo and report logo are under More › Branding, professional categories under More › Professional categories, and TV pairing under More › Office TVs."
+        action={{ label: 'Branding', onPress: () => router.push('/admin/hr-advanced/branding') }}
       />
 
       {/* Company details */}

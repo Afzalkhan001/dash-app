@@ -1,6 +1,6 @@
-// The kiosk's selfie (web: VisitSelfie + visitShrink, dash.html:35218-35270). Expo Go has no live camera
-// preview without expo-camera (not installed, PLAN D4), so the phone's own camera app opens on the FRONT
-// camera; "Choose a photo" is the web's file-input fallback. Either way the photo is shrunk exactly as the
+// The kiosk's selfie (web: VisitSelfie + visitShrink, dash.html:35218-35270). The live preview is
+// features/deskqr/camera (PhotoCapture); this file is its fallback — the phone's own camera app on the FRONT
+// camera — and "Choose a photo", the web's file-input fallback. Either way the photo is shrunk exactly as the
 // web does it: at most 640 px wide, JPEG quality 0.7, stepping down by 0.1 (not below 0.3) until it is
 // under 550 KB — the server refuses anything over 600 KB (visitors.js:60) and WhatsApp rejects a big
 // header image. Nothing is written anywhere but the image cache.
@@ -32,14 +32,15 @@ export async function takeSelfie(source: 'camera' | 'library' = 'camera'): Promi
   const asset = res.assets[0]!;
 
   try {
-    return await shrink(asset);
+    return await shrinkPhoto(asset);
   } catch (e) {
     if (e instanceof SelfieError) throw e;
     throw new SelfieError('That photo could not be read. Try again.');
   }
 }
 
-async function shrink(asset: ImagePicker.ImagePickerAsset): Promise<Selfie> {
+/** Shrinks any photo the same way (also used by the live camera in features/deskqr/camera). */
+export async function shrinkPhoto(asset: { uri: string; width?: number; height?: number }): Promise<Selfie> {
   const ctx = ImageManipulator.ImageManipulator.manipulate(asset.uri);
   const w = asset.width || 0;
   const h = asset.height || 0;

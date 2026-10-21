@@ -4,13 +4,17 @@
 //   + sheet            "Start kiosk" and "Invite visitor" for the Visitor Manager (the Super Admin already
 //                      has the built-in "Invite a visitor"; its kiosk is one row away in More).
 //   Home               the desk hero for the Visitor Manager (instead of the light Today card).
+//   Desk QR (features/deskqr): More › Reception "Scan a pass" (order 17) and + sheet "Scan a pass"
+//                      (Visitor Manager), both gated by canScanPass.
 // Pure: decided from `access` only (features/desk/access.ts holds the gates, cited to dash.html).
 
-import { History, LayoutDashboard, MonitorSmartphone, QrCode, Ticket, UserPlus } from 'lucide-react-native';
+import { History, LayoutDashboard, MonitorSmartphone, QrCode, ScanLine, Ticket, UserPlus } from 'lucide-react-native';
 
 import { canSeeDeskBoard, canSeeDeskInvites, canSeeDeskQr, canSeeKiosk, canSeeVisitorLog, isDeskRole, isVisitorManager } from '@/features/desk/access';
 import { DeskHeroCard } from '@/features/desk/home-card';
 import { DESK_ROUTES } from '@/features/desk/routes';
+import { canScanPass } from '@/features/deskqr/access';
+import { DESKQR_ROUTES } from '@/features/deskqr/routes';
 import type { Access, CreateAction, HomeCard, WorkspaceRow } from '@/features/plugin-types';
 
 export function workspaceRows(access: Access): WorkspaceRow[] {
@@ -42,6 +46,9 @@ export function workspaceRows(access: Access): WorkspaceRow[] {
       tourId: 'more.desk.kiosk',
     });
   }
+  if (canScanPass(access)) {
+    rows.push({ key: 'desk.scan', section: 'reception', label: 'Scan a pass', subtitle: 'Check in an invited guest from their QR', href: DESKQR_ROUTES.scan, icon: ScanLine, module: 'visitors', order: 17 });
+  }
   if (canSeeVisitorLog(access)) {
     rows.push({ key: 'desk.log', section: 'reception', label: 'Visitor log', subtitle: 'Every visit, searchable by name or date', href: DESK_ROUTES.log, icon: History, module: 'visitors', order: 20 });
   }
@@ -52,8 +59,8 @@ export function workspaceRows(access: Access): WorkspaceRow[] {
     rows.push({
       key: 'desk.qr',
       section: 'reception',
-      label: 'Check-in link',
-      subtitle: 'The link behind the reception QR code',
+      label: 'Check-in QR',
+      subtitle: 'The reception QR code, poster and link',
       href: DESK_ROUTES.qr,
       icon: QrCode,
       module: 'visitors',
@@ -69,6 +76,9 @@ export function createActions(access: Access): CreateAction[] {
   const out: CreateAction[] = [];
   if (canSeeKiosk(access)) {
     out.push({ key: 'desk.kiosk', label: 'Start kiosk', href: DESK_ROUTES.kiosk, icon: MonitorSmartphone, module: 'visitors', hint: 'Opens the lobby check-in stand' });
+  }
+  if (canScanPass(access)) {
+    out.push({ key: 'desk.scan', label: 'Scan a pass', href: DESKQR_ROUTES.scan, icon: ScanLine, module: 'visitors', hint: 'Check in an invited guest' });
   }
   if (canSeeDeskInvites(access)) {
     out.push({ key: 'desk.invite', label: 'Invite visitor', href: DESK_ROUTES.invite, icon: UserPlus, module: 'visitors', hint: 'Send a guest an entry code' });

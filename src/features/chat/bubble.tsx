@@ -4,18 +4,19 @@
 //
 // Attachments (spec §4.2): images inline (expo-image with the Bearer header; tap for full screen);
 // voice notes as a pill with the length from their name; other files as a row with name and size.
-// Tapping a file or voice note downloads it and opens the share sheet ("Open in…") — the app has no
-// audio player yet (expo-audio waits for owner decision D4).
+// Voice notes play inline (features/chatvoice/voice-player.tsx, one shared player per thread); tapping
+// a file downloads it and opens the share sheet ("Open in…").
 
 import { Image } from 'expo-image';
-import { Ban, FileText, Mic } from 'lucide-react-native';
+import { Ban, FileText } from 'lucide-react-native';
 import { memo } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { authHeaders, isDemoSession } from '@/api/client';
 import { attachmentUrl, type MeetsMessage } from '@/api/chat';
 import { chatDemoImage } from '@/demo/fixtures/chat';
-import { captionOf, isAudioType, isImageType, sizeLabel, voiceDuration } from '@/features/chat/format';
+import { captionOf, isAudioType, isImageType, sizeLabel } from '@/features/chat/format';
+import { VoicePill } from '@/features/chatvoice/voice-player';
 import { timeOf } from '@/lib/dates';
 import { themedStyles } from '@/theme/themed';
 import { palette, radius, space } from '@/theme/tokens';
@@ -75,27 +76,26 @@ export const MessageBubble = memo(function MessageBubble({
         )}
       </Pressable>
     );
+  } else if (a && isAudioType(a.type)) {
+    attachment = <VoicePill m={m} mine={mine} onShare={onOpenFile} onLongPress={onLongPress} />;
   } else if (a) {
-    const voice = isAudioType(a.type);
-    const len = voice ? voiceDuration(a.name) : null;
-    const Icon = voice ? Mic : FileText;
     attachment = (
       <Pressable
         onPress={() => onOpenFile(m)}
         onLongPress={onLongPress ? () => onLongPress(m) : undefined}
         accessibilityRole="button"
-        accessibilityLabel={voice ? `Voice message${len ? `, ${len}` : ''}` : `File ${a.name}, ${sizeLabel(a.size)}`}
+        accessibilityLabel={`File ${a.name}, ${sizeLabel(a.size)}`}
         accessibilityHint="Downloads it and opens the share sheet"
         style={({ pressed }) => [styles.file, mine ? styles.fileMine : styles.fileOther, pressed && styles.pressed]}>
         <View style={[styles.fileIcon, mine ? styles.fileIconMine : styles.fileIconOther]}>
-          <Icon size={18} color={mine ? palette.onPrimary : palette.primaryText} strokeWidth={1.8} />
+          <FileText size={18} color={mine ? palette.onPrimary : palette.primaryText} strokeWidth={1.8} />
         </View>
         <View style={styles.fileText}>
           <Text variant="labelStrong" color={fg} numberOfLines={2}>
-            {voice ? 'Voice message' : a.name}
+            {a.name}
           </Text>
           <Text variant="caption" color={fgMuted} numberOfLines={1}>
-            {voice ? [len, 'Tap to open'].filter(Boolean).join(' · ') : sizeLabel(a.size)}
+            {sizeLabel(a.size)}
           </Text>
         </View>
       </Pressable>
@@ -110,7 +110,7 @@ export const MessageBubble = memo(function MessageBubble({
       // With a photo or file the bubble is not one accessible block, so a screen reader can still reach
       // and open the attachment inside it (an accessible parent hides its children).
       accessible={!a}
-      accessibilityLabel={[mine ? 'You' : who, m.deleted ? 'message deleted' : caption, a ? (isImageType(a.type) ? 'photo' : a.name) : null, time].filter(Boolean).join(', ')}
+      accessibilityLabel={[mine ? 'You' : who, m.deleted ? 'message deleted' : caption, a ? (isImageType(a.type) ? 'photo' : isAudioType(a.type) ? 'voice message' : a.name) : null, time].filter(Boolean).join(', ')}
       accessibilityHint={onLongPress ? 'Long press for options' : undefined}
       accessibilityActions={onLongPress ? [{ name: 'longpress', label: 'Message options' }] : undefined}
       onAccessibilityAction={onLongPress ? (e) => e.nativeEvent.actionName === 'longpress' && onLongPress(m) : undefined}

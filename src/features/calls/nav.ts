@@ -1,24 +1,36 @@
-// Calls domain (wave 3) — nav.ts. What this domain adds to More, the + sheet and Home.
-// Stub created by the integrator in Wave 0 and already wired into the shared screens through
-// features/domains.ts, so filling it in needs no shared edit. Owner: the calls agent (docs/port/PLAN.md
-// §2.1; spec docs/port/meets.md). Scope: Voice and video calls (development build only, decision D3). Routes: src/app/(app)/call/**.
-// API and rules: docs/port/EXTENSION-POINTS.md.
-//   workspaceRows(access)  rows in More › Workspace (section: work, people, money, it, company,
-//                          platform, reception, or links for a plain link under the app grid)
-//   createActions(access)  round actions in the + sheet, after the built-in 8
-//   homeCards(access)      Home cards (placement: hero, top, needs, end)
-// Pure: read `access` only (access.web(id) is the website's sidebar test), return [] without the gate.
+// Calls domain — what it adds to More, the + sheet and Home (docs/port/EXTENSION-POINTS.md §3–6).
+//   More › links   "Calls" → /call (start a call, test the ring), right after Chat
+//   + sheet        "Start call" → /call?start=1 (opens the people picker)
+// Same gate as chat: Meets is for everyone signed in (dash.html:7000). In Expo Go the rows still
+// show: the Calls screen says "Available in the installed app" and offers the test ring.
 
+import { Phone, PhoneCall } from 'lucide-react-native';
+
+import { canSeeCalls } from '@/features/calls/access';
 import type { Access, CreateAction, HomeCard, WorkspaceRow } from '@/features/plugin-types';
 
 export function workspaceRows(access: Access): WorkspaceRow[] {
-  return [];
+  if (!canSeeCalls(access.user, access.tenant)) return [];
+  return [
+    {
+      key: 'calls.calls',
+      section: 'links',
+      label: 'Calls',
+      subtitle: 'Voice and video calls with colleagues',
+      href: '/call',
+      icon: Phone,
+      module: 'news',
+      order: 11,
+      tourId: 'more.calls',
+    },
+  ];
 }
 
 export function createActions(access: Access): CreateAction[] {
-  return [];
+  if (!canSeeCalls(access.user, access.tenant)) return [];
+  return [{ key: 'calls.start', label: 'Start call', href: '/call?start=1', icon: PhoneCall, module: 'news', hint: 'Pick a colleague and ring them', order: 120 }];
 }
 
-export function homeCards(access: Access): HomeCard[] {
+export function homeCards(_access: Access): HomeCard[] {
   return [];
 }

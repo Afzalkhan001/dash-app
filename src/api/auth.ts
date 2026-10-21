@@ -4,7 +4,7 @@
 //   2. Email + password:     /auth/login → (chooseAccount?) → 2nd factor → /auth/login/verify-otp
 //        2nd factor by WhatsApp: phone/send-otp + phone/verify-otp, then verify-otp with idToken
 //        2nd factor by email:    /auth/login/send-otp, then verify-otp with code
-//   3. Google (Firebase) — not wired in the app yet.
+//   3. Google: a Firebase ID token → /auth/google (features/signin/google.ts has the token steps).
 // The app always sends trustDevice:true, which gives the 15-day session.
 
 import { api, type ApiResult } from '@/api/client';
@@ -37,6 +37,16 @@ export const sendLoginEmailOtp = (challengeId: string) =>
 
 export const verifyLoginOtp = (challengeId: string, proof: { code: string } | { idToken: string }): Promise<ApiResult<SessionPayload>> =>
   api.post('/auth/login/verify-otp', { challengeId, ...proof });
+
+// Google (server.js:2526). `idToken` must be a FIREBASE ID token (not Google's own id_token): the
+// server checks it with Firebase accounts:lookup. A new person on the approved list gets an account.
+// 401 "Could not verify that Google account." · 403 "…not on the employee roster…"
+export const signInWithGoogle = (firebaseIdToken: string): Promise<ApiResult<SessionPayload>> =>
+  api.post('/auth/google', { idToken: firebaseIdToken, trustDevice: true });
+
+// The public Firebase web config the website loads before sign-in (server.js:2963). Only apiKey is used.
+export const getFirebaseConfig = () =>
+  api.get<{ apiKey?: string; authDomain?: string; projectId?: string }>('/firebase-config');
 
 export const changePassword = (userId: string, currentPassword: string, newPassword: string) =>
   api.post('/auth/change-password', { userId, currentPassword, newPassword });

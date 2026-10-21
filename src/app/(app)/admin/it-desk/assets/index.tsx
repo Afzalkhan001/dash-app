@@ -358,7 +358,7 @@ export default function AssetsScreen() {
           <EmptyState
             icon={<Package color={palette.textMuted} />}
             title="No assets yet"
-            message="Add the first one. Bulk upload from a spreadsheet is on the DASH website."
+            message="Add the first one, or upload a spreadsheet under More › Import & export."
             action={<Button title="Add an asset" variant="accent" size="md" icon={<PackagePlus />} onPress={() => router.push('/admin/it-desk/assets/new')} />}
           />
         )}

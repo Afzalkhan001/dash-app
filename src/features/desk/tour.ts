@@ -29,7 +29,7 @@ export function tourSteps(ctx: DomainTourCtx): TourStep[] {
     steps.push(tourStep('desk.kiosk', 'more.desk.kiosk', 'Kiosk mode', 'Turn this phone into a check-in stand. Visitors check themselves in.', { screen: '/more' }));
   }
   if (ctx.role === 'visitor_manager' && ctx.workspaceRows.includes('desk.qr')) {
-    steps.push(tourStep('desk.qr', 'more.desk.qr', 'The check-in link', 'Share the link visitors open to check in.', { screen: '/more' }));
+    steps.push(tourStep('desk.qr', 'more.desk.qr', 'Check-in QR', 'Show, print or share the QR visitors scan to check in. Scan a pass checks in a guest with a QR pass.', { screen: '/more' }));
   }
   return steps;
 }

@@ -780,6 +780,10 @@ function startBillPayment(id: string) {
 // person's countersignature; the Diwali crew agreement has passed its deadline, so Extend can be tried.
 type AgreementExtra = { project_id: string; keka_code: string; created_by: string; signer_id: string | null; internal_file?: string; internal_type?: string };
 const AGREEMENT_EXTRAS = new Map<string, AgreementExtra>();
+/** Integrator pass 3: an agreement drafted in the app (fixtures/docs.ts) records its real Keka Code, drafter and countersigner. */
+export function registerAgreementExtra(id: string, extra: Pick<AgreementExtra, 'project_id' | 'keka_code' | 'created_by' | 'signer_id'>) {
+  AGREEMENT_EXTRAS.set(id, { ...extra });
+}
 const AGREEMENT_PROJECTS = ['p-kisan', 'p-nimbus', 'p-sjw-diwali', 'p-reel', 'p-spice', 'p-admin'];
 const AGREEMENT_BY: Record<string, string> = { 'Deepa Menon': 'u-deepa', 'Priya Sharma': 'u-priya', 'Ramesh Gupta': 'u-ramesh' };
 const SIGNER_ID: Record<string, string> = { 'Arvind Menon': 'u-arvind', 'Kiran Rao': 'u-kiran' };

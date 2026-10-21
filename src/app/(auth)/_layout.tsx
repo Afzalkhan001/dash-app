@@ -15,6 +15,7 @@ export default function AuthLayout() {
       <Stack.Screen name="vendor" />
       <Stack.Screen name="vendor-otp" />
       <Stack.Screen name="vendor-password" />
+      <Stack.Screen name="oauthredirect" options={{ animation: 'none' }} />
     </Stack>
   );
 }

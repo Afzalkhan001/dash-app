@@ -312,7 +312,7 @@ export function useMyTeam() {
   };
 
   // No manager on file: a muted line, worded for who can fix it (not for the head of the company).
-  const noManager = !teamOn || role === 'ceo' || role === 'coo' ? null : org.full ? 'No reporting manager on file yet. Add one on the DASH website.' : 'No reporting manager on your record yet.';
+  const noManager = !teamOn || role === 'ceo' || role === 'coo' ? null : org.full ? 'No reporting manager on file yet. Add one in the person’s profile under More › Employees.' : 'No reporting manager on your record yet.';
 
   const refetch = () =>
     Promise.all([org.refetch(), profile.refetch(), hrQ.refetch(), teamOn ? departments.refetch() : null, teamOn ? leaveQ.refetch() : null]);

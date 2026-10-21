@@ -9,6 +9,7 @@
 // Nobody is messaged.
 
 import { FlashList } from '@shopify/flash-list';
+import { router } from 'expo-router';
 import { CalendarRange, History, MoreHorizontal, Search, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { RefreshControl, View } from 'react-native';
@@ -154,9 +155,9 @@ export default function BalancesScreen() {
         }
         ListFooterComponent={
           people.length ? (
-            <Text variant="caption" muted align="center" style={styles.foot}>
-              The full grid of people and leave types is on the DASH website.
-            </Text>
+            <View style={styles.foot}>
+              <Button variant="text" title="See everyone × every leave type" onPress={() => router.push('/admin/grids/leave-balances')} />
+            </View>
           ) : null
         }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={palette.primaryText} colors={[palette.primaryText]} progressBackgroundColor={palette.surface} />}

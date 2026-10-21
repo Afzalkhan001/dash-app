@@ -373,7 +373,7 @@ function ClaimStatus(p: {
 
   // Why there is nothing to do here. A cancelled, closed or full task needs no notice: the hero's
   // pill (Cancelled / Expired / Full) and its "Closed …" line already say so.
-  if (p.isOwnTask) return <Banner tone="info" icon={Ban} title="Your task" message="You posted this task. Review the work on the DASH website." />;
+  if (p.isOwnTask) return <Banner tone="info" icon={Ban} title="Your task" message="You posted this task. Work sent on it waits for you in Inbox." />;
   if (p.cancelled || p.expired || p.full || p.canClaim) return null;
   const reason =
     p.role === 'app_manager' ? 'Your role can only view tasks.' : p.isCreator ? 'People who post tasks can’t take part in them.' : 'You can’t take part in this task.';

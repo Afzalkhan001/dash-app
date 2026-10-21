@@ -29,8 +29,19 @@ import { bountyadminRoutes } from '@/demo/fixtures/bountyadmin';
 import { platformRoutes } from '@/demo/fixtures/platform';
 import { pushRoutes } from '@/demo/fixtures/push';
 import { callsRoutes } from '@/demo/fixtures/calls';
+import { adminadvancedRoutes } from '@/demo/fixtures/adminadvanced';
+import { chatvoiceRoutes } from '@/demo/fixtures/chatvoice';
+import { deskqrRoutes } from '@/demo/fixtures/deskqr';
+import { docsRoutes } from '@/demo/fixtures/docs';
+import { hradvancedRoutes } from '@/demo/fixtures/hradvanced';
+import { excelRoutes } from '@/demo/fixtures/excel';
 
+// Pass 3 order: adminadvanced first (its GET /tenants, /users, /departments, /projects match only for the
+// platform owner); chatvoice before chat (it wraps chat's GET …/messages); hradvanced before payroll (its
+// GET /hr/salary/structures overlay must win); excel last (it must never shadow the people, work and
+// itdesk POST handlers). deskqr's list is empty: importing it seeds two more of today's invites.
 export const domainRoutes: Route[] = [
+  ...adminadvancedRoutes,
   ...integrate('work', workRoutes),
   ...integrate('booking', bookingRoutes),
   ...integrate('servicedesk', servicedeskRoutes),
@@ -40,10 +51,12 @@ export const domainRoutes: Route[] = [
   ...companyRoutes,
   ...deskRoutes,
   ...signinRoutes,
+  ...chatvoiceRoutes,
   ...chatRoutes,
   ...teamboardRoutes,
   ...insightsRoutes,
   ...itdeskRoutes,
+  ...hradvancedRoutes,
   ...payrollRoutes,
   ...hiringRoutes,
   ...newsroomRoutes,
@@ -51,4 +64,7 @@ export const domainRoutes: Route[] = [
   ...integrate('platform', platformRoutes),
   ...pushRoutes,
   ...callsRoutes,
+  ...deskqrRoutes,
+  ...docsRoutes,
+  ...excelRoutes,
 ];

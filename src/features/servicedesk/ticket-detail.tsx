@@ -15,7 +15,7 @@
 // by ticket).
 
 import { Redirect, useRouter } from 'expo-router';
-import { ArrowRightLeft, CircleDot, Mail, MessageCircle, Phone, SearchX, UserRound, UserRoundCheck, X } from 'lucide-react-native';
+import { ArrowRightLeft, CircleDot, Mail, MessageCircle, Phone, SearchX, Trash2, UserRound, UserRoundCheck, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Linking, View } from 'react-native';
 
@@ -41,6 +41,7 @@ import {
 import { type Desk, useDesk } from '@/features/servicedesk/use-desk';
 import { type PickPerson, PersonPicker } from '@/features/shared/person-picker';
 import { dayTime, priorityLabel, raisedOn, ticketStatus } from '@/features/support/format';
+import { canDeleteTickets } from '@/features/adminadvanced/access';
 import { useAccess } from '@/lib/use-access';
 import { palette, radius, space } from '@/theme/tokens';
 import {
@@ -398,7 +399,14 @@ export function TicketDetail({ id }: { id: string; via?: 'desk' | 'inbox' }) {
     : undefined;
 
   return (
-    <Screen header={<NavHeader title={t ? kindLabel(t) : 'Request'} />} onRefresh={() => desk.refetch()} footer={footer}>
+    <Screen
+      header={
+        <NavHeader
+          title={t ? kindLabel(t) : 'Request'}
+          // Integrator pass 3: delete lives in admin/advanced/delete-ticket (type the reference, then swipe).
+          actions={t && canDeleteTickets(access) ? [{ key: 'delete', icon: Trash2, label: 'Delete this request', onPress: () => router.push(`/admin/advanced/delete-ticket?id=${encodeURIComponent(id)}`) }] : undefined}
+        />
+      } onRefresh={() => desk.refetch()} footer={footer}>
       {t ? (
         <View style={{ gap }}>
           <Hero t={t} today={today} />
