@@ -21,6 +21,7 @@ import {
   reimbursementStatus,
   reimbursementStatusLine,
 } from '@/features/reimbursements/format';
+import { canSeeReimbursements } from '@/features/reimbursements/access';
 import { purposeIcon } from '@/features/reimbursements/purpose-icon';
 import { ReceiptButton } from '@/features/reimbursements/receipt-viewer';
 import { RespondSheet, ReuploadSheet } from '@/features/reimbursements/sheets';
@@ -97,7 +98,10 @@ function DetailSkeleton() {
 export default function ExpenseClaimRoute() {
   const { id, scope } = useLocalSearchParams<{ id: string; scope?: string }>();
   const claimId = typeof id === 'string' ? id : '';
+  const user = useSession((s) => s.user);
   if (scope === 'keka' && claimId) return <Redirect href={`/inbox/keka/${encodeURIComponent(claimId)}`} />;
+  // Only the roles reimbursements.js lets in (features/reimbursements/access); others are sent home.
+  if (!canSeeReimbursements(user)) return <Redirect href="/" />;
   return <ExpenseClaimDetail id={claimId} />;
 }
 

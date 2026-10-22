@@ -492,7 +492,9 @@ export function ProgressBar({
       accessible={labelled}
       accessibilityRole={labelled ? 'progressbar' : undefined}
       accessibilityLabel={accessibilityLabel}
-      accessibilityValue={labelled ? { min: 0, max: 100, now: pct } : undefined}
+      aria-valuemin={labelled ? 0 : undefined}
+      aria-valuemax={labelled ? 100 : undefined}
+      aria-valuenow={labelled ? pct : undefined}
       accessibilityElementsHidden={!labelled}
       importantForAccessibility={labelled ? 'yes' : 'no-hide-descendants'}>
       <View

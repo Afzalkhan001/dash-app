@@ -37,8 +37,10 @@ import {
   workedSeconds,
 } from '@/features/tasks/model';
 import { rowStatus, type TaskFlow, taskIcon } from '@/features/tasks/task-card';
+import { useTasksRouteGate } from '@/features/tasks/gate';
 import { useTaskFlow } from '@/features/tasks/use-task-flow';
 import { hmLabel, phoneLabel, stampLabel } from '@/features/visitors/format';
+import { RouteGate } from '@/features/shared/route-gate';
 import { palette, radius, space, type as typeScale } from '@/theme/tokens';
 import {
   FIELD_LABEL_INSET,
@@ -285,7 +287,17 @@ function DetailSkeleton() {
   );
 }
 
+// My tasks is for the roles the website gives "My Tasks" / "Tasks", or "My Team Tasks" (features/tasks/gate).
 export default function TaskDetail() {
+  const gate = useTasksRouteGate();
+  return (
+    <RouteGate allow={gate.allow || !gate.ready}>
+      <TaskDetailBody />
+    </RouteGate>
+  );
+}
+
+function TaskDetailBody() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const tasksQ = useMyTasks();
   const bookingsQ = useMyProBookings();

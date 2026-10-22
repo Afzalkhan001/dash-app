@@ -42,6 +42,9 @@ export function gridGates(a: Access) {
     ledger: canSeePettyLedger(a),
     roster: canSeeRosterGrid(a),
   };
-  return { ...g, any: Object.values(g).some(Boolean) };
+  // `tables`: the People & HR tables — the ones behind More › Workspace › "Big tables" (nav.ts), so the
+  // hub opens only for people offered it (the petty cash ledger has its own Money row and route).
+  const tables = g.attendance || g.balances || g.payroll || g.salaries || g.roster;
+  return { ...g, tables, any: tables || g.ledger };
 }
 export type GridGates = ReturnType<typeof gridGates>;

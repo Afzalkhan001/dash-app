@@ -23,7 +23,7 @@ import { type NewPettyCashBill, type PettyCashExcess, submitPettyCashBills, useE
 import { useTodayIst } from '@/features/attendance/use-now';
 import { fileSizeLabel, MAX_PAYLOAD_CHARS } from '@/features/bounty/files';
 import { type PickerItem, SearchPickerField } from '@/features/petty-cash/components';
-import { list, localToday, money, shortDate } from '@/features/petty-cash/logic';
+import { list, localToday, money, roleSeesPettyCash, shortDate } from '@/features/petty-cash/logic';
 import { KeypadReadout } from '@/features/petty-cash/keypad-readout';
 import { ExpenseTypeTiles } from '@/features/petty-cash/type-tiles';
 import { plural } from '@/lib/format';
@@ -55,6 +55,8 @@ import {
 } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
+import { useSession } from '@/auth/session';
+import { RouteGate } from '@/features/shared/route-gate';
 type BillRow = {
   key: number;
   project: PickerItem | null;
@@ -81,7 +83,17 @@ const blank = (key: number, day: string, project: PickerItem | null = null): Bil
 type BillErrors = Partial<Record<'project' | 'head' | 'description' | 'paidTo' | 'amount' | 'billDate', string>>;
 type Sent = { batchId: string; excess: PettyCashExcess[]; count: number; total: number };
 
+// Petty cash is for the roles whose web menu has it (the More tile's rule); others are sent home.
 export default function SubmitBillsScreen() {
+  const user = useSession((s) => s.user);
+  return (
+    <RouteGate allow={roleSeesPettyCash(user)}>
+      <SubmitBillsBody />
+    </RouteGate>
+  );
+}
+
+function SubmitBillsBody() {
   const router = useRouter();
   const qc = useQueryClient();
   const projectsQ = useKekaProjects();

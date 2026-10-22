@@ -14,7 +14,7 @@ type Item = { key: string; title: string; sub: string; href: string; icon: Lucid
 
 export default function GridsHub() {
   const router = useRouter();
-  const { gates, allowed, pending } = useGridGate('any');
+  const { gates, allowed, pending } = useGridGate('tables');
   const header = <NavHeader title="Big tables" />;
   if (!allowed) return <GridGateFallback pending={pending} header={header} />;
 

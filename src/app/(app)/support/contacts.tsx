@@ -8,8 +8,20 @@ import { supportKeys } from '@/api/support';
 import { useSession } from '@/auth/session';
 import { SupportCentre } from '@/features/support/centre';
 import { NavHeader, Screen } from '@/ui';
+import { webNav } from '@/lib/access';
+import { RouteGate } from '@/features/shared/route-gate';
 
+// Help & support is for the roles whose web menu has it (not the platform owner or the office TV).
 export default function SupportContactsScreen() {
+  const user = useSession((s) => s.user);
+  return (
+    <RouteGate allow={webNav(user, 'support', null)}>
+      <SupportContactsBody />
+    </RouteGate>
+  );
+}
+
+function SupportContactsBody() {
   const qc = useQueryClient();
   const userId = useSession((s) => s.user?.id);
   const refresh = () =>

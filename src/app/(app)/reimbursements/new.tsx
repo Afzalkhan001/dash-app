@@ -53,6 +53,9 @@ import {
   Text,
   useAmountKeypad,
 } from '@/ui';
+import { useSession } from '@/auth/session';
+import { canSeeReimbursements } from '@/features/reimbursements/access';
+import { RouteGate } from '@/features/shared/route-gate';
 
 const PURPOSE_OPTIONS = Object.entries(PURPOSE_LABEL).map(([value, label]) => ({ value, label, icon: purposeIcon(value) }));
 
@@ -76,7 +79,17 @@ function recentProjects(claims: Reimbursement[] | undefined, projects: Project[]
   return out;
 }
 
+// Expense claims: only the roles reimbursements.js lets in (features/reimbursements/access).
 export default function NewExpenseClaim() {
+  const user = useSession((s) => s.user);
+  return (
+    <RouteGate allow={canSeeReimbursements(user)}>
+      <NewExpenseClaimBody />
+    </RouteGate>
+  );
+}
+
+function NewExpenseClaimBody() {
   const router = useRouter();
   const projects = useProjects();
   const mine = useMyReimbursements();

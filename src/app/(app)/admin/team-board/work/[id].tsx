@@ -82,6 +82,14 @@ function WorkScreen({ board }: { board: Board }) {
     />
   );
 
+  // A work item is read through its project (?project=); a link without one has nothing to load.
+  if (!projectId) {
+    return (
+      <Screen header={header}>
+        <ErrorState message="Open this work item from its project on the Team board." />
+      </Screen>
+    );
+  }
   if (tasksQ.isPending) {
     return (
       <Screen header={header}>

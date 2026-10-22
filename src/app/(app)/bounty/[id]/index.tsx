@@ -21,6 +21,7 @@ import { type BountyPhase, type BountyTask, fetchBountyReference, startBountyCla
 import { isApiError } from '@/api/client';
 import { useNow } from '@/features/attendance/use-now';
 import { openFileSource } from '@/features/bounty/files';
+import { BountyGate } from '@/features/bounty/gate';
 import { useBountyLabels, useMergeBountyTask } from '@/features/bounty/hooks';
 import {
   asArray,
@@ -70,7 +71,16 @@ const withScheme = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://
 // A reward stage's name in plain words: the website's default "Phase 2" reads "Stage 2" here.
 const stageName = (name: unknown, i: number) => (typeof name === 'string' && name.trim() ? name.trim().replace(/^phase\b/i, 'Stage') : `Stage ${i + 1}`);
 
+// Same gate as the hub: only people who have Bounty rewards (company switch + role) open a task.
 export default function BountyTaskScreen() {
+  return (
+    <BountyGate title="Bounty task">
+      <BountyTaskBody />
+    </BountyGate>
+  );
+}
+
+function BountyTaskBody() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const tasksQ = useBountyTasks();

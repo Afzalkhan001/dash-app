@@ -152,6 +152,9 @@ export function CandidateScreen({ id }: { id: string }) {
   const refs = h.refs;
   const r = (refs.data ?? []).find((x) => x.id === id);
 
+  // Gate first once the signals are known: for anyone off the referrals menu the referrals query never
+  // runs (stays pending), so checking it first left them on a skeleton forever instead of sending them home.
+  if (h.ready && !allowed) return <Redirect href="/" />;
   if (!h.ready || (refs.isPending && !refs.data)) {
     return (
       <Screen header={<NavHeader title={TITLE} />}>
@@ -159,7 +162,6 @@ export function CandidateScreen({ id }: { id: string }) {
       </Screen>
     );
   }
-  if (!allowed) return <Redirect href="/" />;
   if (!r) {
     return (
       <Screen header={<NavHeader title={TITLE} />} onRefresh={() => refs.refetch()}>

@@ -3,7 +3,7 @@
 // with its website gate (features/work/access.ts). More › Workspace links each area directly; this
 // screen is the landing from Home's team card.
 
-import { type Href, useRouter } from 'expo-router';
+import { type Href, Redirect, useRouter } from 'expo-router';
 import { BriefcaseBusiness, ClipboardCheck, ClipboardList, ClipboardPlus, UsersRound } from 'lucide-react-native';
 
 import { useAllClients, useTeamTasks } from '@/api/work';
@@ -44,6 +44,8 @@ function WorkHub() {
     ? (tasksQ.data ?? []).filter((t) => !!t && t.status === 'submitted' && t.source !== 'booking' && t.source !== 'ticket' && scope.reviewNames.has(String(t.assignee || ''))).length
     : 0;
   const go = (href: Href) => () => router.push(href);
+  // Only Project codes to offer (HR, IT Admin, Super Admin…): a one-tile hub is an empty page, so go straight there.
+  if (!teamOn && !reviewOn && !clientsHero && canSeeProjects(a)) return <Redirect href="/admin/work/projects" />;
 
   const items: CategoryItem[] = [
     ...(teamOn ? [{ key: 'tasks', label: 'Team tasks', icon: ClipboardList, module: 'tasks' as const, onPress: go('/admin/work/tasks'), badge: open || undefined }] : []),

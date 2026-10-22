@@ -133,6 +133,9 @@ export default function VendorAgreementDetail() {
           </View>
         ) : me.isError && !me.data ? (
           <ErrorState message={me.error?.message ?? 'Could not load your account.'} onRetry={() => void me.refetch()} />
+        ) : !approved ? (
+          // Same gate as the Agreements tab: nothing is read until the vendor is approved.
+          <EmptyState icon={<FileSignature color={palette.textMuted} />} title="Agreements open after approval" message="Once you’re approved, agreements to sign show here." />
         ) : q.isError ? (
           <ErrorState message={q.error?.message ?? 'Could not load this agreement.'} onRetry={() => void q.refetch()} />
         ) : !a ? (

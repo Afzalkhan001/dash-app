@@ -1110,7 +1110,9 @@ export function StripedProgress({
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={spoken}
-      accessibilityValue={{ min: 0, max: 100, now: pct }}>
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={pct}>
       <View style={styles.stripedHead}>
         <Text variant="label" muted numberOfLines={2} style={styles.flexText}>
           {label ?? ''}
@@ -1194,7 +1196,7 @@ export function RankSlider({ rank, worst, best = 1, prefix = 'No.', change, capt
   const mx = clamp(pos * w, 7, Math.max(7, w - 7));
   const showMid = pos > 0.22 && pos < 0.78;
   return (
-    <View style={[styles.rank, style]} accessible accessibilityRole="progressbar" accessibilityLabel={spoken} accessibilityValue={{ min: lo, max: hi, now: r }}>
+    <View style={[styles.rank, style]} accessible accessibilityRole="progressbar" accessibilityLabel={spoken} aria-valuemin={lo} aria-valuemax={hi} aria-valuenow={r}>
       <View style={styles.rankFigure}>
         <Text variant="body" muted numberOfLines={1} maxFontSizeMultiplier={1.2} style={styles.rankPrefix}>
           {prefix}
@@ -1323,7 +1325,7 @@ export function RadialArc({
   const fracStyle: TextStyle = { fontSize: s >= 170 ? 40 : 36, lineHeight: s >= 170 ? 46 : 42 };
 
   return (
-    <View onLayout={onLayout} style={[styles.arcWrap, style]} accessible accessibilityRole="progressbar" accessibilityLabel={spoken} accessibilityValue={{ min: 0, max: 100, now: pct }}>
+    <View onLayout={onLayout} style={[styles.arcWrap, style]} accessible accessibilityRole="progressbar" accessibilityLabel={spoken} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
       <View style={{ width: s, height: s }}>
         <Svg width={s} height={s}>
           <Defs>

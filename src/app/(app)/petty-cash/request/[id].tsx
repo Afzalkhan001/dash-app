@@ -36,6 +36,7 @@ import {
   paymentLine,
   pettyCashPool,
   pettyCashRef,
+  roleSeesPettyCash,
   rowMoney,
   shortDate,
   statusMeta,
@@ -69,7 +70,18 @@ import {
 } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
+import { RouteGate } from '@/features/shared/route-gate';
+// Petty cash is for the roles whose web menu has it (the More tile's rule); others are sent home.
 export default function PettyCashRequestScreen() {
+  const user = useSession((s) => s.user);
+  return (
+    <RouteGate allow={roleSeesPettyCash(user)}>
+      <PettyCashRequestBody />
+    </RouteGate>
+  );
+}
+
+function PettyCashRequestBody() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { compact } = useLayout();

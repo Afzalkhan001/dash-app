@@ -11,8 +11,21 @@ import { dateLabel } from '@/features/visitors/format';
 import { asInvites, guestName, InviteList, splitInvites } from '@/features/visitors/invites';
 import { palette, radius } from '@/theme/tokens';
 import { EmptyState, ErrorState, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero } from '@/ui';
+import { useSession } from '@/auth/session';
+import { VISITOR_HIDDEN_ROLES } from '@/api/inbox';
+import { RouteGate } from '@/features/shared/route-gate';
 
+// Same rule as the Visitors hub: not the platform owner, the office TV or the Visitor Manager (who has the desk).
 export default function InvitationsScreen() {
+  const role = useSession((s) => s.user?.role);
+  return (
+    <RouteGate allow={!role || !VISITOR_HIDDEN_ROLES.includes(role)} to={role === 'visitor_manager' ? '/admin/desk' : '/'}>
+      <InvitationsBody />
+    </RouteGate>
+  );
+}
+
+function InvitationsBody() {
   const router = useRouter();
   const today = useTodayIst();
   const invites = useMyInvites();

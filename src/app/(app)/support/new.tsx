@@ -18,6 +18,8 @@ import { space } from '@/theme/tokens';
 import { ActionBar, Button, ConfirmSheet, NavHeader, Screen, SectionHeader, SelectTiles, SuccessSheet, SummaryCard } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
+import { webNav } from '@/lib/access';
+import { RouteGate } from '@/features/shared/route-gate';
 
 const KINDS: RequestKind[] = ['ticket', 'asset', 'admin_request', 'complaint'];
 
@@ -31,7 +33,17 @@ const SENT: Record<RequestKind, string> = {
 /** Wait for the confirm sheet to close before the success sheet opens (iOS presents one Modal at a time). */
 const SHEET_SWAP_MS = 380;
 
+// Help & support is for the roles whose web menu has it (not the platform owner or the office TV).
 export default function NewSupportRequest() {
+  const user = useSession((s) => s.user);
+  return (
+    <RouteGate allow={webNav(user, 'support', null)}>
+      <NewSupportRequestBody />
+    </RouteGate>
+  );
+}
+
+function NewSupportRequestBody() {
   const router = useRouter();
   const params = useLocalSearchParams<{ kind?: string }>();
   const me = useSession((s) => s.user?.name) || '';

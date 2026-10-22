@@ -26,7 +26,7 @@ import { useTodayIst } from '@/features/attendance/use-now';
 import { openDataUrl } from '@/features/bounty/files';
 import { PettyIdleFooter } from '@/features/petty-cash/components';
 import { PettyExcessBanner } from '@/features/petty-cash/lists';
-import { amount, list, money, rowMoney, shortDate, statementHtml } from '@/features/petty-cash/logic';
+import { amount, list, money, roleSeesPettyCash, rowMoney, shortDate, statementHtml } from '@/features/petty-cash/logic';
 import { useReceiptViewer } from '@/features/petty-cash/receipt';
 import { plural } from '@/lib/format';
 import { palette, radius } from '@/theme/tokens';
@@ -49,6 +49,8 @@ import {
   toast,
   useLayout,
 } from '@/ui';
+import { useSession } from '@/auth/session';
+import { RouteGate } from '@/features/shared/route-gate';
 
 function parseNotice(raw?: string): PettyCashExcess[] {
   if (!raw) return [];
@@ -169,7 +171,17 @@ function StatementSheetView({
   );
 }
 
+// Petty cash is for the roles whose web menu has it (the More tile's rule); others are sent home.
 export default function PettyCashStatementScreen() {
+  const user = useSession((s) => s.user);
+  return (
+    <RouteGate allow={roleSeesPettyCash(user)}>
+      <PettyCashStatementBody />
+    </RouteGate>
+  );
+}
+
+function PettyCashStatementBody() {
   const { batchId, request, notice } = useLocalSearchParams<{ batchId: string; request?: string; notice?: string }>();
   const statementQ = usePettyCashStatement(batchId && batchId !== '_' ? batchId : '', request || undefined);
   const tenant = useMyTenant().data;

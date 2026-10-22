@@ -15,8 +15,19 @@ import { DESK_ROUTES } from '@/features/desk/routes';
 import { InviteConfirmSheet, InviteDoneSheet, InviteFields, useInviteForm } from '@/features/visitors/invite-form';
 import { useSharePass } from '@/features/visitors/invites';
 import { ActionBar, Button, NavHeader, Screen } from '@/ui';
+import { RouteGate } from '@/features/shared/route-gate';
 
+// Every signed-in staff role may invite (the Visitor Manager from the desk); not the platform owner or the office TV.
 export default function InviteGuestScreen() {
+  const role = useSession((s) => s.user?.role);
+  return (
+    <RouteGate allow={!!role && role !== 'master_admin' && role !== 'announcement_viewer'}>
+      <InviteGuestBody />
+    </RouteGate>
+  );
+}
+
+function InviteGuestBody() {
   const router = useRouter();
   const desk = useSession((s) => isDeskRole(s.user));
   const state = useInviteForm();

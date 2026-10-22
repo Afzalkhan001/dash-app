@@ -11,6 +11,9 @@ import { isClosedStatus, isOpenStatus } from '@/features/support/format';
 import { asTickets, SupportRequestRow } from '@/features/support/request-row';
 import { palette } from '@/theme/tokens';
 import { ActivityList, Button, EmptyState, ErrorState, MenuSheet, NavHeader, PillSelector, Screen } from '@/ui';
+import { useSession } from '@/auth/session';
+import { webNav } from '@/lib/access';
+import { RouteGate } from '@/features/shared/route-gate';
 
 type Filter = 'all' | 'open' | 'closed' | 'rejected';
 
@@ -30,7 +33,17 @@ const EMPTY: Record<Exclude<Filter, 'all'>, string> = {
 const inFilter = (filter: Filter, status?: string) =>
   filter === 'all' ? true : filter === 'open' ? isOpenStatus(status) : filter === 'closed' ? isClosedStatus(status) : status === 'rejected';
 
+// Help & support is for the roles whose web menu has it (not the platform owner or the office TV).
 export default function SupportRequestsScreen() {
+  const user = useSession((s) => s.user);
+  return (
+    <RouteGate allow={webNav(user, 'support', null)}>
+      <SupportRequestsBody />
+    </RouteGate>
+  );
+}
+
+function SupportRequestsBody() {
   const router = useRouter();
   const tickets = useMyTickets();
   const [filter, setFilter] = useState<Filter>('all');

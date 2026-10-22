@@ -13,10 +13,23 @@ import { isOpenStatus } from '@/features/support/format';
 import { asTickets, openFirst, SupportRequestRow } from '@/features/support/request-row';
 import { palette, radius } from '@/theme/tokens';
 import { ActivityList, EmptyState, ErrorState, ListCard, ListRow, ModuleBadge, NavHeader, Screen, Skeleton, SummaryHero } from '@/ui';
+import { useSession } from '@/auth/session';
+import { webNav } from '@/lib/access';
+import { RouteGate } from '@/features/shared/route-gate';
 
 const PREVIEW = 5; // the full list is one tap away ("See all")
 
+// Help & support is for the roles whose web menu has it (not the platform owner or the office TV).
 export default function SupportScreen() {
+  const user = useSession((s) => s.user);
+  return (
+    <RouteGate allow={webNav(user, 'support', null)}>
+      <SupportBody />
+    </RouteGate>
+  );
+}
+
+function SupportBody() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
   const tickets = useMyTickets();

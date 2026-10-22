@@ -27,7 +27,7 @@ import {
 } from '@/api/petty-cash';
 import { useSession } from '@/auth/session';
 import { OtpConfirmSheet, type PickerItem, SearchPickerField } from '@/features/petty-cash/components';
-import { list, money, pettyCashRef, statusMeta } from '@/features/petty-cash/logic';
+import { list, money, pettyCashRef, roleSeesPettyCash, statusMeta } from '@/features/petty-cash/logic';
 import { KeypadReadout } from '@/features/petty-cash/keypad-readout';
 import { ExpenseTypeTiles } from '@/features/petty-cash/type-tiles';
 import { firstName } from '@/lib/format';
@@ -57,13 +57,24 @@ import {
 } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
+import { RouteGate } from '@/features/shared/route-gate';
 type HeadRow = { key: number; departmentId: string; amount: string };
 const nextRow = (rs: HeadRow[]): HeadRow => ({ key: Math.max(0, ...rs.map((r) => r.key)) + 1, departmentId: '', amount: '' });
 
 type RowErrors = { head?: string; amount?: string };
 type Errors = { project?: string; projectName?: string; teammate?: string; rows?: Record<number, RowErrors> };
 
+// Petty cash is for the roles whose web menu has it (the More tile's rule); others are sent home.
 export default function NewPettyCashRequestScreen() {
+  const user = useSession((s) => s.user);
+  return (
+    <RouteGate allow={roleSeesPettyCash(user)}>
+      <NewPettyCashRequestBody />
+    </RouteGate>
+  );
+}
+
+function NewPettyCashRequestBody() {
   const router = useRouter();
   const qc = useQueryClient();
   const user = useSession((s) => s.user);

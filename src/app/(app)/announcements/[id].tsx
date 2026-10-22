@@ -16,6 +16,7 @@ import { useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { type Announcement, isCelebration, useAnnouncementMedia, useVisibleAnnouncements } from '@/api/announcements';
+import { useMyTenant } from '@/api/me';
 import { useSession } from '@/auth/session';
 import {
   AnnouncementImage,
@@ -29,6 +30,7 @@ import {
 } from '@/features/announcements/parts';
 import { AnnouncementVideo } from '@/features/announcements/video';
 import { useNow } from '@/features/attendance/use-now';
+import { canSeeAnnouncements } from '@/features/more/menu';
 import { usePeople } from '@/features/people/directory';
 import { firstName } from '@/lib/format';
 import { themedStyles } from '@/theme/themed';
@@ -112,7 +114,22 @@ function ArticleSkeleton() {
   );
 }
 
+// Same rule as News itself (the More tile, Home's strip, /announcements): roles without News get the
+// same notice instead of the post.
 export default function AnnouncementScreen() {
+  const role = useSession((s) => s.user?.role);
+  const tenant = useMyTenant().data;
+  if (!canSeeAnnouncements(role, tenant)) {
+    return (
+      <Screen header={<NavHeader title="Announcement" />}>
+        <EmptyState icon={<Megaphone color={palette.textMuted} strokeWidth={1.8} />} title="News isn’t on for you" message="Your company admin can turn it on." />
+      </Screen>
+    );
+  }
+  return <AnnouncementBody />;
+}
+
+function AnnouncementBody() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = String(Array.isArray(params.id) ? params.id[0] : params.id || '');
   const router = useRouter();

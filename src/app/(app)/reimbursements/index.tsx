@@ -30,6 +30,8 @@ import { palette, radius } from '@/theme/tokens';
 import { ActivityList, ActivityRow, Button, EmptyState, ErrorState, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
+import { canSeeReimbursements } from '@/features/reimbursements/access';
+import { RouteGate } from '@/features/shared/route-gate';
 const PAGE = 20;
 const NEEDS_YOU_ROWS = 3;
 
@@ -44,7 +46,17 @@ const amountOf = (r: Reimbursement) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+// Expense claims: only the roles reimbursements.js lets in (features/reimbursements/access).
 export default function ExpenseClaimsScreen() {
+  const user = useSession((s) => s.user);
+  return (
+    <RouteGate allow={canSeeReimbursements(user)}>
+      <ExpenseClaimsBody />
+    </RouteGate>
+  );
+}
+
+function ExpenseClaimsBody() {
   const router = useRouter();
   const today = useTodayIst();
   const userId = useSession((s) => s.user?.id);

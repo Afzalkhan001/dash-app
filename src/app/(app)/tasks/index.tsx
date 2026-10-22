@@ -44,9 +44,11 @@ import {
 } from '@/features/tasks/model';
 import { PendingOtpsCard, useLiveCodes } from '@/features/tasks/pending-otps';
 import { rowSubtitle, TaskActivityRow, type TaskFlow, taskIcon, taskMenu, TaskMetricRow } from '@/features/tasks/task-card';
+import { useTasksRouteGate } from '@/features/tasks/gate';
 import { useTaskFlow } from '@/features/tasks/use-task-flow';
 import { MyTeamTasks } from '@/features/teamboard/my-team-tasks';
 import { useTeamTasksGate } from '@/features/teamboard/use-board';
+import { RouteGate } from '@/features/shared/route-gate';
 import { palette, radius, space } from '@/theme/tokens';
 import {
   ActionRow,
@@ -142,7 +144,17 @@ function RunningHero({ task, row, flow, today, onOpen }: { task: Task; row: Task
   );
 }
 
+// My tasks is for the roles the website gives "My Tasks" / "Tasks", or "My Team Tasks" (features/tasks/gate).
 export default function MyTasksScreen() {
+  const gate = useTasksRouteGate();
+  return (
+    <RouteGate allow={gate.allow || !gate.ready}>
+      <MyTasksBody />
+    </RouteGate>
+  );
+}
+
+function MyTasksBody() {
   const router = useRouter();
   const params = useLocalSearchParams<{ view?: string }>();
   const teamGate = useTeamTasksGate();

@@ -42,6 +42,9 @@ import {
 } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
+import { useSession } from '@/auth/session';
+import { webNav } from '@/lib/access';
+import { RouteGate } from '@/features/shared/route-gate';
 
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '');
 
@@ -126,7 +129,17 @@ function DetailSkeleton() {
   );
 }
 
+// Help & support is for the roles whose web menu has it (not the platform owner or the office TV).
 export default function SupportRequestDetail() {
+  const user = useSession((s) => s.user);
+  return (
+    <RouteGate allow={webNav(user, 'support', null)}>
+      <SupportRequestDetailBody />
+    </RouteGate>
+  );
+}
+
+function SupportRequestDetailBody() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const tickets = useMyTickets();
   const cancel = useCancelTicket();

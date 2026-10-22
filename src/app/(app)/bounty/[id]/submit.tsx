@@ -21,6 +21,7 @@ import { isApiError } from '@/api/client';
 import { useSession } from '@/auth/session';
 import { CoinBadge } from '@/features/bounty/components';
 import { fileSizeLabel, MAX_PAYLOAD_CHARS, pickVideo } from '@/features/bounty/files';
+import { BountyGate } from '@/features/bounty/gate';
 import { useMergeBountyTask } from '@/features/bounty/hooks';
 import { asArray, attachmentCap, claimReward, headlineReward, myClaimOf, submissionTypeOf } from '@/features/bounty/logic';
 import { type PickedFile, pickDocument, pickImage } from '@/lib/files';
@@ -52,7 +53,16 @@ const FILE_TYPES = ['image', 'video', 'document'];
 // Where a message shows: under the field it is about, or (server errors) as a Banner at the end.
 type FormError = { at: 'text' | 'link' | 'files' | 'submit'; message: string };
 
+// Same gate as the hub: only people who have Bounty rewards (company switch + role) open a task.
 export default function BountySubmitScreen() {
+  return (
+    <BountyGate title="Send your work">
+      <BountySubmitBody />
+    </BountyGate>
+  );
+}
+
+function BountySubmitBody() {
   const { id, direct } = useLocalSearchParams<{ id: string; direct?: string }>();
   const router = useRouter();
   const userId = useSession((s) => s.user?.id);
