@@ -7,11 +7,11 @@
 //
 // The new agreement is added to the approved vendor persona's record (demo/vendor/data `vendorRecord`), so
 // Accounts' lists (features/accounts) and the Afzal Vendor portal both see it, waiting for the vendor's
-// signature. Agreements for the made-up vendors of the Vendor master are accepted and kept here only.
+// signature. Agreements for the made-up vendors of the Vendor master show on Accounts' list only.
 // Every PDF screen reads routes other domains already answer (statements, ledger, audit export, assets,
 // bookings, tasks, vendors), so nothing else is needed.
 
-import { registerAgreementExtra } from '@/demo/fixtures/accounts';
+import { registerAgreementExtra, registerOtherVendorAgreement } from '@/demo/fixtures/accounts';
 import { DEMO_USER } from '@/demo/config';
 import { personById, projectById } from '@/demo/fixtures/org';
 import { currentPersona } from '@/demo/personas';
@@ -37,9 +37,6 @@ function validSpots(v: unknown): Spot[] | null {
   }
   return out;
 }
-
-/** Agreements for vendors other than the persona vendor (accepted, not listed anywhere). */
-const OTHER_VENDOR_AGREEMENTS: { id: string; vendorId: string; projectName: string }[] = [];
 
 function draftAgreement(body: Record<string, unknown>) {
   if (!STAFF.includes(currentPersona().role)) return fail('You do not have permission to draft a vendor agreement.', 403);
@@ -75,14 +72,10 @@ function draftAgreement(body: Record<string, unknown>) {
   const id = newId('vag');
   const at = nowIso();
   const v = vendorRecord('approved');
-  if (vendorId !== v.id) {
-    OTHER_VENDOR_AGREEMENTS.push({ id, vendorId, projectName });
-    return { ok: true, id };
-  }
   const fileName = String(body.fileName || '').slice(0, 180) || 'agreement.pdf';
-  v.agreements.push({
+  const row = {
     id,
-    vendor_id: v.id,
+    vendor_id: vendorId,
     project_name: projectName,
     deadline_at: new Date(deadline).toISOString(),
     status: 'pending_signature',
@@ -100,8 +93,15 @@ function draftAgreement(body: Record<string, unknown>) {
     draft_file_data: b64,
     signature_file_data: null,
     signature_mime_type: null,
-  } as (typeof v.agreements)[number]);
-  registerAgreementExtra(id, { project_id: project.id, keka_code: project.kekaCode, created_by: DEMO_USER.id, signer_id: body.signerId ? String(body.signerId) : null });
+  } as (typeof v.agreements)[number];
+  const extra = { project_id: project.id, keka_code: project.kekaCode, created_by: DEMO_USER.id, signer_id: body.signerId ? String(body.signerId) : null };
+  // The approved persona's agreements also show in their vendor portal; the others still show on the
+  // Accounts list (they used to be accepted and then never listed anywhere).
+  if (vendorId !== v.id) registerOtherVendorAgreement(row, extra);
+  else {
+    v.agreements.push(row);
+    registerAgreementExtra(id, extra);
+  }
   return { ok: true, id };
 }
 

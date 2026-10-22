@@ -10,6 +10,7 @@
 //   Pass 3: <IncomingCallWatcher/> (features/calls: the ring sheet for incoming calls, everywhere in the app)
 //   and <PushBridge/> (features/push: routes a notification tap, even one that cold-starts the app).
 import { Stack } from 'expo-router';
+import { Keyboard } from 'react-native';
 
 import { IncomingCallWatcher } from '@/features/calls/incoming-call';
 import { MeetsWatcher } from '@/features/chat/meets-watcher';
@@ -22,11 +23,17 @@ export const unstable_settings = { anchor: '(tabs)' };
 const KIOSK = 'admin/desk/kiosk';
 const CALL = 'call/[meetingId]';
 
+// Android: a screen removed (back, replace, dismiss) while one of its text fields still has focus can
+// close the app ("parameter must be a descendant of this view" when the keyboard hides mid-transition).
+// Blur the field and start closing the keyboard before any screen leaves this stack (lib/keyboard.ts).
+const LEAVE_LISTENERS = { beforeRemove: () => Keyboard.dismiss() };
+
 export default function AppLayout() {
   const base = { headerShown: false, contentStyle: { backgroundColor: palette.canvas }, animation: 'slide_from_right' as const };
   return (
     <>
       <Stack
+        screenListeners={LEAVE_LISTENERS}
         screenOptions={({ route }) =>
           route.name === KIOSK
             ? { ...base, presentation: 'fullScreenModal', gestureEnabled: false, animation: 'fade' }

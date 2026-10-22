@@ -28,15 +28,16 @@ export const DEMO_SAMPLE_SHEETS: Record<'employees' | 'updates' | 'projects' | '
         name: 'Employees',
         rows: [
           ['EMP NO.', 'NAME', 'WORK EMAIL', 'GENDER', 'MOBILE', 'LOCATION', 'DEPARTMENT', 'JOB TITLE', 'REPORTING MANAGER', 'DATE JOINED', 'DOB', 'BLOOD GROUP'],
-          ['TM-1091', 'Aditi Kulkarni', 'aditi.kulkarni.demo@tamadamedia.com', 'Female', '+91 98480 11223', 'Hyderabad', 'Creative', 'Video Editor', 'Priya Sharma', '13-Oct-2026', '14-Feb-1999', 'B+'],
-          ['TM-1092', 'Rohan Das', 'rohan.das.demo@tamadamedia.com', 'Male', '+91 99590 22334', 'Hyderabad', 'Production', 'Camera Assistant', 'Deepa Menon', '13-Oct-2026', '02-Aug-2000', 'O+'],
-          ['TM-1093', 'Shreya Pillai', 'shreya.pillai.demo@tamadamedia.com', 'Female', '+91 90000 33445', 'Bengaluru', 'Podcasts', 'Podcast Producer', 'Vikram Singh', '20-Oct-2026', '30-Mar-1997', 'A+'],
+          // New IDs: TM-1091…1099 belong to the Afzal personas, so a sample row there would overwrite one.
+          ['TM-1141', 'Aditi Kulkarni', 'aditi.kulkarni.demo@tamadamedia.com', 'Female', '+91 98480 11223', 'Hyderabad', 'Creative', 'Video Editor', 'Priya Sharma', '13-Oct-2026', '14-Feb-1999', 'B+'],
+          ['TM-1142', 'Rohan Das', 'rohan.das.demo@tamadamedia.com', 'Male', '+91 99590 22334', 'Hyderabad', 'Production', 'Camera Assistant', 'Deepa Menon', '13-Oct-2026', '02-Aug-2000', 'O+'],
+          ['TM-1143', 'Shreya Pillai', 'shreya.pillai.demo@tamadamedia.com', 'Female', '+91 90000 33445', 'Bengaluru', 'Podcasts', 'Podcast Producer', 'Vikram Singh', '20-Oct-2026', '30-Mar-1997', 'A+'],
           // Already on the roster: matched by employee ID (fills the blanks, never clears a field).
           ['TM-1066', 'Farhan Ali', 'farhan.ali.demo@tamadamedia.com', 'Male', '+91 90001 01066', 'Hyderabad', 'Production', 'Senior Camera Operator', 'Deepa Menon', '11-Sep-2023', '15-Mar-1995', 'O+'],
           // Already on the roster by email only (no ID in the sheet).
           ['', 'Meera Nair', 'meera.nair.demo@tamadamedia.com', 'Female', '', 'Hyderabad', 'Marketing', 'Content Strategist', 'Vikram Singh', '', '', ''],
           // A typo: the email has no domain, so this row is left out.
-          ['TM-1094', 'Karthik Rao', 'karthik.rao@', 'Male', '+91 91234 55667', 'Hyderabad', 'IT & Admin', 'Network Engineer', 'Naveen Kumar', '27-Oct-2026', '', 'AB+'],
+          ['TM-1144', 'Karthik Rao', 'karthik.rao@', 'Male', '+91 91234 55667', 'Hyderabad', 'IT & Admin', 'Network Engineer', 'Naveen Kumar', '27-Oct-2026', '', 'AB+'],
         ],
       },
     ],

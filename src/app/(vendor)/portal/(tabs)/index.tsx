@@ -37,7 +37,8 @@ export default function VendorHome() {
   // The greeting uses the name the business goes by (trade name, usually short) and falls back to the
   // legal name, which Profile shows in full; a long legal name would be cut at 320 dp.
   const business = str(v?.business?.tradeName) || str(v?.business?.legalEntityName);
-  const name = v ? business || 'Your registration' : 'Vendor portal';
+  // No business name yet (still registering): a plain welcome, not a second "Your registration" over the hero's.
+  const name = v ? business || 'Welcome' : 'Vendor portal';
 
   // A deactivated account is refused on every route (403) — say so, and offer the way out.
   const blocked = me.error instanceof ApiRequestError && me.error.status === 403;

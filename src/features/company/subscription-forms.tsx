@@ -16,6 +16,8 @@ const asNum = (s: string) => {
   const n = parseFloat(String(s ?? '').replace(/[^0-9.]/g, ''));
   return Number.isFinite(n) ? n : 0;
 };
+/** Typed text that isn't a plain amount ("abc", "-100", "1.2.3") — asNum would quietly turn it into 0 or a positive number. */
+const badNum = (s: string) => !!s.trim() && !/^\d+(\.\d+)?$/.test(s.replace(/[,\s₹$]/g, ''));
 
 function blank(e?: Subscription | null): Record<keyof SubInput, string> {
   return {
@@ -81,8 +83,14 @@ export function SubscriptionFormSheet({
 
   const submit = () => {
     if (!f.name.trim()) return setError('Give the subscription a name.');
+    if (badNum(f.amountInr) || badNum(f.amountUsd)) return setError('Enter the amount as a number, like 6500.');
+    if (f.accountEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.accountEmail.trim())) return setError('Enter the account email like name@company.com.');
+    // The detail screen only opens an http(s) link: a bare "app.frame.io" gets https:// in front.
+    const login = f.loginUrl.trim();
+    if (login && !/^(https?:\/\/)?[^\s/]+\.[^\s/]{2,}\S*$/i.test(login)) return setError('Enter the login page as a web address, like https://app.example.com.');
     setError(null);
-    const body: SubInput = { ...f, amountInr: asNum(f.amountInr), amountUsd: asNum(f.amountUsd) };
+    const loginUrl = login && !/^https?:\/\//i.test(login) ? `https://${login}` : login;
+    const body: SubInput = { ...f, loginUrl, amountInr: asNum(f.amountInr), amountUsd: asNum(f.amountUsd) };
     save.mutate(
       { id: existing?.id, body },
       {
@@ -163,6 +171,7 @@ export function PaymentFormSheet({ visible, onClose, subs, presetId }: { visible
   const submit = () => {
     if (!f.name.trim()) return setError('Which software was this for?');
     if (!f.paidOn) return setError('A payment needs a date.');
+    if (badNum(f.amountInr) || badNum(f.amountUsd)) return setError('Enter the amount as a number, like 6500.');
     setError(null);
     const body: PaymentInput = { ...f, amountInr: asNum(f.amountInr), amountUsd: asNum(f.amountUsd) };
     record.mutate(body, {

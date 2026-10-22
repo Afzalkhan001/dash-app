@@ -39,7 +39,7 @@ import {
 
 import { themedStyles } from '@/theme/themed';
 
-type FormErrors = { guestName?: string; guestMobile?: string; visitDate?: string };
+type FormErrors = { guestName?: string; guestMobile?: string; visitDate?: string; timeTo?: string };
 
 // Exactly the InviteInput the server takes — nothing else is sent.
 const blankForm = (day: string) => ({ guestName: '', guestMobile: '', visitDate: day, timeFrom: '', timeTo: '', purpose: '' });
@@ -70,10 +70,12 @@ export function useInviteForm() {
 
   const edit = (patch: Partial<InviteFormValues>) => {
     setForm((f) => ({ ...f, ...patch }));
-    if (Object.keys(patch).some((k) => errors[k as keyof FormErrors])) {
+    // A new From time can fix "To is before From" too.
+    const keys = [...Object.keys(patch), ...('timeFrom' in patch ? ['timeTo'] : [])] as (keyof FormErrors)[];
+    if (keys.some((k) => errors[k])) {
       setErrors((e) => {
         const next = { ...e };
-        for (const k of Object.keys(patch)) delete next[k as keyof FormErrors];
+        for (const k of keys) delete next[k];
         return next;
       });
     }
@@ -83,9 +85,10 @@ export function useInviteForm() {
   const submit = () => {
     if (create.isPending) return;
     const next: FormErrors = {};
-    if (!form.guestName.trim()) next.guestName = "Enter your guest's name.";
+    if (!form.guestName.trim()) next.guestName = 'Enter your guest’s name.';
     if (!mobileOk(form.guestMobile)) next.guestMobile = 'Enter a 10-digit mobile number.';
     if (!form.visitDate || form.visitDate < today) next.visitDate = 'Pick today or a later date.';
+    if (form.timeFrom && form.timeTo && form.timeTo <= form.timeFrom) next.timeTo = 'Pick a time after the From time.';
     setErrors(next);
     if (Object.keys(next).length) {
       haptic.warning();
@@ -152,7 +155,7 @@ export function InviteFields({ state }: { state: InviteFormState }) {
   // "10:00 AM" to "10:00 …", so stack them here too.
   const largeText = shouldStack(l, { text: 'large' });
   const fromField = <TimeField label="From" value={form.timeFrom || null} placeholder="Pick a time" onChange={(v) => edit({ timeFrom: v })} />;
-  const toField = <TimeField label="To" value={form.timeTo || null} placeholder="Pick a time" onChange={(v) => edit({ timeTo: v })} />;
+  const toField = <TimeField label="To" value={form.timeTo || null} placeholder="Pick a time" onChange={(v) => edit({ timeTo: v })} error={errors.timeTo} />;
 
   return (
     <View style={{ gap: l.gap + space.xs }}>

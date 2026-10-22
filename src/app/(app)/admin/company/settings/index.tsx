@@ -306,6 +306,7 @@ export default function CompanySettingsScreen() {
             loading={busyKey === 'company'}
             onPress={() => {
               if (!co.name.trim()) return setCoError('The company needs a name.');
+              if (co.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(co.email.trim())) return setCoError('Enter a contact email like name@company.com.');
               save(
                 { name: co.name.trim(), superAdmin: co.email.trim(), address: co.address.trim(), phone: co.phone.trim() },
                 { key: 'company', done: 'Company details saved', onDone: () => setEditCo(false), onFail: setCoError },

@@ -100,7 +100,7 @@ function StatementSheetView({
           { key: 'spent', label: 'Spent', value: money(st.total) },
           { key: 'from', label: 'From', value: `${shortDate(st.startDate, today)} · ${plural(st.days || 1, 'day')}` },
         ]}
-        total={{ label: balance < 0 ? 'Extra you spent' : 'Left over', value: money(Math.abs(balance)) }}
+        total={{ label: balance < 0 ? 'Spent over the petty cash' : 'Left over', value: money(Math.abs(balance)) }}
       />
 
       {heads.length ? (

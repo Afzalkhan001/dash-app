@@ -339,6 +339,7 @@ export default function BookRoomScreen() {
             { key: 'time', label: 'Time', value: range },
             { key: 'p', label: 'Purpose', value: p?.label || null },
             { key: 'c', label: 'Client', value: client.trim() || null },
+            { key: 'r', label: 'Requirements', value: reqs.trim() || null },
           ]}
           hideEmpty
         />

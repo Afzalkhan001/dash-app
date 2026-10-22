@@ -51,6 +51,7 @@ import {
   StatusPill,
   SummaryHero,
   Text,
+  toast,
   TourTarget,
   useLayout,
 } from '@/ui';
@@ -284,6 +285,8 @@ export function RegistrationHome({ vendor: v }: { vendor: Vendor }) {
     setRefreshing(true);
     try {
       await qc.refetchQueries({ queryKey: VENDOR_ME_KEY });
+      // Nothing changed: say so, or the tap looks like it did nothing.
+      if (qc.getQueryState(VENDOR_ME_KEY)?.status === 'success' && qc.getQueryData<Vendor>(VENDOR_ME_KEY)?.status === v.status) toast.show('No change yet. We’ll email you when you’re approved.', 'info');
     } finally {
       setRefreshing(false);
     }

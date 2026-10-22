@@ -197,7 +197,8 @@ const SEEDS: Row[] = [
     status: 'pending',
     resource: ME,
     resourceId: MY_ID,
-    profType: 'editor',
+    // Afzal Professional is a freelance cinematographer (demo/personas.ts).
+    profType: 'cinematographer',
     profDept: 'Production',
     requestedBy: 'Vikram Singh',
     requestedById: 'u-vikram',
@@ -206,7 +207,7 @@ const SEEDS: Row[] = [
     endTime: '15:00',
     project: 'Aarogya Hospitals — Brand Campaign',
     kekaCode: 'TM_AAR_BRAND26',
-    comments: 'Doctors’ Day follow-up cut.',
+    comments: 'Doctors’ Day follow-up shoot.',
     createdAt: daysAgo(0, '08:50'),
   }),
 

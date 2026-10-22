@@ -7,6 +7,7 @@
 import { router } from 'expo-router';
 
 import { useStatutory } from '@/api/payroll';
+import { missingLabel } from '@/features/hradvanced/statutory-model';
 import { errorText, GateFallback, usePayrollGate } from '@/features/payroll/ui';
 import { inr } from '@/lib/format';
 import { Banner, ErrorState, NavHeader, Screen, SkeletonList, SummaryCard, type SummaryItem, Text } from '@/ui';
@@ -62,7 +63,7 @@ export default function StatutoryScreen() {
       <Banner
         tone={missing.length ? 'danger' : 'success'}
         title={missing.length ? 'Payroll can’t run until these are filled in' : 'Ready for payroll'}
-        message={missing.length ? missing.join(', ') : 'Every switched-on section has its values.'}
+        message={missing.length ? missing.map(missingLabel).join(', ') : 'Every switched-on section has its values.'}
         action={{ label: 'Edit values', onPress: () => router.push('/admin/hr-advanced/statutory') }}
       />
 

@@ -136,6 +136,31 @@ export function bodyOfStatutory(s: DraftStatutory): Statutory {
   };
 }
 
+// The server names a missing value by its key ("PF employeeRatePct"): the words people see instead.
+const MISSING_WORDS: Record<string, string> = {
+  employeeRatePct: 'employee share',
+  employerRatePct: 'company share',
+  rounding: 'rounding',
+  wageCeiling: 'wage ceiling',
+  grossLimit: 'gross limit',
+  slabs: 'slabs',
+  defaultRegime: 'default regime',
+  standardDeduction: 'standard deduction',
+  rebateLimit: 'rebate limit',
+  rebateMax: 'rebate amount',
+  cessPct: 'cess',
+};
+/** "PF employeeRatePct" → "PF employee share", "TDS new cessPct" → "TDS new regime cess". */
+export function missingLabel(m: string): string {
+  const parts = String(m).split(' ');
+  const last = parts[parts.length - 1] ?? '';
+  const word = MISSING_WORDS[last];
+  if (!word) return m;
+  const head = parts.slice(0, -1);
+  if (head[0] === 'TDS' && (head[1] === 'new' || head[1] === 'old')) head[1] = `${head[1]} regime`;
+  return [...head, word].join(' ');
+}
+
 /** statutoryMissing (hr_payroll_calc.js ~L152), in the server's own words. */
 export function missingOf(cfg: Statutory): string[] {
   const miss: string[] = [];

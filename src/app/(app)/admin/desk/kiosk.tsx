@@ -7,7 +7,7 @@
 //   3. If the link stops working (someone made a new one) the kiosk says so and asks to be restarted.
 // Desk roles only (features/desk/access.ts canSeeKiosk); anyone else is sent home.
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Redirect, useRouter } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { StatusBar } from 'expo-status-bar';
@@ -15,7 +15,9 @@ import { BatteryCharging, Lock, MonitorSmartphone, Play, RefreshCcw, ShieldCheck
 import { useEffect, useState } from 'react';
 import { BackHandler } from 'react-native';
 
-import { checkInUrl, kioskBase, kioskCheckLink, KioskError, useDeskQr } from '@/api/desk';
+import { checkInUrl, deskKeys, kioskBase, kioskCheckLink, KioskError, useDeskQr } from '@/api/desk';
+import { visitorKeys } from '@/api/visitors';
+import { useSession } from '@/auth/session';
 import { canRunDesk, canSeeKiosk } from '@/features/desk/access';
 import { KioskExitSheet } from '@/features/desk/kiosk/exit-sheet';
 import { Art, KioskHeader, KioskLinkDead, KioskWizard, Result } from '@/features/desk/kiosk/wizard';
@@ -32,6 +34,8 @@ export default function KioskScreen() {
   const router = useRouter();
   const allowed = canRunDesk(access) && canSeeKiosk(access);
   const qr = useDeskQr(allowed);
+  const qc = useQueryClient();
+  const userId = useSession((s) => s.user?.id);
   const [phase, setPhase] = useState<Phase>('intro');
   const [asking, setAsking] = useState(false);
   const running = phase !== 'intro';
@@ -50,6 +54,11 @@ export default function KioskScreen() {
     setPhase(p);
     // A fresh link next time (it may have been regenerated while the kiosk ran).
     void qr.refetch();
+    // Check-ins made at the kiosk (and invite codes used up) show on the board, Home and Invites at once.
+    void qc.invalidateQueries({ queryKey: deskKeys.today(userId) });
+    void qc.invalidateQueries({ queryKey: deskKeys.logAll(userId) });
+    void qc.invalidateQueries({ queryKey: visitorKeys.invites(userId) });
+    void qc.invalidateQueries({ queryKey: visitorKeys.mine(userId) });
   };
 
   const data = qr.data;

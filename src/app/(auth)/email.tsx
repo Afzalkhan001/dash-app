@@ -216,9 +216,10 @@ export default function EmailLogin() {
   async function viaWhatsApp() {
     const d = digitsOnly(phone);
     if (d.length !== 10 || busy) return;
-    setBusy(true);
     setError(null);
     const full = `+91${d}`;
+    // The demo answers on the phone: no busy state, so a wrong number (or coming back from the code
+    // screen) never leaves "Send code" stuck disabled.
     if (demo) {
       if (!isDemoPhone(d)) return fail('That number doesn’t match the one on your profile.');
       flow.set({
@@ -228,6 +229,7 @@ export default function EmailLogin() {
       });
       return router.push('/otp');
     }
+    setBusy(true);
     const r = await sendPhoneOtp(full);
     setBusy(false);
     if (isApiError(r) || !r?.challengeId) return fail(isApiError(r) ? r.error : null);
@@ -243,7 +245,7 @@ export default function EmailLogin() {
   const back = () => {
     setError(null);
     if (step === 'phone') return setStep('factor');
-    if (step === 'credentials') return router.back();
+    if (step === 'credentials') return router.canGoBack() ? router.back() : router.replace('/login');
     setStep('credentials');
   };
 

@@ -25,7 +25,7 @@ import { plural } from '@/lib/format';
 import { useAccess } from '@/lib/use-access';
 import { themedStyles } from '@/theme/themed';
 import { space } from '@/theme/tokens';
-import { ActivityList, Banner, Button, EmptyState, ErrorState, NavHeader, Screen, SkeletonList, SummaryHero, Text } from '@/ui';
+import { ActivityList, Banner, Button, EmptyState, ErrorState, NavHeader, Screen, SkeletonList, SummaryHero, Text, toast } from '@/ui';
 
 export default function PendingReviewGroupScreen() {
   const params = useLocalSearchParams<{ key: string; by?: string }>();
@@ -45,7 +45,7 @@ export default function PendingReviewGroupScreen() {
   const group = reviewGroups(items, by, users.data ?? [], types).find((g) => g.key === key) ?? null;
   // The other axis inside the group.
   const subs = group ? reviewGroups(group.items, by === 'pro' ? 'emp' : 'pro', users.data ?? [], types) : [];
-  const remind = (phone: string, text: string) => void Linking.openURL(waLink(phone, text));
+  const remind = (phone: string, text: string) => void Linking.openURL(waLink(phone, text)).catch(() => toast.show('Couldn’t open WhatsApp on this phone.', 'danger'));
 
   return (
     <Screen header={<NavHeader title={group?.name || 'Pending reviews'} />} onRefresh={() => Promise.all([all.refetch(), users.refetch()])}>

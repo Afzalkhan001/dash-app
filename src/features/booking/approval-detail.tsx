@@ -56,7 +56,7 @@ export function BookingApprovalDetail({ id }: InboxDetailProps) {
       outcome.show({
         decision: 'approve',
         title: 'Booking approved',
-        subtitle: x.type === 'professionals' ? `${x.resource || 'They'} and ${x.requestedBy || 'the requester'} are told, and it's in ${x.resource ? `${x.resource}’s` : 'their'} tasks.` : `${x.requestedBy || 'The requester'} is told.`,
+        subtitle: x.type === 'professionals' ? `${x.resource || 'They'} and ${x.requestedBy || 'the requester'} are told, and it’s in ${x.resource ? `${x.resource}’s` : 'their'} tasks.` : `${x.requestedBy || 'The requester'} is told.`,
         rows: [outcomeStatus('approve'), { key: 'when', label: 'When', value: whenLine(x, today) }],
       });
     },
@@ -117,7 +117,7 @@ export function BookingApprovalDetail({ id }: InboxDetailProps) {
   const kind = typeLabel(b, types);
   const approveNote = isLoc
     ? `${b.requestedBy || 'The requester'} gets an email and WhatsApp.`
-    : `${b.resource || 'The professional'} and ${b.requestedBy || 'the requester'} get an email and WhatsApp with each other's contacts, and it's added to ${b.resource ? `${b.resource}’s` : 'their'} tasks.`;
+    : `${b.resource || 'The professional'} and ${b.requestedBy || 'the requester'} get an email and WhatsApp with each other’s contacts, and it’s added to ${b.resource ? `${b.resource}’s` : 'their'} tasks.`;
 
   return (
     <>
@@ -197,7 +197,7 @@ export function BookingApprovalDetail({ id }: InboxDetailProps) {
         visible={confirm === 'reject'}
         onClose={() => setConfirm(null)}
         title="Reject the booking?"
-        detailsTitle="This can't be undone"
+        detailsTitle="This can’t be undone"
         confirmLabel="Swipe to reject"
         onConfirm={() => reject.mutate(b)}
         loading={reject.isPending}

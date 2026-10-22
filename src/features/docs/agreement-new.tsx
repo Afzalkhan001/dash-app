@@ -35,7 +35,6 @@ import {
   FIELD_LABEL_INSET,
   AccountRow,
   ActionBar,
-  Banner,
   Button,
   ConfirmSheet,
   DateField,
@@ -181,6 +180,8 @@ export function NewAgreementScreen({ vendorId: initialVendor }: { vendorId?: str
     if (!Number.isFinite(deadlineMs) || deadlineMs <= Date.now()) return 'The deadline must be in the future.';
     if (!draft) return 'The draft document (PDF) is required.';
     if (!spots.length) return 'Tap on the document to mark at least one spot where the vendor should sign.';
+    // Every spot switched to the countersigner leaves the vendor nothing to sign (the server accepts it).
+    if (signer && !spots.some((s) => s.signer !== 'internal')) return 'Keep at least one spot for the vendor to sign.';
     return null;
   };
   const review = () => {
@@ -289,7 +290,6 @@ export function NewAgreementScreen({ vendorId: initialVendor }: { vendorId?: str
             )}
           </View>
         ) : null}
-        {error ? <Banner tone="danger" title="Not sent" message={error} /> : null}
       </Screen>
 
       <PersonPicker

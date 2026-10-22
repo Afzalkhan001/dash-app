@@ -85,7 +85,11 @@ export const istHm = (iso: string) => new Date(new Date(iso).getTime() + 330 * 6
 export const istDateOf = (iso: string) => istParts(new Date(iso)).date;
 export const nowIso = () => new Date().toISOString();
 export const minutesAgo = (min: number) => new Date(Date.now() - min * 60000).toISOString();
-export const daysAgo = (n: number, at: string | number = '10:30') => istIso(addDays(today(), -n), at);
+// Never in the future: a same-day time later than now ('09:50' opened at 8 am) reads as a minute ago.
+export const daysAgo = (n: number, at: string | number = '10:30') => {
+  const iso = istIso(addDays(today(), -n), at);
+  return Date.parse(iso) > Date.now() - 60000 ? minutesAgo(1) : iso;
+};
 export function nowMinutesIst() {
   const p = istParts();
   return p.hour * 60 + p.minute;

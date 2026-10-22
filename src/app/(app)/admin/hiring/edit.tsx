@@ -403,7 +403,11 @@ export default function JobEditScreen() {
               keyboardType="number-pad"
               placeholder="e.g. 500"
               error={tried ? errors.bonus : null}
-              hint={`Paid from your referral coins when you approve it, after the hire completes 3 months. You have ${coins(available)} now.`}
+              hint={
+                bonusNum && bonusNum > available
+                  ? `More than the ${coins(available)} you have now. Approving it will fail unless Super Admin gives you more referral coins first.`
+                  : `Paid from your referral coins when you approve it, after the hire completes 3 months. You have ${coins(available)} now.`
+              }
             />
           </Card>
         )}

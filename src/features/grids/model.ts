@@ -9,6 +9,7 @@ import type { Department, RosterRecord } from '@/api/people';
 import type { PayrollItem, PayLine, SalaryPerson } from '@/api/payroll';
 import type { PettyCashBill, PettyCashRequest, PettyCashSubmission } from '@/api/petty-cash';
 import { PURPOSE_LABEL, type Reimbursement } from '@/api/reimbursements';
+import { METHOD_LABEL } from '@/features/accounts/model';
 import { DAY_STATE, WEEKDAYS } from '@/features/attendance/format';
 import type { CellInput, GridColumn } from '@/features/grids/data-grid';
 import { reimbursementRef } from '@/features/inbox/format';
@@ -436,7 +437,7 @@ export function claimColumns(today: string) {
     { key: 'date', label: 'Sent on', long: 'Submitted', width: 104, align: 'left', cell: (m) => (m.created_at ? dateLabel(m.created_at, today) : null), sort: (m) => str(m.created_at) },
     { key: 'amount', label: 'Amount', width: 96, cell: (m) => ({ text: rupees(m.amount), strong: true }), sort: (m) => num(m.amount) },
     { key: 'got', label: 'Received on', long: 'Received on', width: 104, align: 'left', cell: (m) => (m.payment?.response?.at ? dateLabel(m.payment.response.at, today) : null), sort: (m) => str(m.payment?.response?.at) },
-    { key: 'via', label: 'Paid via', long: 'Payment reference', width: 130, align: 'left', cell: (m) => [m.payment?.reference ? `Ref ${m.payment.reference}` : null, m.payment?.method].filter(Boolean).join(' · ') || null },
+    { key: 'via', label: 'Paid via', long: 'Payment reference', width: 130, align: 'left', cell: (m) => [m.payment?.reference ? `Ref ${m.payment.reference}` : null, m.payment?.method ? (METHOD_LABEL[m.payment.method] ?? m.payment.method) : null].filter(Boolean).join(' · ') || null },
   ];
   return { first, columns };
 }

@@ -17,6 +17,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { deskKeys, type KioskInvite, KioskError, kioskBase, kioskInviteArrive, kioskInviteCode, useDeskQr } from '@/api/desk';
+import { visitorKeys } from '@/api/visitors';
 import { useSession } from '@/auth/session';
 import { takeSelfie, type Selfie } from '@/features/desk/kiosk/selfie';
 import { canScanPass } from '@/features/deskqr/access';
@@ -133,6 +134,9 @@ export default function ScanPassScreen() {
       setStep('done');
       void qc.invalidateQueries({ queryKey: deskKeys.today(userId) });
       void qc.invalidateQueries({ queryKey: deskKeys.logAll(userId) });
+      // The code is used up: Invites (and the host's own Visitors, when the desk user invited them) change too.
+      void qc.invalidateQueries({ queryKey: visitorKeys.invites(userId) });
+      void qc.invalidateQueries({ queryKey: visitorKeys.mine(userId) });
     } catch (e) {
       haptic.error();
       setConfirm(false);

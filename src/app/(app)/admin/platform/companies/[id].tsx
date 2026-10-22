@@ -92,7 +92,7 @@ export default function CompanyScreen() {
     return (
       <Screen header={<NavHeader title="Company" />}>
         {tenantsQ.data ? (
-          <ErrorState title="Company not found" message="It may have been deleted on the website." onRetry={() => void tenantsQ.refetch()} />
+          <ErrorState title="Company not found" message="It may have been deleted." onRetry={() => void tenantsQ.refetch()} />
         ) : tenantsQ.isError ? (
           <ErrorState message={tenantsQ.error?.message ?? 'The company could not be loaded.'} onRetry={() => void tenantsQ.refetch()} />
         ) : (
@@ -128,6 +128,11 @@ export default function CompanyScreen() {
     const seats = Math.round(Number(edit.maxUsers));
     const mail = edit.superAdmin.trim().toLowerCase();
     if (!edit.name.trim()) return setEditError('The company needs a name.');
+    // Same rule as Register: two companies with one name can't be told apart in any list.
+    const clashName = edit.name.trim().toLowerCase();
+    if (edit.name.trim() !== before.name && tenants.some((x) => x.id !== t.id && companyName(x).toLowerCase() === clashName)) {
+      return setEditError('A company with this name is already on DASH.');
+    }
     if (mail && !EMAIL_RE.test(mail)) return setEditError('Enter a valid Super Admin email.');
     // Only checked when changed: an older company may have no limit on record, and other edits must still save.
     if (edit.maxUsers !== before.maxUsers && !(seats >= 1)) return setEditError('Enter how many people it may have (at least 1).');

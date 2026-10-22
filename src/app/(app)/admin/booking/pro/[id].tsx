@@ -358,7 +358,7 @@ export default function BookProScreen() {
         visible={!!sent}
         onClose={() => router.dismissTo('/admin/booking')}
         title="Request sent"
-        subtitle={approvers.length ? `Waiting for ${approvers[0]}'s approval.` : 'Waiting for their manager’s approval.'}
+        subtitle={approvers.length ? `Waiting for ${approvers[0]}’s approval.` : 'Waiting for their manager’s approval.'}
         secondaryLabel="Book another"
         onSecondary={() => router.back()}
         onPrimary={() => router.dismissTo('/admin/booking')}>

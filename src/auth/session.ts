@@ -10,7 +10,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import { Keyboard, Platform } from 'react-native';
 import { create } from 'zustand';
 
 import { resetSignedOutGuard, setAuthBridge } from '@/api/client';
@@ -126,6 +126,9 @@ export const useSession = create<SessionState>((set, get) => ({
     if (slim) await AsyncStorage.setItem(USER_KEY, JSON.stringify(slim));
     else await AsyncStorage.removeItem(USER_KEY);
     resetSignedOutGuard();
+    // The sign-in screen leaves through Stack.Protected (no navigation action, so no beforeRemove):
+    // blur its field first, or Android can close the app as the keyboard hides (see (app)/_layout.tsx).
+    Keyboard.dismiss();
     set({ kind, token, tokenExpiresAt: exp, user: slim });
   },
 
@@ -145,6 +148,7 @@ export const useSession = create<SessionState>((set, get) => ({
     // device, PLAN §2.4). Best effort and time-boxed, so signing out never waits on the network.
     await runBeforeSignOut();
     await clearStored();
+    Keyboard.dismiss(); // the whole signed-in stack goes (see signIn)
     set({ kind: null, token: null, tokenExpiresAt: null, user: null });
     onSignOutListeners.forEach((fn) => fn());
   },

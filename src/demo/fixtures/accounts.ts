@@ -55,7 +55,8 @@ const ME = { id: DEMO_USER.id, name: String(DEMO_USER.name) };
 const RAMESH = { id: 'u-ramesh', name: 'Ramesh Gupta' };
 const role = () => currentPersona().role;
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-const later = (iso: string, h: number) => new Date(Date.parse(iso) + h * 3600000).toISOString();
+// Seeded follow-up times never land in the future (a 1-day-old bill + 26h would otherwise read "2:40 PM" at 8 AM).
+const later = (iso: string, h: number) => new Date(Math.min(Date.parse(iso) + h * 3600000, Math.max(Date.parse(iso), Date.now() - 5 * 60000))).toISOString();
 const who = (id: string) => ({ id, name: personById(id)?.name ?? 'Someone' });
 const bytesOf = (b64: string) => Math.floor((b64.length * 3) / 4);
 const RECEIPT_B64 = RECEIPT_PNG.split(',')[1] ?? '';
@@ -789,9 +790,15 @@ const AGREEMENT_BY: Record<string, string> = { 'Deepa Menon': 'u-deepa', 'Priya 
 const SIGNER_ID: Record<string, string> = { 'Arvind Menon': 'u-arvind', 'Kiran Rao': 'u-kiran' };
 
 type AgreementRow = ReturnType<typeof vendorRecord>['agreements'][number];
+/** Agreements drafted in the app for the Vendor master's other vendors (they have no portal persona). */
+const OTHER_AGREEMENTS: AgreementRow[] = [];
+export function registerOtherVendorAgreement(row: AgreementRow, extra: Pick<AgreementExtra, 'project_id' | 'keka_code' | 'created_by' | 'signer_id'>) {
+  OTHER_AGREEMENTS.push(row);
+  registerAgreementExtra(row.id, extra);
+}
 function agreementRows(): AgreementRow[] {
-  const rows = vendorRecord('approved').agreements;
-  rows.forEach((a, i) => {
+  const own = vendorRecord('approved').agreements;
+  own.forEach((a, i) => {
     if (AGREEMENT_EXTRAS.has(a.id)) return;
     const p = projectById(AGREEMENT_PROJECTS[i] ?? 'p-admin')!;
     const mine = a.status === 'pending_internal_signature';
@@ -803,7 +810,7 @@ function agreementRows(): AgreementRow[] {
       signer_id: mine ? ME.id : a.signer_name ? (SIGNER_ID[a.signer_name] ?? null) : null,
     });
   });
-  return rows;
+  return [...own, ...OTHER_AGREEMENTS];
 }
 
 function agreementView(a: AgreementRow): AccountsAgreement {

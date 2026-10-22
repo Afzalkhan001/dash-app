@@ -10,7 +10,7 @@
 // A former member gets a muted note instead: "You left this conversation. You can still read and export it."
 
 import { Camera, FileUp, ImageIcon, Mic, Paperclip, Plus, SendHorizontal, X } from 'lucide-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -45,6 +45,8 @@ export function Composer({
   const [menu, setMenu] = useState(false);
   const [picking, setPicking] = useState(false);
   const [voice, setVoice] = useState(false);
+  // Two Send taps before `sending` re-renders must not post the message twice.
+  const inFlight = useRef(false);
   const p = policy ?? DEFAULT_POLICY;
 
   if (!canPost) {
@@ -108,11 +110,16 @@ export function Composer({
     );
   }
   const send = async () => {
-    if (!ready) return;
-    const ok = await onSend(body, staged);
-    if (ok) {
-      setDraft('');
-      setStaged(null);
+    if (!ready || inFlight.current) return;
+    inFlight.current = true;
+    try {
+      const ok = await onSend(body, staged);
+      if (ok) {
+        setDraft('');
+        setStaged(null);
+      }
+    } finally {
+      inFlight.current = false;
     }
   };
 

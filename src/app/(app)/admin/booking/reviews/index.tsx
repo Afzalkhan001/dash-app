@@ -57,7 +57,10 @@ export default function PendingReviewsScreen() {
       />
       <Segmented
         value={by}
-        onChange={setBy}
+        onChange={(v) => {
+          setBy(v);
+          setQ(''); // a professional's name is no use as an employee search, and vice versa
+        }}
         options={[
           { key: 'pro', label: 'By professional' },
           { key: 'emp', label: 'By employee' },

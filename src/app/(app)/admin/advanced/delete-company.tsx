@@ -66,11 +66,11 @@ export default function DeleteCompanyScreen() {
   const successSheet = (
     <SuccessSheet
       visible={!!result}
-      onClose={() => router.replace('/admin/platform/companies')}
+      onClose={() => router.dismissTo('/admin/platform/companies')}
       title="Company deleted"
       subtitle={result ? `${result.name} is no longer on DASH.` : undefined}
       primaryLabel="Done"
-      onPrimary={() => router.replace('/admin/platform/companies')}>
+      onPrimary={() => router.dismissTo('/admin/platform/companies')}>
       {result ? (
         <SummaryCard
           rows={[

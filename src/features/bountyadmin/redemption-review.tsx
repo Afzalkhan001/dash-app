@@ -64,7 +64,9 @@ export function RedemptionReviewScreen({ id }: { id: string }) {
   const amount = num(r.coins);
   const status = redemptionStatusMeta(r);
   const left = walletQ.data ? Math.max(0, num(walletQ.data.earned) - num(walletQ.data.redeemed)) : null;
-  const approveErr = !link.trim() ? 'Enter the Amazon link.' : !code.trim() ? 'Enter the coupon code.' : null;
+  // The employee opens this link from their wallet: a typo would give them a dead coupon.
+  const linkOk = /^(https?:\/\/)?[^\s/]+\.[^\s/]{2,}\S*$/i.test(link.trim());
+  const approveErr = !link.trim() ? 'Enter the Amazon link.' : !linkOk ? 'The Amazon link doesn’t look like a web address.' : !code.trim() ? 'Enter the coupon code.' : null;
 
   const approve = async () => {
     if (approveErr) return;

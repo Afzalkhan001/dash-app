@@ -390,7 +390,12 @@ export default function VendorProfile() {
           )
         ) : null}
       </Sheet>
-      <PasswordSheet visible={pwOpen} hasPassword={v.hasPassword} onClose={() => setPwOpen(false)} onDone={() => setPwOpen(false)} />
+      <PasswordSheet visible={pwOpen} hasPassword={v.hasPassword} onClose={() => setPwOpen(false)}
+        onDone={() => {
+          setPwOpen(false);
+          toast.show('Password saved. Use it next time you sign in.', 'success');
+        }}
+      />
       <ChangeRequestSheet
         fields={changeFields}
         onClose={() => setChangeFields(null)}

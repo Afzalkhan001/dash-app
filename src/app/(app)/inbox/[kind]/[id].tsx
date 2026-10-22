@@ -354,7 +354,7 @@ function KekaItem({ id }: { id: string }) {
           <NoteCard
             tone="warning"
             label="Amount changed"
-            text={`From ${inr(reup.previousAmount)} to ${inr(reup.amount)}${textOr(reup.note) ? ` — “${textOr(reup.note)}”` : ''}.`}
+            text={`From ${inr(reup.previousAmount)} to ${inr(reup.amount)}${textOr(reup.note) ? ` — “${textOr(reup.note)}”` : '.'}`}
           />
         ) : null}
         <DetailsCard

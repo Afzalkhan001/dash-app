@@ -20,7 +20,7 @@ import { BellRing, CalendarClock, FileUp, ImagePlus, Megaphone, Send, Trash2, Un
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import type { Announcement } from '@/api/announcements';
+import { type Announcement, safeLink } from '@/api/announcements';
 import { type NewsKind, type NewsPayload, type NewsPriority, type NewsType, type PopupFrequency, useBranches, useCreatePost, useUpdatePost } from '@/api/newsroom';
 import { useSession } from '@/auth/session';
 import { useTodayIst } from '@/features/attendance/use-now';
@@ -200,11 +200,17 @@ export function ComposeForm({ initial }: { initial: Announcement | null }) {
   const emergency = !popup && f.priority === 'emergency';
   const existingBanner = !!initial?.hasHomeBanner;
 
+  // A typed link that can't open (spaces, no domain, another scheme) would give a dead button.
+  const linkTyped = f.linkUrl.trim();
+  const badLink = !!linkTyped && (!safeLink(linkTyped) || /\s/.test(linkTyped) || !/^(https?:\/\/)?[^/]+\.[^/]{2,}/i.test(linkTyped));
+
   // canSave (dash.html:19037)
   const missing = popup
     ? !f.title.trim()
       ? 'Add a title.'
-      : !hasImage
+      : badLink
+        ? 'Check the link: it should look like https://example.com.'
+        : !hasImage
         ? 'Choose the pop-up’s picture.'
         : schedule && !sched
           ? 'Pick the date and time to publish.'
@@ -213,7 +219,9 @@ export function ComposeForm({ initial }: { initial: Announcement | null }) {
       ? 'Add a title.'
       : f.type === 'link' && !f.linkUrl.trim()
         ? 'Add the link.'
-        : f.type === 'text' && !f.body.trim()
+        : badLink
+          ? 'Check the link: it should look like https://example.com.'
+          : f.type === 'text' && !f.body.trim()
           ? 'Add a description.'
           : needsFile && !hasImage
             ? 'Choose the file.'

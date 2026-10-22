@@ -6,7 +6,7 @@
 //     confirm (swipe: the Super Admin is emailed) → POST /tenants, then POST /whitelist (super_admin,
 //     the new company's id). The email is checked against every login and invitation first, because
 //     POST /whitelist upserts by email and would move an existing person into the new company.
-// Delete company stays on the website (a ~20-table cascade the server doesn't guard).
+// Delete company: open a company → "Delete this company" (admin/advanced/delete-company).
 
 import { Redirect, useRouter } from 'expo-router';
 import { Building2, Mail, Plus, UserRound } from 'lucide-react-native';

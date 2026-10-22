@@ -266,7 +266,7 @@ export function PettyStatementRow({ batch, today, onPress }: { batch: BillBatch;
   const title = projects.join(', ') || codes.join(', ') || 'Expense report';
   const subtitle = projects.length ? codes.join(', ') || null : null;
   const date = batch.submittedAt ? shortDate(batch.submittedAt, today) : null;
-  const meta = [plural(batch.count, 'bill'), batch.rejected ? `${batch.rejected} rejected` : null, date ? `Sent ${date}` : null].filter(Boolean).join(' · ');
+  const meta = [plural(batch.count - batch.rejected, 'bill'), batch.rejected ? `${batch.rejected} rejected` : null, date ? `Sent ${date}` : null].filter(Boolean).join(' · ');
   const value = rowMoney(batch.total);
   return (
     <ActivityRow

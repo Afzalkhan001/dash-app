@@ -116,7 +116,13 @@ export function VoiceRecorder({
       recording.live = false;
       if (live.current) {
         live.current = false;
-        void recorder.stop().catch(() => {});
+        // useAudioRecorder may already have released the native recorder (its cleanup runs first), and a
+        // call on a released object can throw synchronously on a phone, not only reject.
+        try {
+          void recorder.stop().catch(() => {});
+        } catch {
+          // already released: nothing is recording
+        }
       }
       void releaseMic();
     };

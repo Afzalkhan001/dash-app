@@ -115,7 +115,10 @@ function LocationForm({ initial }: { initial: ItLocation | null }) {
   };
   const hoursBad = f.openingTime && f.closingTime && f.closingTime <= f.openingTime ? 'Closing must be after opening' : null;
   const durBad = f.maxDuration < f.minDuration ? 'The longest booking must be at least the shortest' : null;
-  const blocker = errs.name || errs.area || errs.address ? 'Name, area and full address are needed' : errs.approver ? 'Choose who approves bookings' : hoursBad || durBad;
+  // The contact is optional, but a typo here is what the crew dials or emails on the day.
+  const emailBad = f.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim()) ? 'Check the email address' : null;
+  const phoneBad = f.phone.trim() && f.phone.replace(/\D/g, '').length < 10 ? 'Check the phone number' : null;
+  const blocker = errs.name || errs.area || errs.address ? 'Name, area and full address are needed' : errs.approver ? 'Choose who approves bookings' : hoursBad || durBad || phoneBad || emailBad;
   const cityOptions = [...LOCATION_CITIES, ...(f.city && !LOCATION_CITIES.includes(f.city) ? [f.city] : [])].map((c) => ({ value: c, label: c }));
 
   const save = () => {
@@ -236,8 +239,8 @@ function LocationForm({ initial }: { initial: ItLocation | null }) {
       <LabelledSection title="Contact at the location">
         <Card style={styles.group}>
           <TextField label="Contact person (optional)" value={f.contact} onChangeText={set('contact')} placeholder="Name" />
-          <TextField label="Phone (optional)" value={f.phone} onChangeText={set('phone')} placeholder="+91 …" keyboardType="phone-pad" />
-          <TextField label="Email (optional)" value={f.email} onChangeText={set('email')} placeholder="name@example.com" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+          <TextField label="Phone (optional)" value={f.phone} onChangeText={set('phone')} placeholder="+91 …" keyboardType="phone-pad" error={tried ? phoneBad : null} />
+          <TextField label="Email (optional)" value={f.email} onChangeText={set('email')} placeholder="name@example.com" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} error={tried ? emailBad : null} />
         </Card>
       </LabelledSection>
 

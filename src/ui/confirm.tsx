@@ -166,7 +166,13 @@ export function SwipeToConfirm({ label = 'Swipe to confirm', onConfirm, loading,
   const start = useSharedValue(0);
   const max = Math.max(0, trackW - KNOB - 2 * INSET);
 
+  // A ref, not just `armed`: two activations in one frame (a double tap on the screen-reader button, or a
+  // fast re-swipe) would both see the stale state and send the request twice. A shared value rather than a
+  // ref: `confirm` is handed to the pan gesture while rendering, which the refs lint forbids.
+  const firing = useSharedValue(false);
   const confirm = () => {
+    if (firing.get()) return;
+    firing.set(true);
     haptic.success();
     setArmed(true);
     onConfirm();
@@ -178,9 +184,10 @@ export function SwipeToConfirm({ label = 'Swipe to confirm', onConfirm, loading,
     const t = setTimeout(() => {
       x.set(withSpring(0, SETTLE));
       setArmed(false);
+      firing.set(false);
     }, 600);
     return () => clearTimeout(t);
-  }, [armed, loading, x]);
+  }, [armed, loading, x, firing]);
 
   const pan = Gesture.Pan()
     .enabled(!disabled && !loading && !armed && max > 0)

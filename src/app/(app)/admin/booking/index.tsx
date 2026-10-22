@@ -110,7 +110,7 @@ export default function BookingHubScreen() {
             <ListRow
               left={<ModuleBadge module="tasks" icon={CalendarCheck2} />}
               title="Booking requests"
-              subtitle="Your team's bookings to approve, and what was decided"
+              subtitle="Your team’s bookings to approve, and what was decided"
               subtitleLines={2}
               chevron
               onPress={() => router.push('/admin/booking/requests')}

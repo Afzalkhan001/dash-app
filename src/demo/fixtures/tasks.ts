@@ -316,9 +316,15 @@ const BOOKINGS: BookingRow[] = [
     dates: [addDays(T0, 1)],
     startTime: '11:00',
     endTime: '13:00',
+    // The room bookings list (IT desk) reads the slots and purpose, like every other room booking; without
+    // them this one showed no time at all. Same slots as its room_slot_bookings row (booking.ts).
+    startSlot: 22,
+    endSlot: 26,
+    purpose: 'business_meeting',
+    purposeLabel: 'Business Meeting',
     project: 'Sunrise Jewellers — Diwali Brand Film',
     createdAt: daysAgo(1, '10:00'),
-  },
+  } as BookingRow,
 ];
 
 const CLIENTS: Client[] = [

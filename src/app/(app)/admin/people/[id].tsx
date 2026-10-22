@@ -174,7 +174,7 @@ export default function RosterPersonScreen() {
             message={[row.resignedAt ? `On ${stampLabel(row.resignedAt, today)}` : '', row.resignedBy ? `by ${row.resignedBy}` : ''].filter(Boolean).join(' ') || 'They are on the Resigned list.'}
           />
         ) : row.invited ? (
-          <Banner key="invited" tone="info" title="Not signed up yet" message="They were sent a welcome email and WhatsApp. They sign up with this work email." />
+          <Banner key="invited" tone="info" title="Not signed up yet" message={`They were sent a welcome email${row.mobile ? ' and WhatsApp' : ''}. They sign up with this work email.`} />
         ) : null}
         {system ? (
           <Banner key="system" tone="info" title="A system login" message="Its account type and removal are managed in User Management, by a Super Admin." />

@@ -372,6 +372,8 @@ function PolicySheet({ settings: s, onClose }: { settings: AttendanceSettings; o
     setError(null);
     for (const [k, v] of Object.entries(patch)) {
       if (typeof v === 'number' && !Number.isFinite(v)) return setError(`Fill in ${LABEL[k] ?? k} as a whole number.`);
+      const range = RANGE[k];
+      if (typeof v === 'number' && range && (v < range[0] || v > range[1])) return setError(`${LABEL[k] ?? k}: use ${range[0]} to ${range[1]} ${range[2]}.`);
     }
     if (weeklyOff.length > 6) return setError('Leave at least one working day in the week.');
     try {
@@ -435,6 +437,15 @@ const LABEL: Record<string, string> = {
   fullDayMinutes: 'Full day from',
   maxAccuracyM: 'GPS must be within',
   regularizationWindowDays: 'Fix attendance up to',
+};
+
+// The server's limits (lib/attendance settings), checked here so the error names the field.
+const RANGE: Record<string, [number, number, string]> = {
+  graceMinutes: [0, 240, 'minutes'],
+  halfDayMinutes: [30, 1440, 'minutes'],
+  fullDayMinutes: [60, 1440, 'minutes'],
+  maxAccuracyM: [10, 1000, 'm'],
+  regularizationWindowDays: [1, 365, 'days'],
 };
 
 const styles = themedStyles(() => ({

@@ -41,6 +41,7 @@ import {
 import { type Desk, useDesk } from '@/features/servicedesk/use-desk';
 import { type PickPerson, PersonPicker } from '@/features/shared/person-picker';
 import { dayTime, priorityLabel, raisedOn, ticketStatus } from '@/features/support/format';
+import { phoneLabel } from '@/features/visitors/format';
 import { canDeleteTickets } from '@/features/adminadvanced/access';
 import { useAccess } from '@/lib/use-access';
 import { palette, radius, space } from '@/theme/tokens';
@@ -161,7 +162,7 @@ function details(t: DeskTicket): SummaryItem[] {
     ...(isItem ? [{ key: 'qty', label: 'Quantity', value: s(t.quantity) || '1' }] : []),
     { key: 'dept', label: 'Department', value: deptOf(t) },
     { key: 'code', label: 'Project code', value: s(t.kekaCode) },
-    { key: 'phone', label: 'Phone', value: s(t.fromPhone) },
+    { key: 'phone', label: 'Phone', value: phoneLabel(s(t.fromPhone)) },
     { key: 'email', label: 'Email', value: s(t.fromEmail) },
     { key: 'behalf', label: 'Raised by', value: s(t.raisedOnBehalfBy) ? `${s(t.raisedOnBehalfBy)}, for them` : '' },
   ].filter((r) => r.value != null && r.value !== '');

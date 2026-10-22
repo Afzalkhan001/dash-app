@@ -27,6 +27,7 @@ import {
   fieldErrors,
   hiddenErrorSections,
   type FieldErrors,
+  missingLabel,
   missingOf,
   newPtSlab,
   type Rounding,
@@ -117,7 +118,7 @@ function Editor({ header, base, onReload }: { header: React.ReactNode; base: Sta
       const r = await save.mutateAsync(body);
       setConfirming(false);
       const left = r.missing ?? missing;
-      toast.show(left.length ? `Saved. Still missing: ${left.join(', ')}` : 'Saved. Payroll uses these from the next run.', left.length ? 'info' : 'success');
+      toast.show(left.length ? `Saved. Still missing: ${left.map(missingLabel).join(', ')}` : 'Saved. Payroll uses these from the next run.', left.length ? 'info' : 'success');
     } catch (e) {
       setError(errorText(e));
     }
@@ -144,7 +145,7 @@ function Editor({ header, base, onReload }: { header: React.ReactNode; base: Sta
           message={`${hiddenErrs.join(', ')}: switch it on (or pick “From slabs” for income tax) and fix the field marked in red, then switch it off again.`}
         />
       ) : null}
-      {missing.length ? <Banner tone="danger" title="Payroll can’t run until these are filled in" message={missing.join(', ')} /> : null}
+      {missing.length ? <Banner tone="danger" title="Payroll can’t run until these are filled in" message={missing.map(missingLabel).join(', ')} /> : null}
 
       <Card>
         <View style={styles.stack}>
@@ -288,7 +289,7 @@ function Editor({ header, base, onReload }: { header: React.ReactNode; base: Sta
           title={changes.length ? `${changes.length} ${changes.length === 1 ? 'change' : 'changes'}` : 'Changes'}
           rows={(changes.length ? changes : ['Only values in switched-off sections changed']).slice(0, 24).map((t, i) => ({ key: String(i), label: t }))}
         />
-        {missing.length ? <Banner tone="warning" title="Payroll will refuse to run until these are filled in" message={missing.join(', ')} /> : null}
+        {missing.length ? <Banner tone="warning" title="Payroll will refuse to run until these are filled in" message={missing.map(missingLabel).join(', ')} /> : null}
         <TypeToConfirm phrase={STATUTORY_PHRASE} value={typed} onChange={setTyped} />
         {error ? <Banner tone="danger" title="Couldn’t save" message={error} icon={RefreshCw} /> : null}
       </ConfirmSheet>

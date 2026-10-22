@@ -273,6 +273,15 @@ function RulesSheet({ settings: s, onClose }: { settings: LeaveSettings; onClose
   const submit = async () => {
     setError(null);
     if (Object.values(patch).some((v) => v == null)) return setError('Fill in every number.');
+    // The server's limits, checked here so the error names the field instead of its key.
+    const limits: [number | null, number, number, string][] = [
+      [patch.backdateDays, 0, 365, 'Requests may go back'],
+      [patch.maxSpanDays, 1, 366, 'Longest single request'],
+      [patch.compOffExpiryDays, 1, 730, 'Comp-off lasts'],
+      [patch.compOffClaimWindowDays, 1, 365, 'Claim comp-off within'],
+    ];
+    const bad = limits.find(([v, lo, hi]) => v != null && (v < lo || v > hi));
+    if (bad) return setError(`${bad[3]}: use ${bad[1]} to ${bad[2]} days.`);
     try {
       await saveRules.mutateAsync(patch as LeaveSettings);
       toast.show('Leave rules saved.');

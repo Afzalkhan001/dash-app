@@ -53,6 +53,8 @@ import {
 type Tab = 'wifi' | 'staff' | 'temp' | 'lists';
 type Confirm = { title: string; what: string; sub?: string; icon: LucideIcon; run: () => Promise<unknown> };
 const norm = (v: string) => String(v || '').trim().toLowerCase();
+/** A number someone can actually dial: digits, spaces, dashes and one leading +, at least 10 digits ("12ab" was saved as-is). */
+const mobileError = (v: string) => (v.trim() && (!/^\+?[\d\s-]+$/.test(v.trim()) || v.replace(/\D/g, '').length < 10) ? 'Enter a 10-digit mobile number' : null);
 
 export default function SupportCentreScreen() {
   const access = useAccess();
@@ -111,7 +113,10 @@ export default function SupportCentreScreen() {
   const wifiRows = wifi.data ?? [];
   const branches = [...new Map(wifiRows.map((x) => [norm(x.branch), x.branch.trim() || 'No branch'])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
   // dash.html:29295 daysLeft — rounded up, so "3 days" on the day they are added.
-  const daysLeft = (s: TempStaffEntry) => (s.expiresAt ? Math.max(0, Math.ceil((Date.parse(s.expiresAt) - now) / 86_400_000)) : null);
+  // `now` ticks once a minute, so right after adding someone it can sit before their createdAt and "3 days"
+  // read "4 days left"; never count from earlier than when they were added.
+  const daysLeft = (s: TempStaffEntry) =>
+    s.expiresAt ? Math.max(0, Math.ceil((Date.parse(s.expiresAt) - Math.max(now, Date.parse(s.createdAt || '') || 0)) / 86_400_000)) : null;
 
   const addLabel = tab === 'wifi' ? 'Add a Wi-Fi network' : tab === 'staff' ? 'Add a contact' : tab === 'temp' ? 'Add temp staff' : '';
 
@@ -291,7 +296,7 @@ export default function SupportCentreScreen() {
         ]}
       />
 
-      {adding === 'wifi' ? <WifiSheet onClose={() => setAdding(null)} /> : null}
+      {adding === 'wifi' ? <WifiSheet existing={wifiRows} onClose={() => setAdding(null)} /> : null}
       {adding === 'staff' || editStaff ? (
         <StaffSheet
           key={editStaff?.id ?? 'new'}
@@ -401,7 +406,7 @@ function ListManager({
   );
 }
 
-function WifiSheet({ onClose }: { onClose: () => void }) {
+function WifiSheet({ existing, onClose }: { existing: WifiEntry[]; onClose: () => void }) {
   const w = useSupportWrites();
   const [f, setF] = useState({ branch: '', wifiName: '', password: '' });
   const [error, setError] = useState<string | null>(null);
@@ -419,7 +424,11 @@ function WifiSheet({ onClose }: { onClose: () => void }) {
           icon={<Wifi />}
           disabled={!ok}
           loading={w.addWifi.isPending}
-          onPress={() =>
+          onPress={() => {
+            // The same network twice under one branch only shows people two identical rows.
+            if (existing.some((x) => norm(x.branch) === norm(f.branch) && norm(x.wifiName) === norm(f.wifiName)))
+              return setError(`${f.wifiName.trim()} is already listed for ${f.branch.trim()}. Delete that one first to change its password.`);
+            setError(null);
             w.addWifi.mutate(
               { branch: f.branch.trim(), wifiName: f.wifiName.trim(), password: f.password },
               {
@@ -429,8 +438,8 @@ function WifiSheet({ onClose }: { onClose: () => void }) {
                 },
                 onError: (e) => setError(e.message),
               },
-            )
-          }
+            );
+          }}
         />
       }>
       <View style={styles.group}>
@@ -448,7 +457,8 @@ function StaffSheet({ entry, onClose, onDelete }: { entry: StaffEntry | null; on
   const [f, setF] = useState({ branch: entry?.branch ?? '', designation: entry?.designation ?? '', name: entry?.name ?? '', mobile: entry?.mobile ?? '' });
   const [active, setActive] = useState(entry ? entry.active !== false : true);
   const [error, setError] = useState<string | null>(null);
-  const ok = !!(f.branch.trim() && f.designation.trim() && f.name.trim() && f.mobile.trim());
+  const mobileBad = mobileError(f.mobile);
+  const ok = !!(f.branch.trim() && f.designation.trim() && f.name.trim() && f.mobile.trim()) && !mobileBad;
   const body = { branch: f.branch.trim(), designation: f.designation.trim(), name: f.name.trim(), mobile: f.mobile.trim() };
   const save = () => {
     const done = {
@@ -478,7 +488,7 @@ function StaffSheet({ entry, onClose, onDelete }: { entry: StaffEntry | null; on
         <TextField label="Name" value={f.name} onChangeText={(v) => setF((x) => ({ ...x, name: v }))} placeholder="Full name" />
         <TextField label="Role" value={f.designation} onChangeText={(v) => setF((x) => ({ ...x, designation: v }))} placeholder="e.g. Front desk, Driver" />
         <TextField label="Branch" value={f.branch} onChangeText={(v) => setF((x) => ({ ...x, branch: v }))} placeholder="e.g. Jubilee Hills HQ" />
-        <TextField label="Mobile" value={f.mobile} onChangeText={(v) => setF((x) => ({ ...x, mobile: v }))} placeholder="+91 …" keyboardType="phone-pad" />
+        <TextField label="Mobile" value={f.mobile} onChangeText={(v) => setF((x) => ({ ...x, mobile: v }))} placeholder="+91 …" keyboardType="phone-pad" error={mobileBad} />
         {entry ? <ToggleRow bleed title="Show in the directory" subtitle="Off hides them without deleting." value={active} onChange={setActive} /> : null}
         {error ? <Banner tone="danger" title="Couldn’t save" message={error} /> : null}
       </View>
@@ -491,7 +501,8 @@ function TempSheet({ onClose }: { onClose: () => void }) {
   const [f, setF] = useState({ branch: '', designation: '', name: '', mobile: '', days: '' });
   const [error, setError] = useState<string | null>(null);
   const days = Number(f.days) || 0;
-  const ok = !!(f.branch.trim() && f.designation.trim() && f.name.trim() && f.mobile.trim() && days > 0);
+  const mobileBad = mobileError(f.mobile);
+  const ok = !!(f.branch.trim() && f.designation.trim() && f.name.trim() && f.mobile.trim() && days > 0) && !mobileBad;
   return (
     <Sheet
       visible
@@ -522,7 +533,7 @@ function TempSheet({ onClose }: { onClose: () => void }) {
         <TextField label="Name" value={f.name} onChangeText={(v) => setF((x) => ({ ...x, name: v }))} placeholder="Full name" />
         <TextField label="Role" value={f.designation} onChangeText={(v) => setF((x) => ({ ...x, designation: v }))} placeholder="e.g. Helper, Driver" />
         <TextField label="Branch" value={f.branch} onChangeText={(v) => setF((x) => ({ ...x, branch: v }))} placeholder="e.g. Gachibowli Studio" />
-        <TextField label="Contact number" value={f.mobile} onChangeText={(v) => setF((x) => ({ ...x, mobile: v }))} placeholder="+91 …" keyboardType="phone-pad" />
+        <TextField label="Contact number" value={f.mobile} onChangeText={(v) => setF((x) => ({ ...x, mobile: v }))} placeholder="+91 …" keyboardType="phone-pad" error={mobileBad} />
         <TextField
           label="For how many days"
           value={f.days}
