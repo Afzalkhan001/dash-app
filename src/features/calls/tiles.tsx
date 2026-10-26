@@ -18,15 +18,20 @@ import { Avatar, Text } from '@/ui';
 
 type AnyStream = { toURL?: () => string } | null | undefined;
 
-/** Draws a media stream. Null (nothing drawn) when this build has no way to show video. */
-export function StreamView({ stream, mirror, audioOnly, muted }: { stream: unknown; mirror?: boolean; audioOnly?: boolean; muted?: boolean }) {
+/**
+ * Draws a media stream. Null (nothing drawn) when this build has no way to show video.
+ * `overlay`: Android draws every RTCView on its own surface, and two at the same depth hide each
+ * other — my small preview sits ON the big remote video, so it must be drawn one level above it
+ * (zOrder 1, SurfaceView media overlay). Without it the preview stays blank.
+ */
+export function StreamView({ stream, mirror, audioOnly, muted, overlay }: { stream: unknown; mirror?: boolean; audioOnly?: boolean; muted?: boolean; overlay?: boolean }) {
   if (!stream) return null;
   if (Platform.OS === 'web') return <WebMedia stream={stream} mirror={mirror} audioOnly={audioOnly} muted={muted} />;
   if (audioOnly) return null; // native WebRTC plays remote audio on its own
   const RTCView = loadRtc()?.RTCView;
   const url = (stream as AnyStream)?.toURL?.();
   if (!RTCView || !url) return null;
-  return <RTCView streamURL={url} objectFit="cover" mirror={!!mirror} zOrder={0} style={StyleSheet.absoluteFill} />;
+  return <RTCView streamURL={url} objectFit="cover" mirror={!!mirror} zOrder={overlay ? 1 : 0} style={StyleSheet.absoluteFill} />;
 }
 
 // The web build: a real <video>/<audio> element inside the tile's host <div> (react-native-web Views
@@ -121,7 +126,7 @@ export function PeerTile({ peer, dead, demo, big }: { peer: PeerView; dead: bool
 export function SelfTile({ stream, cam, mic, name, demo, compact }: { stream: unknown; cam: boolean; mic: boolean; name: string; demo: boolean; compact?: boolean }) {
   return (
     <View style={[styles.tile, compact ? styles.selfCompact : styles.tileSmall]} accessible accessibilityLabel={`You${mic ? '' : ', muted'}${cam ? ', camera on' : ''}`}>
-      {cam && stream ? <StreamView stream={stream} mirror muted /> : null}
+      {cam && stream ? <StreamView stream={stream} mirror muted overlay /> : null}
       {!(cam && stream) ? (
         <View style={styles.face}>
           <Avatar name={name} size={compact ? 40 : 64} ring={false} />
