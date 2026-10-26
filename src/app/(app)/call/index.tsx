@@ -5,7 +5,8 @@
 //     (their direct chat is opened, the same as the website's New chat → Start call);
 //   - Test call alert: the ring, so people know what it looks like (in the demo: a real demo call
 //     from Priya Sharma that can be answered);
-//   - what calls can do here: the limits from GET /meets/calls/config.
+//   - what calls can do here: the limits from GET /meets/calls/config, whether a relay (TURN) is on,
+//     and for IT / super admins which website setting the relay still needs (docs/CALLS-TURN.md).
 // In Expo Go: "Available in the installed app" — starting is explained, never attempted.
 
 import { Redirect, useLocalSearchParams } from 'expo-router';
@@ -22,11 +23,21 @@ import { IncomingCallWatcher, testCallAlert } from '@/features/calls/incoming-ca
 import { type CallTarget, StartCallSheet } from '@/features/calls/start-call';
 import { UnavailableCard } from '@/features/calls/unavailable';
 import { PeopleList } from '@/features/chat/people-list';
+import { isWeb } from '@/lib/capabilities';
 import { plural } from '@/lib/format';
 import { palette } from '@/theme/tokens';
 import { Avatar, Banner, EmptyState, IconBadge, LabelledSection, ListCard, ListRow, NavHeader, Screen, Sheet, SkeletonList, SummaryCard, Text } from '@/ui';
 
 const RECENT = 6;
+
+// Who is told which website setting the relay still needs (the people who run DASH).
+const RELAY_ADMINS = ['master_admin', 'super_admin', 'it_admin'];
+
+function relayAdvice(state: string | undefined) {
+  if (state === 'missing-secret') return 'MEETS_TURN_URLS is set but MEETS_TURN_SECRET is empty on the website host. The relay is used only when both are set.';
+  if (state === 'missing-urls') return 'MEETS_TURN_SECRET is set but MEETS_TURN_URLS is empty on the website host. The relay is used only when both are set.';
+  return 'Some mobile data and office networks only connect through a relay (TURN). Set MEETS_TURN_URLS and MEETS_TURN_SECRET on the website host. The steps are in docs/CALLS-TURN.md.';
+}
 
 function titleOf(c: ConversationRow) {
   if (c.type === 'group') return c.name || 'Group';
@@ -49,10 +60,13 @@ export default function CallsScreen() {
 
   const rows = (convs.data ?? []).filter((c) => !c.leftAt).slice(0, RECENT);
   const max = cfg.data?.maxParticipants ?? 8;
+  const relayOn = !!cfg.data?.hasTurn;
+  const showRelayAdvice = support !== 'demo' && !!cfg.data && !relayOn && !!user && RELAY_ADMINS.includes(user.role);
 
   return (
     <Screen header={<NavHeader title="Calls" />} onRefresh={() => Promise.all([convs.refetch(), cfg.refetch()])}>
       {support === 'unavailable' ? <UnavailableCard /> : null}
+      {showRelayAdvice ? <Banner tone="warning" title="Calls on some networks can’t connect yet" message={relayAdvice(cfg.data?.turnState)} /> : null}
       {support === 'demo' ? (
         <Banner tone="info" title="Demo calls" message="Colleagues answer on their own. No sound or video leaves this phone." />
       ) : null}
@@ -119,6 +133,8 @@ export default function CallsScreen() {
             { label: 'Starts with', value: 'Sound only. Camera when you want it.' },
             { label: 'Rings for', value: '45 seconds, while DASH is open' },
             { label: 'Screen sharing', value: 'Watch here. Share from a computer.' },
+            ...(support === 'live' && !isWeb() ? [{ label: 'Leaving the app', value: 'The call keeps going. Tap “DASH call in progress” to come back.' }] : []),
+            ...(cfg.data && support !== 'demo' ? [{ label: 'Other networks', value: relayOn ? 'Relay on: calls connect on any network' : 'Direct only: some networks need a relay' }] : []),
           ]}
         />
       </LabelledSection>

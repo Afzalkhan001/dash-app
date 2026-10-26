@@ -174,7 +174,7 @@ tab row (registry: `src/features/domains.ts`).
 | `meets` MeetsHub: chats, groups, thread, info, rename, live updates, attachments | everyone | `chat/**`, `features/chat/meets-watcher.tsx` | done |
 | Voice notes | everyone | `features/chatvoice/recorder.tsx`, `voice-player.tsx` | done (iOS can't play the website's WebM notes; they open the share sheet) |
 | Chat export (.txt, .csv, Excel) | everyone | Chat details › Export | done |
-| Voice and video calls, incoming ring, host controls | everyone | `call/index.tsx`, `call/[meetingId].tsx`, `IncomingCallWatcher` in `(app)/_layout.tsx`, StartCallSheet in a chat | blocked on phones: needs an installed build with `react-native-webrtc` (Expo Go shows "Available in the installed app"); works on the web build and in the demo |
+| Voice and video calls, incoming ring, host controls | everyone | `call/index.tsx`, `call/[meetingId].tsx`, `IncomingCallWatcher` in `(app)/_layout.tsx`, StartCallSheet in a chat; installed Android app: `react-native-webrtc`, Speaker button and call audio (`react-native-incall-manager`), background calls (`modules/dash-call` foreground service) | done (installed app, web build and demo; Expo Go shows "Available in the installed app". Calls between networks that block direct routes need the owner's TURN relay: `docs/CALLS-TURN.md`) |
 | Staff sign-in (mobile + WhatsApp code, email + password + code) | staff | `(auth)/login.tsx`, `email.tsx`, `otp.tsx` | done |
 | Forgot password, sign up | staff | `(auth)/forgot.tsx`, `signup.tsx` | done |
 | Google sign-in (staff) | staff | `features/googlesignin/google-button.tsx` on login and email | blocked: needs the owner's Google client ids and a new build (`docs/GOOGLE-SIGNIN.md`); dev/preview builds use the demo picker |
@@ -201,14 +201,14 @@ tab row (registry: `src/features/domains.ts`).
 
 | Status | Count |
 |---|---|
-| done | 114 |
+| done | 115 |
 | partial | 4 |
-| blocked | 3 |
+| blocked | 2 |
 | n/a | 9 |
 | **Total rows** | **130** |
 
-Of the 121 rows that have something to port (all but n/a), 114 are done (94%), 4 partial and 3 blocked
-only by things outside the app (a native build, a server deploy, owner credentials).
+Of the 121 rows that have something to port (all but n/a), 115 are done (95%), 4 partial and 2 blocked
+only by things outside the app (a server deploy, owner credentials).
 
 ### Small gaps fixed in this pass
 - Stale "on the DASH website" copy replaced by links to the app's own screens: payroll statutory (Edit),
@@ -222,8 +222,9 @@ only by things outside the app (a native build, a server deploy, owner credentia
 - Demo: an agreement drafted in the app now records its real Keka Code, drafter and countersigner.
 
 ### Still open (not small)
-- Calls on phones: install `react-native-webrtc` for SDK 57 with its config plugin, a TURN relay over
-  TCP/TLS, background audio (`docs/port/PLAN.md` D3).
+- Calls across strict networks (some mobile data and office firewalls): the owner sets up a TURN relay
+  and two website settings, `MEETS_TURN_URLS` and `MEETS_TURN_SECRET` (`docs/CALLS-TURN.md`). The app
+  needs no change for it.
 - Push: deploy `feature/mobile-push`, run `sql/push_devices.sql`, set `PUSH_ENABLED=1`, add the FCM/APNs
   keys (`docs/PUSH.md`).
 - Google: client ids + new build (`docs/GOOGLE-SIGNIN.md`).
