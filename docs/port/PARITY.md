@@ -105,7 +105,7 @@ tab row (registry: `src/features/domains.ts`).
 | Petty cash: request, bills, statements, reject a bill | staff, approvers | `petty-cash/**`; Inbox `petty`, `petty-acct`; statement PDF in Documents | done |
 | Petty cash bill rules: a photo or PDF on every bill, a bill date within the last 180 days, the "looks identical" warning with Submit anyway (`confirmDuplicates`) | staff | `petty-cash/bills/new.tsx` (date picker floor, swipe becomes "Swipe to submit anyway") | done |
 | Withdraw a bill sent by mistake; withdrawn and rejected bills never count, and the extra claims sharing that petty cash shrink or close | staff | My bills menu and the expense report (`features/petty-cash/withdraw.tsx`); totals, reports, ledger and tracking leave withdrawn bills out | done |
-| Two sign-offs on a request: only the code's owner gives the first approval (Accounts only on a code with no owner), it always goes on to Accounts, whoever gave it can't authorize it, every reject needs a reason | owners, accounts | `features/petty-cash/logic.ts` canApprove; Inbox `petty`, `petty-acct` ("You gave the first approval": Reject only) | partial: Accounts can't reject a request still at an owned code's owner stage (the server allows it); the Inbox offers Reject only to whoever can approve |
+| Two sign-offs on a request: only the code's owner gives the first approval (Accounts only on a code with no owner), it always goes on to Accounts, whoever gave it can't authorize it, every reject needs a reason | owners, accounts | `features/petty-cash/logic.ts` canApprove, canRejectAtOwnerStage; Inbox `petty` (Accounts on a request still at an owned code's owner: Reject only, with the reason), `petty-acct` ("You gave the first approval": Reject only) | done (like the website, no list shows Accounts those owner-stage requests; the request link opens the Reject-only screen) |
 | Vendor bills: nobody approves or rejects a bill they sent; every Accounts reject needs a reason | accounts, super_admin | `features/accounts/item-detail.tsx` ("This one is yours") | done |
 | `ledger` PettyCashLedger (+ custom range, Excel, print) | accounts, super_admin | Big tables › `admin/grids/petty-ledger.tsx` (CSV): a row opens its bills with "View receipt" and the request's History; a claim opens its bill and History | done |
 | Expense claims (reimbursements) | staff, approvers | `reimbursements/**`; Inbox `reimbursements`, `reimb-acct` | done |
@@ -201,13 +201,13 @@ tab row (registry: `src/features/domains.ts`).
 
 | Status | Count |
 |---|---|
-| done | 115 |
-| partial | 4 |
+| done | 116 |
+| partial | 3 |
 | blocked | 2 |
 | n/a | 9 |
 | **Total rows** | **130** |
 
-Of the 121 rows that have something to port (all but n/a), 115 are done (95%), 4 partial and 2 blocked
+Of the 121 rows that have something to port (all but n/a), 116 are done (96%), 3 partial and 2 blocked
 only by things outside the app (a server deploy, owner credentials).
 
 ### Small gaps fixed in this pass
@@ -230,7 +230,7 @@ only by things outside the app (a server deploy, owner credentials).
 - Google: client ids + new build (`docs/GOOGLE-SIGNIN.md`).
 - Partial rows above: someone else's timesheet lines (needs a server route), vendor Google (owner's
   client ids and a build), department view-as (a desktop-only impersonated view; the data is in Employees,
-  Managers and Reports), Accounts rejecting a petty cash request at an owned code's owner stage.
+  Managers and Reports).
 
 ### Closed in pass 4
 - Asset tag scanning: Assets › the scan button in the search field reads a QR or printed barcode (asset ID,

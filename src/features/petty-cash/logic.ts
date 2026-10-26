@@ -53,6 +53,9 @@ export function canApprove(u: StaffUser | null | undefined, r: PettyCashRequest)
   if (r.costCodeOwnerId) return String(r.costCodeOwnerId) === String(u.id);
   return isPettyCashApprover(u);
 }
+// Rejecting at that stage is the owner's or anyone in Accounts', even on a code that has an owner
+// (server.js isPettyCashApprover on /reject). So on an owned code Accounts gets Reject only.
+export const canRejectAtOwnerStage = (u: StaffUser | null | undefined, r: PettyCashRequest) => canApprove(u, r) || isPettyCashApprover(u);
 
 // Requests waiting on this person as project owner (the Inbox's petty cash queue). Extra claims are handled by Accounts.
 export const awaitingMyApproval = (u: StaffUser | null | undefined, requests: PettyCashRequest[]) =>

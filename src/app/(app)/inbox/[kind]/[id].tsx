@@ -10,6 +10,7 @@
 //   Petty cash:  POST /petty_cash_requests/:id/approve {} (the swipe is the confirm, as on the Petty
 //                cash screen); POST /petty_cash_requests/:id/reject { reason } — reason required.
 //                Approving is the project owner's first sign-off: it always goes on to Accounts.
+//                Accounts may reject at that stage on a code that has an owner, so gets Reject only.
 //   Visitors:    POST /visitors/:id/decide { decision } (useDecideVisit) — the server takes no note,
 //                so Turn away asks first, as the Visitors screen does. The bar says "Let in" /
 //                "Turn away" here: you approve a request, not a person.
@@ -94,7 +95,7 @@ import {
   visitorArrived,
 } from '@/features/inbox/format';
 import { useLeaveNames } from '@/features/inbox/leave-names';
-import { canApprove, isOwnRequest, list, roleSeesPettyCash } from '@/features/petty-cash/logic';
+import { canApprove, canRejectAtOwnerStage, isOwnRequest, list, roleSeesPettyCash } from '@/features/petty-cash/logic';
 import { phoneLabel } from '@/features/visitors/format';
 import { VisitPhoto } from '@/features/visitors/visit-photo';
 import { durationLabel } from '@/lib/dates';
@@ -440,8 +441,12 @@ function PettyItem({ id }: { id: string }) {
   const name = nameOr(r.employeeName, 'Employee');
   const heads = list(r.departments).filter((h) => !!h && typeof h === 'object');
   // Same rule as the Petty cash screen: waiting on the project owner's stage, not an extra claim,
-  // mine to approve, and not my own request.
-  const canDecide = r.status === 'pending_approval' && r.kind !== 'excess' && canApprove(user, r) && !isOwnRequest(user, r);
+  // mine to approve, and not my own request. Accounts may still reject one on a code that has an
+  // owner, but only the owner approves it (server.js /reject vs /approve).
+  const atOwnerStage = r.status === 'pending_approval' && r.kind !== 'excess' && !isOwnRequest(user, r);
+  const canDecide = atOwnerStage && canRejectAtOwnerStage(user, r);
+  const canApproveIt = atOwnerStage && canApprove(user, r);
+  const owner = textOr(r.costCodeOwnerName) || 'The project owner';
   const raisedBy = r.onBehalf ? textOr(r.requestedByName) : '';
   const why = textOr(r.rejectionReason);
   const status = pettyStatus(r);
@@ -495,14 +500,18 @@ function PettyItem({ id }: { id: string }) {
           canDecide && !outcome.done
             ? {
                 // The swipe is the confirm the Petty cash screen asks for; the line above it says what happens next.
-                onApprove: () => run('approve'),
+                onApprove: canApproveIt ? () => run('approve') : undefined,
                 onReject: () => {
                   setReason('');
                   setRejecting(true);
                 },
                 approving: decide.isPending && decide.variables?.decision === 'approve',
                 disabled: decide.isPending,
-                note: r.costCodeOwnerId ? 'Approving sends it to Accounts next.' : 'Another Accounts person must authorize it next.',
+                note: !canApproveIt
+                  ? `${owner} approves this first. You can reject it.`
+                  : r.costCodeOwnerId
+                    ? 'Approving sends it to Accounts next.'
+                    : 'Another Accounts person must authorize it next.',
               }
             : null
         }>
@@ -515,7 +524,12 @@ function PettyItem({ id }: { id: string }) {
         />
         <WhoCards
           from={requesterItem(name, sentLine(r.createdAt, now))}
-          to={deciderItem({ mine: canDecide, me: user?.name, status: r.status === 'pending_approval' ? undefined : status.label })}
+          // Reject only: the approval still waits on the project owner, so the card names them.
+          to={
+            canDecide && !canApproveIt
+              ? deciderItem({ mine: false, by: textOr(r.costCodeOwnerName), role: 'Project owner' })
+              : deciderItem({ mine: canDecide, me: user?.name, status: r.status === 'pending_approval' ? undefined : status.label })
+          }
         />
         {textOr(r.remarks) ? <NoteCard label="Note" text={textOr(r.remarks)} /> : null}
         <DetailsCard

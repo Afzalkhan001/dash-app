@@ -508,6 +508,7 @@ function decide(id: string, approve: boolean, body: unknown) {
     });
     return { ok: true };
   }
+  // isPettyCashApprover: the owner, or Accounts on any code — one with an owner too (Reject only there).
   if (r.costCodeOwnerId !== ME.id && !isAccounts()) return fail('Only the Keka Code Owner or Accounts can reject this request.', 403);
   const reason = String((body as { reason?: unknown })?.reason ?? '').trim();
   if (!reason) return fail('Give the reason for rejecting this request — the employee will be shown it.', 400);

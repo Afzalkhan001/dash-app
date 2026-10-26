@@ -9,7 +9,8 @@
 //     has arrived" after reporting it missing) — the same bar and sheet as an expense claim;
 //   an automatic extra claim → the bills it claims.
 // Approving and rejecting happen in one place only, the Inbox: a request waiting on this person as
-// project owner (or Accounts, on a code with no owner) opens /inbox/petty/<id> instead of this screen.
+// project owner (or Accounts, on a code with no owner) opens /inbox/petty/<id> instead of this screen,
+// and so does one Accounts can only reject (still at its owner, on a code that has one).
 // The request comes from the cached overview (the server has no single-request read).
 
 import { useMutation } from '@tanstack/react-query';
@@ -26,7 +27,7 @@ import { HistoryTimeline, OtpConfirmSheet, PaymentRespondSheet, PettyIdleFooter,
 import {
   amount,
   AWAITING_RESPONSE,
-  canApprove,
+  canRejectAtOwnerStage,
   historyEvents,
   isAuthorized,
   isOwnRequest,
@@ -156,8 +157,9 @@ function PettyCashRequestBody() {
   const canDelete = awaitingConfirm && (isRaiser || isPettyCashAdmin(user));
   const canAnswer = isPayee && AWAITING_RESPONSE.includes(r.status);
   const canLateReceive = isPayee && r.status === 'not_received';
-  // Waiting on me to approve: that decision is made in the Inbox, the one place approvals live.
-  const canDecide = r.status === 'pending_approval' && !excess && canApprove(user, r) && !isOwnRequest(user, r);
+  // Waiting on me to approve (or, for Accounts, to reject): that decision is made in the Inbox, the one
+  // place approvals live.
+  const canDecide = r.status === 'pending_approval' && !excess && canRejectAtOwnerStage(user, r) && !isOwnRequest(user, r);
   if (canDecide) return <Redirect href={`/inbox/petty/${encodeURIComponent(r.id)}`} />;
   // Bills come from the viewer's own list (/petty_cash_bill_submissions/mine), so the pool's "spent" is
   // only right for the person the money is for; nobody else gets the card.

@@ -210,7 +210,8 @@ export function PettyCashRequestRow({
 /**
  * One bill I added. Pressing it opens the caller's menu (receipt / expense report / withdraw). The last
  * line keeps the bill number (the number people quote to Accounts), or says why the bill needs a second
- * look. A rejected or withdrawn bill is muted: it is not counted.
+ * look. A rejected or withdrawn bill is muted, its amount struck through (as on the website): it is
+ * not counted.
  */
 export function PettyCashBillRow({
   b,
@@ -259,6 +260,7 @@ export function PettyCashBillRow({
       note={meta}
       value={value}
       valueColor={rejected || withdrawn ? palette.textMuted : undefined}
+      valueStruck={rejected || withdrawn}
       status={status}
       chevron={!!onPress}
       onPress={onPress}

@@ -74,6 +74,7 @@ export function ListRow({
   value,
   valueMeta,
   valueColor,
+  valueStruck,
   titleColor,
   titleWeight = 'semibold',
   valueWeight = 'semibold',
@@ -100,6 +101,8 @@ export function ListRow({
   /** Caption under `value`. */
   valueMeta?: string | null;
   valueColor?: string;
+  /** Strike the figure through (an amount that no longer counts). */
+  valueStruck?: boolean;
   titleColor?: string;
   /** Title weight: semibold (default) or medium (ActivityRow, the calmer Payno name). */
   titleWeight?: 'medium' | 'semibold';
@@ -123,7 +126,7 @@ export function ListRow({
           color={valueColor}
           tabular
           numberOfLines={1}
-          style={[stackRight ? styles.shrink : styles.rightText, valueWeight === 'medium' && styles.titleMedium]}>
+          style={[stackRight ? styles.shrink : styles.rightText, valueWeight === 'medium' && styles.titleMedium, valueStruck && styles.struck]}>
           {value}
         </Text>
       ) : null}
@@ -463,6 +466,8 @@ export type ActivityRowProps = {
   /** Right column: the figure (bodyStrong, tabular, 1 line; a leading "+" shows it in successInk)… */
   value?: string | null;
   valueColor?: string;
+  /** Strike the figure through (an amount that no longer counts: a withdrawn or rejected bill). */
+  valueStruck?: boolean;
   /** …with a small muted time / meta under it… */
   meta?: string | null;
   /** …and/or one StatusPill under it. */
@@ -591,6 +596,7 @@ const styles = themedStyles(() => ({
   text: { flex: 1, minWidth: 0, gap: 2 },
   shrink: { flexShrink: 1 },
   titleMedium: { fontFamily: font.medium },
+  struck: { textDecorationLine: 'line-through' },
   right: { flexShrink: 0, maxWidth: '45%', alignItems: 'flex-end', gap: 2 },
   rightStacked: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: space.xs, rowGap: space.xxs, marginTop: 2 },
   rightText: { textAlign: 'right' },

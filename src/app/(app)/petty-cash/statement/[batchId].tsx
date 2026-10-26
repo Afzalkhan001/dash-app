@@ -176,6 +176,7 @@ function StatementSheetView({
               note={[`By ${l.rejectedByName || 'Accounts'}${l.rejectedAt ? ` on ${shortDate(l.rejectedAt, today)}` : ''}`, l.voucherNumber ? `Bill no. ${l.voucherNumber}` : null].filter(Boolean).join(' · ')}
               value={rowMoney(l.amount)}
               valueColor={palette.textMuted}
+              valueStruck
               status={{ label: 'Not counted', tone: 'failed' }}
             />
           ))}
@@ -197,6 +198,7 @@ function StatementSheetView({
               note={[`By ${l.withdrawnByName || 'the employee'}${l.withdrawnAt ? ` on ${shortDate(l.withdrawnAt, today)}` : ''}`, l.voucherNumber ? `Bill no. ${l.voucherNumber}` : null].filter(Boolean).join(' · ')}
               value={rowMoney(l.amount)}
               valueColor={palette.textMuted}
+              valueStruck
               status={{ label: 'Withdrawn', tone: 'neutral' }}
             />
           ))}

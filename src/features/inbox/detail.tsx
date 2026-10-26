@@ -301,7 +301,8 @@ export function DecisionNote({
 
 // ── Approve / Reject ─────────────────────────────────────────────────────────
 export type DecisionProps = {
-  onApprove: () => void;
+  /** Left out when only Reject is the viewer's (Accounts on petty cash still at its project owner). */
+  onApprove?: () => void;
   onReject: () => void;
   approving: boolean;
   disabled: boolean;
@@ -329,18 +330,21 @@ export function DecisionScreen({ title, decision, children }: { title: string; d
  * The sticky decision bar — pass it as `<Screen footer={…}>`. "Swipe to approve" (the kit's
  * SwipeToConfirm: drag the knob past 85 %; a plain button with a screen reader or Reduce Motion) on
  * top, and a frosted Reject button under it (`approveLabel` / `rejectLabel` rename them). While
- * Approve is saving the knob waits at the end with a spinner and Reject is disabled.
+ * Approve is saving the knob waits at the end with a spinner and Reject is disabled. Without
+ * `onApprove` the bar holds Reject alone.
  */
 export function DecisionBar({ onApprove, onReject, approving, disabled, approveLabel = 'Approve', rejectLabel = 'Reject', note }: DecisionProps) {
   return (
     <ActionBar note={note}>
-      <SwipeToConfirm
-        label={`Swipe to ${approveLabel.toLowerCase()}`}
-        buttonLabel={approveLabel}
-        onConfirm={onApprove}
-        loading={approving}
-        disabled={disabled && !approving}
-      />
+      {onApprove ? (
+        <SwipeToConfirm
+          label={`Swipe to ${approveLabel.toLowerCase()}`}
+          buttonLabel={approveLabel}
+          onConfirm={onApprove}
+          loading={approving}
+          disabled={disabled && !approving}
+        />
+      ) : null}
       <Button title={rejectLabel} variant="ghost" icon={<X />} disabled={disabled} onPress={onReject} />
     </ActionBar>
   );
