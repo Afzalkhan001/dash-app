@@ -5,14 +5,17 @@
 //   - Expo Go: "Available in the installed app" with the call's details, Decline and Close.
 // One other person: their tile fills the screen and mine floats in the corner. More: a 2-column grid.
 // A screen shared from a computer takes the top (only while the host allows sharing).
-// Controls: Mute, Camera, Flip, Leave. Host (•••): Add person, screen-share switch, Remove, End for
+// Controls: Mute, Camera, Flip (camera on), Speaker (installed app), Leave. Voice calls start on the
+// earpiece and a camera turned on moves the sound to the speaker; a headset or Bluetooth takes over
+// by itself (features/calls/call-service.ts). Leaving the app keeps the call going behind a
+// "DASH call in progress" notification. Host (•••): Add person, screen-share switch, Remove, End for
 // everyone — each that rings or cuts someone off goes through ConfirmSheet + SwipeToConfirm and says
 // who is told. Nobody is ever emailed or WhatsApped by a call.
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Mic, MicOff, MonitorOff, MonitorUp, MoreHorizontal, PhoneOff, SwitchCamera, UserMinus, UserPlus, Video, VideoOff } from 'lucide-react-native';
+import { Mic, MicOff, MonitorOff, MonitorUp, MoreHorizontal, PhoneOff, SwitchCamera, UserMinus, UserPlus, Video, VideoOff, Volume2 } from 'lucide-react-native';
 import { type ComponentType, type ReactNode, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -226,6 +229,8 @@ function InCall({ meetingId, title, demo }: { meetingId: string; title: string |
           <View style={styles.chips}>
             {host ? <Chip label="Host" /> : null}
             {demo ? <Chip label="Demo · no sound sent" /> : null}
+            {s.phase === 'live' && s.audioRoute === 'bluetooth' ? <Chip label="Sound on Bluetooth" /> : null}
+            {s.phase === 'live' && s.audioRoute === 'headset' ? <Chip label="Sound on headset" /> : null}
           </View>
         </View>
         {host && s.phase === 'live' ? (
@@ -264,7 +269,20 @@ function InCall({ meetingId, title, demo }: { meetingId: string; title: string |
         <View style={styles.controls}>
           <RoundControl icon={s.mic ? Mic : MicOff} label={s.mic ? 'Mute' : 'Unmute'} active={!s.mic} a11y={s.mic ? 'Mute your microphone' : 'Unmute your microphone'} disabled={s.phase !== 'live'} onPress={() => activeCall()?.toggleMic()} />
           <RoundControl icon={s.cam ? Video : VideoOff} label="Camera" active={s.cam} a11y={s.cam ? 'Turn your camera off' : 'Turn your camera on'} disabled={s.phase !== 'live'} onPress={() => void activeCall()?.toggleCam()} />
-          <RoundControl icon={SwitchCamera} label="Flip" a11y="Switch between front and back camera" disabled={!s.cam} onPress={() => activeCall()?.flipCam()} />
+          {s.cam ? <RoundControl icon={SwitchCamera} label="Flip" a11y="Switch between front and back camera" onPress={() => activeCall()?.flipCam()} /> : null}
+          {s.canSwitchSpeaker ? (
+            <RoundControl
+              icon={Volume2}
+              label="Speaker"
+              active={s.speaker}
+              a11y={s.speaker ? 'Turn the speaker off' : 'Turn the speaker on'}
+              disabled={s.phase !== 'live'}
+              onPress={() => {
+                haptic.select();
+                activeCall()?.toggleSpeaker();
+              }}
+            />
+          ) : null}
           <RoundControl icon={PhoneOff} label="Leave" danger a11y="Leave the call" onPress={leave} />
         </View>
       ) : null}
@@ -517,8 +535,9 @@ const styles = themedStyles(() => ({
   screenStage: { height: 220, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: palette.frostOnDark },
   screenLabel: { position: 'absolute', left: space.xs, bottom: space.xs, paddingHorizontal: space.xs, paddingVertical: 2, borderRadius: radius.sm, backgroundColor: palette.overlay },
   controls: { flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'flex-start', paddingTop: space.xs },
+  // Up to five controls fit a 320 pt phone: 56 pt circles (above the 44 pt minimum) in equal columns.
   control: { flex: 1, maxWidth: 88, alignItems: 'center', gap: space.xxs },
-  round: { width: 60, height: 60, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  round: { width: 56, height: 56, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.85 },
   disabled: { opacity: 0.45 },
   endIcon: { width: 72, height: 72, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.danger },

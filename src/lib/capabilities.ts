@@ -11,6 +11,8 @@ import * as Device from 'expo-device';
 import { isRunningInExpoGo } from 'expo';
 import { NativeModules, Platform } from 'react-native';
 
+import { requireWebRTC } from '@/lib/webrtc-module';
+
 export const UNAVAILABLE_IN_EXPO_GO = 'Available in the installed app';
 
 export function isWeb(): boolean {
@@ -32,20 +34,33 @@ export function isInstalledApp(): boolean {
   );
 }
 
-// Voice and video calls. react-native-webrtc is NOT installed yet: no release is documented as
-// supporting Expo SDK 57 / React Native 0.86 (its config plugin's table stops at SDK 56). When it
-// is installed in a development build, the native module below appears and this turns true.
+// Voice and video calls. react-native-webrtc 124.0.8 (+ @config-plugins/react-native-webrtc 15.0.2)
+// is linked into installed builds (preview, store, development), so its native module is there and
+// this is true. Expo Go and the web build answer false: Expo Go shows "Available in the installed
+// app", and the web build uses the browser's own WebRTC instead (features/calls/access.ts).
 export function hasWebRTC(): boolean {
   if (isWeb() || isExpoGo()) return false;
   return NativeModules.WebRTCModule != null;
 }
 
-// Lazily loads react-native-webrtc. Returns null until the package is installed (see hasWebRTC).
-// Keep the require out of module scope so Metro never resolves it in Expo Go or on web.
+// Lazily loads react-native-webrtc (null in Expo Go and on web, see hasWebRTC). The require itself
+// lives in lib/webrtc-module.ts and only runs here, never at module scope; the web build gets
+// webrtc-module.web.ts, so Metro never resolves the package for the browser.
 export function loadWebRTC(): unknown | null {
   if (!hasWebRTC()) return null;
-  // When react-native-webrtc is added: return require('react-native-webrtc');
-  return null;
+  try {
+    return requireWebRTC();
+  } catch {
+    return null;
+  }
+}
+
+// Call audio routing (react-native-incall-manager: speaker / earpiece / headset / Bluetooth,
+// proximity screen-off). Linked into the same installed builds as WebRTC; called directly through
+// its native module, so no JS from the package is bundled.
+export function hasCallAudio(): boolean {
+  if (isWeb() || isExpoGo()) return false;
+  return NativeModules.InCallManager != null;
 }
 
 // Remote push needs a real phone and an installed app (Expo Go dropped remote push on Android in

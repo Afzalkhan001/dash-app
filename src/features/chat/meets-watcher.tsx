@@ -59,7 +59,10 @@ export function MeetsWatcher() {
     if (AppState.currentState !== 'background') startChatStream();
     const sub = AppState.addEventListener('change', (s) => {
       if (s === 'active') startChatStream();
-      else if (s === 'background') stopChatStream();
+      // During a call the stream stays open in the background: it carries the call's signals
+      // (people joining or leaving, reconnects, the host ending it). features/calls/call-store.ts
+      // closes it when the call ends while the app is still in the background.
+      else if (s === 'background' && !chatBus.callLive) stopChatStream();
     });
     return () => {
       sub.remove();

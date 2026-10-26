@@ -1,0 +1,20 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- A call keeps running when you leave the app: a foreground service of type microphone
+       (plus camera while your camera is on), with an ongoing notification. -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+  <!-- Bluetooth headsets in a call (react-native-incall-manager): BLUETOOTH_CONNECT, asked at runtime
+       from Android 12. The older BLUETOOTH permission comes from the react-native-webrtc config plugin. -->
+  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+  <application>
+    <service
+      android:name="expo.modules.dashcall.DashCallService"
+      android:exported="false"
+      android:stopWithTask="true"
+      android:foregroundServiceType="microphone|camera" />
+  </application>
+</manifest>

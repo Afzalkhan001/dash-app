@@ -5,10 +5,11 @@
 // (meetsBus.callLive on the website, dash.html:7333).
 
 import { useSyncExternalStore } from 'react';
+import { AppState } from 'react-native';
 
 import { type CallEngine, type CallState, DemoEngine, LiveEngine } from '@/features/calls/engine';
 import { loadRtc } from '@/features/calls/rtc';
-import { chatBus } from '@/features/chat/realtime';
+import { chatBus, stopChatStream } from '@/features/chat/realtime';
 
 let active: CallEngine | null = null;
 let releaseTimer: ReturnType<typeof setTimeout> | null = null;
@@ -54,6 +55,8 @@ export function releaseCall(meetingId: string) {
     active.stop();
     active = null;
     chatBus.callLive = false;
+    // The chat stream was kept open in the background for the call (chat/meets-watcher.tsx).
+    if (AppState.currentState === 'background') stopChatStream();
     notify();
   }, 0);
 }

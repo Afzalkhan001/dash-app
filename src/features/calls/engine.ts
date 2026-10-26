@@ -17,16 +17,23 @@
 //      configured; only the impolite side restarts ICE), then the red "No audio or video" bar.
 //   8. Heartbeat every heartbeatSeconds, reconciling the peer list; leaving sends bye to everyone,
 //      closes the connections, stops the tracks and posts /leave.
+//   9. On an installed Android phone, a CallSession (call-service.ts) runs from "connected" to hang-up:
+//      call audio (earpiece / speaker / headset, the Speaker button), the "call in progress" foreground
+//      service, and the background keep-alive whose 5 s tick also drives the heartbeat.
 //
 // DemoEngine plays the same screen with no media: the demo account never talks to DASH, so colleagues
 // "answer" on timers and every host action still goes through the demo API (demo/fixtures/calls.ts).
+
+import { AppState } from 'react-native';
 
 import { type CallPerson, callsApi, CAMERA_CONSTRAINTS, type IceServer, type MediaState, type PeerCard, RING_SECONDS, type SignalKind } from '@/api/calls';
 import type { ConversationResponse } from '@/api/chat';
 import { apiFetch, isApiError } from '@/api/client';
 import { callsFirst } from '@/features/calls/access';
+import { type AudioRoute, CallSession, hasCallSession, prepareCallAudio } from '@/features/calls/call-service';
 import type { Rtc } from '@/features/calls/rtc';
-import { chatBus } from '@/features/chat/realtime';
+import { chatBus, stopChatStream } from '@/features/chat/realtime';
+import { isWeb } from '@/lib/capabilities';
 
 export type CallPhase = 'joining' | 'live' | 'ended' | 'error';
 
@@ -71,6 +78,12 @@ export type CallState = {
   notice: string | null;
   /** When the call went live (epoch ms), for the timer. */
   liveAt: number | null;
+  /** The sound is on the loudspeaker (the Speaker button). */
+  speaker: boolean;
+  /** Where the sound goes, when the phone says (null on the web build). */
+  audioRoute: AudioRoute | null;
+  /** This phone can switch the speaker (installed app; the demo on a phone). */
+  canSwitchSpeaker: boolean;
 };
 
 export interface CallEngine {
@@ -83,6 +96,8 @@ export interface CallEngine {
   toggleMic(): void;
   toggleCam(): Promise<void>;
   flipCam(): void;
+  /** Loudspeaker on/off (earpiece or headset when off). */
+  toggleSpeaker(): void;
   dismissNotice(): void;
   // Host only (the server checks host_id too). Each resolves to an error message or null.
   invite(person: CallPerson): Promise<string | null>;
@@ -114,6 +129,9 @@ function initialState(meetingId: string, demo: boolean): CallState {
     dead: [],
     notice: null,
     liveAt: null,
+    speaker: false,
+    audioRoute: null,
+    canSwitchSpeaker: false,
   };
 }
 
@@ -204,6 +222,7 @@ abstract class BaseEngine implements CallEngine {
   abstract toggleMic(): void;
   abstract toggleCam(): Promise<void>;
   abstract flipCam(): void;
+  abstract toggleSpeaker(): void;
   protected onShareAllowedChanged(_allowed: boolean) {}
 
   /** Pulls one more person in: they ring exactly as for a new call (dash.html:7764). */
@@ -264,6 +283,9 @@ export class LiveEngine extends BaseEngine {
   private stats: ReturnType<typeof setInterval> | null = null;
   private offBus: (() => void) | null = null;
   private left = false;
+  private session: CallSession | null = null;
+  private beatEvery = 15_000;
+  private lastBeat = 0;
 
   constructor(
     meetingId: string,
@@ -578,6 +600,12 @@ export class LiveEngine extends BaseEngine {
         return;
       }
       this.local.mic = mic;
+      // Installed Android app: "Nearby devices" (Bluetooth headsets) is asked once, before call audio.
+      if (!this.rtc.web && hasCallSession()) await prepareCallAudio();
+      if (!this.alive) {
+        mic?.stop?.();
+        return;
+      }
       const j = await callsApi.join(this.meetingId);
       if (isApiError(j)) throw new Error(j.error || 'You can’t join this call.');
       if (!this.alive) {
@@ -601,8 +629,11 @@ export class LiveEngine extends BaseEngine {
         this.maybeCall(p);
       }
       this.announce({ mic: true, cam: false, screen: false });
+      this.startSession();
       void this.loadTitle();
       const every = Math.max(5, Number(j.heartbeatSeconds) || 15) * 1000;
+      this.beatEvery = every;
+      this.lastBeat = Date.now();
       this.beat = setInterval(() => void this.heartbeat(), every);
       this.stats = setInterval(() => void this.pollStats(), 3000);
     } catch (e) {
@@ -610,15 +641,50 @@ export class LiveEngine extends BaseEngine {
     }
   }
 
+  /** Call audio + the background service (installed Android app; nothing on the web or in Expo Go). */
+  private startSession() {
+    if (this.rtc.web || !hasCallSession()) return;
+    const session = new CallSession({
+      onRoute: (route, canSwitch) => {
+        if (this.alive) this.set({ audioRoute: route, speaker: route === 'speaker', canSwitchSpeaker: canSwitch });
+      },
+      // The keep-alive tick: the heartbeat goes out even while the app's timers are paused.
+      onTick: () => {
+        if (this.alive && Date.now() - this.lastBeat >= this.beatEvery - 1000) void this.heartbeat();
+      },
+      onLeave: (reason) => {
+        if (!this.alive) return;
+        if (reason === 'notification') this.end('ended', 'You left the call from the notification.');
+        else this.stop();
+      },
+    });
+    this.session = session;
+    session.start(this.state.title || this.peerNames(), this.state.cam);
+    this.set({
+      canSwitchSpeaker: session.canSwitch,
+      speaker: session.speaker,
+      audioRoute: session.canSwitch ? (session.speaker ? 'speaker' : 'earpiece') : null,
+    });
+  }
+
+  /** "Priya, Ravi +1" for the notification until the meeting's own title arrives. */
+  private peerNames() {
+    const n = [...this.meta.values()].map((p) => p.name);
+    if (!n.length) return '';
+    return n.slice(0, 2).join(', ') + (n.length > 2 ? ` +${n.length - 2}` : '');
+  }
+
   private async loadTitle() {
     const m = await callsApi.meeting(this.meetingId);
     if (isApiError(m) || !this.alive) return;
     this.set({ title: m.meeting?.title ?? null, conversationId: m.meeting?.conversationId ?? null });
+    if (m.meeting?.title) this.session?.setTitle(m.meeting.title);
   }
 
   /** Presence, and the repair: a missed join shows up here and is called one heartbeat late. */
   private async heartbeat() {
     if (!this.alive) return;
+    this.lastBeat = Date.now();
     const h = await callsApi.heartbeat(this.meetingId);
     if (isApiError(h) || !this.alive) return;
     this.set({
@@ -683,7 +749,15 @@ export class LiveEngine extends BaseEngine {
       }
     }
     this.local = { mic: null, cam: null };
+    this.session?.stop();
+    this.session = null;
+    // The chat stream stayed open in the background only for this call (chat/meets-watcher.tsx).
+    if (AppState.currentState === 'background') stopChatStream();
     void callsApi.leave(this.meetingId);
+  }
+
+  toggleSpeaker() {
+    this.session?.toggleSpeaker();
   }
 
   toggleMic() {
@@ -708,6 +782,7 @@ export class LiveEngine extends BaseEngine {
       this.putInSlot(1, null);
       this.set({ cam: false, selfStream: null });
       this.announce({ cam: false });
+      this.session?.setVideo(false);
       return;
     }
     try {
@@ -721,6 +796,7 @@ export class LiveEngine extends BaseEngine {
       this.putInSlot(1, t); // replaceTrack, not addTrack: instant, no renegotiation
       this.set({ cam: true, selfStream: s });
       this.announce({ cam: true });
+      this.session?.setVideo(true);
     } catch {
       this.set({ notice: 'The camera could not be turned on. Allow the camera in your phone’s settings.' });
     }
@@ -796,6 +872,9 @@ export class DemoEngine extends BaseEngine {
       maxParticipants: Number(j.maxParticipants) || 8,
       expected: [],
       liveAt: Date.now(),
+      // The demo plays no sound, but on a phone the Speaker button behaves as in a real call.
+      canSwitchSpeaker: !isWeb(),
+      audioRoute: isWeb() ? null : 'earpiece',
     });
     for (const p of j.peers ?? []) {
       this.remember(p);
@@ -839,8 +918,18 @@ export class DemoEngine extends BaseEngine {
     this.set({ mic: !this.state.mic });
   }
 
+  /** null = automatic: the speaker follows the camera, as in a real call. */
+  private speakerChoice: boolean | null = null;
+
   async toggleCam() {
-    this.set({ cam: !this.state.cam });
+    const cam = !this.state.cam;
+    this.set({ cam, ...(this.speakerChoice == null && this.state.canSwitchSpeaker ? { speaker: cam, audioRoute: cam ? ('speaker' as const) : ('earpiece' as const) } : {}) });
+  }
+
+  toggleSpeaker() {
+    const speaker = !this.state.speaker;
+    this.speakerChoice = speaker;
+    this.set({ speaker, audioRoute: speaker ? 'speaker' : 'earpiece' });
   }
 
   flipCam() {

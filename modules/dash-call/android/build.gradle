@@ -1,0 +1,21 @@
+// DASH's own call module (Android only): the "call in progress" foreground service, its notification,
+// and the keep-alive that lets the JS heartbeat run while the app is in the background.
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.tamadamedia.dash'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.dashcall"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}
+
+dependencies {
+  implementation 'com.facebook.react:react-android'
+}
