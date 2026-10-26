@@ -113,7 +113,7 @@ export type StaffTourCtx = {
   inboxSummary: boolean;
   /** What the + sheet offers, in order (labels as they read). */
   createLabels: string[];
-  /** More's tiles (menu keys) and whether its people tile is "My team". */
+  /** More's own pages (features/more/menu keys; drawn in More's sidebar sections) and whether People is "My team". */
   moreTiles: string[];
   hasTeam: boolean;
   /** The phone can lock DASH (biometrics enrolled). */
@@ -333,7 +333,7 @@ function staffSteps(id: StaffTourId, ctx: StaffTourCtx): TourStep[] {
           when: () => ctx.inboxSummary,
         }),
         s.meTeam('Who’s in today and the holiday list are on Me.'),
-        s.tile('announcements', 'more.news', 'Company news', 'Read company announcements here. New ones also show on Home.'),
+        s.tile('announcements', 'more.news', 'Announcements', 'Read company announcements here. New ones also show on Home.'),
         s.team('Find anyone, see each department and open the org chart.', 'People and teams'),
         s.replay(),
       ];
@@ -356,7 +356,6 @@ function staffSteps(id: StaffTourId, ctx: StaffTourCtx): TourStep[] {
         s.chips('Tap a type to see only those, like Petty cash.'),
         s.me(),
         s.tile('petty-cash', 'more.pettyCash', 'Petty cash', 'Money you were given, your bills and expense reports are here.'),
-        s.tile('reimbursements', 'more.expenseClaims', 'Expense claims', 'Claim back money you spent, and see what was paid.'),
         s.replay(),
       ];
     case 'app_manager':
@@ -367,7 +366,7 @@ function staffSteps(id: StaffTourId, ctx: StaffTourCtx): TourStep[] {
         s.create(),
         s.inbox(),
         s.tile('tasks', 'more.myTasks', 'Tasks at a glance', 'See tasks and how they are going. Open one for its details.'),
-        s.tile('bounty', 'more.bounty', 'Bounty rewards', 'See open bounties, claims and the leaderboard.'),
+        s.tile('bounty', 'more.bounty', 'Bounty system', 'See open bounties, claims and the leaderboard.'),
         s.replay(),
       ];
     case 'visitor_manager': {

@@ -64,8 +64,8 @@ function maskAccount(n: string) {
 }
 
 /**
- * An Indian mobile number grouped the way it is read aloud: "+918328617610" or "08328617610" →
- * "+91 83286 17610". Anything else (another country, a landline, an extension) is shown as stored.
+ * An Indian mobile number grouped the way it is read aloud: "+919876543210" or "09876543210" →
+ * "+91 98765 43210". Anything else (another country, a landline, an extension) is shown as stored.
  */
 function displayPhone(raw: string) {
   const stored = raw.trim();

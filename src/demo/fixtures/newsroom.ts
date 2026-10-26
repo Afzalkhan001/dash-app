@@ -21,7 +21,7 @@
 import type { Announcement } from '@/api/announcements';
 import type { NewsPayload, TvDevice, TvLog, TvMedia, TvPlaylist } from '@/api/newsroom';
 import { DEMO_TENANT_ID } from '@/demo/config';
-import { makeAnnouncement, newsStore } from '@/demo/fixtures/announcements';
+import { makeAnnouncement, newsStore, seedBanners, seedMedia } from '@/demo/fixtures/announcements';
 import { allPeople, patchTenant, TENANT } from '@/demo/fixtures/org';
 import { currentPersona, personaUserId } from '@/demo/personas';
 import { addDays, DEMO_CODE, daysAgo, fail, istIso, minutesAgo, newId, notFound, nowIso, type Route, today } from '@/demo/state';
@@ -57,8 +57,9 @@ if (!(TENANT.announcementCreators ?? []).some((c) => low(c?.name) === 'afzal man
 }
 if (typeof TENANT.hrNotifyPhone !== 'string') patchTenant({ hrNotifyPhone: '9876543210' });
 
-const media = new Map<string, { fileData: string; fileName: string }>();
-const banners = new Map<string, { homeBannerImage: string; homeBannerImageName: string }>();
+// Seeded with the sample posts' drawn pictures (announcements.ts), so Home's carousel has artwork.
+const media = new Map<string, { fileData: string; fileName: string }>(seedMedia());
+const banners = new Map<string, { homeBannerImage: string; homeBannerImageName: string }>(seedBanners());
 const priority = new Map<string, string>([
   ['ann-demo-townhall', 'high'],
   ['ann-demo-nas', 'normal'],

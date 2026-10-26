@@ -362,6 +362,8 @@ export function roomSlotState(o: { roomId: string; date: string; slots: RoomSlot
   const booked = o.slots.filter((b) => b.roomId === o.roomId && b.date === o.date);
   const held = new Map(o.holds.map((h) => [h.slotIndex, h]));
   return {
+    /** The day's bookings for this room, earliest first (the "Booked on this day" list). */
+    booked: [...booked].sort((a, b) => a.startSlot - b.startSlot),
     bookingAt: (s: number) => booked.find((b) => s >= b.startSlot && s < b.endSlot) ?? null,
     heldAt: (s: number) => held.get(s) ?? null,
     taken: (s: number) => booked.some((b) => s >= b.startSlot && s < b.endSlot) || held.has(s),

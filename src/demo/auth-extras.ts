@@ -1,3 +1,4 @@
+// Typed demo entries below are OFF (demo/config.ts DEMO_TYPED_SIGN_IN): the demo opens only from "Try a demo role".
 // The demo's answers for the sign-in extras: forgot password and sign-up (docs/port/signin-push.md §7).
 // These calls are made BEFORE anyone is signed in, so they carry no demo token and never reach
 // demoFetch (api/client.ts only redirects calls made with a demo token). api/signin.ts asks here first
@@ -7,7 +8,7 @@
 // The same answers are registered as demo routes in demo/fixtures/signin.ts, so a demo-token caller
 // gets the same replies (and the shapes are checked once, against the API types in api/signin.ts).
 //
-//   Forgot password   afzal.demo@tamadamedia.com → "•••••7610"; the number must be 8328617610 (else
+//   Forgot password   afzal.demo@tamadamedia.com → "•••••0000"; the number must be DEMO_PHONE (else
 //                     the server's own "does not match" wording); code 123456; any new password of
 //                     at least 4 characters "saves", but nothing is stored: Demo@123 stays.
 //   Sign up           afzal.newjoiner@tamadamedia.com  on the list, not signed up yet → account created
@@ -15,7 +16,7 @@
 //                     afzal.notlisted@tamadamedia.com  not on the list → the warning, then the 403
 // The wording of every refusal is copied from server.js (/api/auth/*), so the demo shows what DASH would.
 
-import { DEMO_EMAIL, DEMO_ENABLED, DEMO_OTP, DEMO_PASSWORD, DEMO_PHONE, DEMO_TENANT_ID } from '@/demo/config';
+import { DEMO_EMAIL, DEMO_ENABLED, DEMO_TYPED_SIGN_IN, DEMO_OTP, DEMO_PASSWORD, DEMO_PHONE, DEMO_TENANT_ID } from '@/demo/config';
 
 export const DEMO_SIGNUP_EMAIL = 'afzal.newjoiner@tamadamedia.com';
 export const DEMO_UNLISTED_EMAIL = 'afzal.notlisted@tamadamedia.com';
@@ -34,13 +35,13 @@ const refuse = (error: string, status = 400): Refusal => ({ error, status });
 
 /** One of the demo's sign-in-extra addresses (never true in a store build). */
 export function isDemoExtraEmail(email: unknown) {
-  if (!DEMO_ENABLED) return false;
+  if (!DEMO_ENABLED || !DEMO_TYPED_SIGN_IN) return false;
   const e = norm(email);
   return e === DEMO_EMAIL || e === DEMO_SIGNUP_EMAIL || e === DEMO_UNLISTED_EMAIL;
 }
 
 /** The forgot-password flow for the demo account (the code step has no WhatsApp message). */
-export const isDemoForgotEmail = (email: unknown) => DEMO_ENABLED && norm(email) === DEMO_EMAIL;
+export const isDemoForgotEmail = (email: unknown) => DEMO_ENABLED && DEMO_TYPED_SIGN_IN && norm(email) === DEMO_EMAIL;
 
 // The approved list ("whitelist") as the demo knows it.
 const LIST: Record<string, { name: string; role: string; signedUp: boolean }> = {

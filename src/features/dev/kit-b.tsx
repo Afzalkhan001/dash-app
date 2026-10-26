@@ -70,7 +70,7 @@ const DONE_ROWS: KeyValueItem[] = [
 
 export function KitSectionB() {
   // PillField
-  const [phone, setPhone] = useState('83286 17610');
+  const [phone, setPhone] = useState('98765 43210');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('ananya.reddy@tamada');
   const [reason, setReason] = useState('');
@@ -173,7 +173,7 @@ export function KitSectionB() {
               Verify it’s you
             </Text>
             <Text variant="label" muted align="center">
-              We sent a 6-digit code to +91 ••••• 17610 on WhatsApp.
+              We sent a 6-digit code to +91 ••••• 43210 on WhatsApp.
             </Text>
             <OtpBoxes value={otp} onChange={setOtp} onComplete={verify} withKeypad />
             <Button title="Verify code" onPress={() => verify(otp)} loading={otpBusy} disabled={!codePad.complete} />

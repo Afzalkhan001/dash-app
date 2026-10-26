@@ -1,3 +1,4 @@
+// Typed demo entries below are OFF (demo/config.ts DEMO_TYPED_SIGN_IN): the demo opens only from "Try a demo role".
 // Email + password sign-in (server.js /api/auth/login). After the password the server always asks
 // for a second factor: a WhatsApp code to the profile's mobile number, or an emailed code. As on
 // the website, the WhatsApp route needs the person to type their full number, which the server
@@ -12,7 +13,7 @@
 // Server errors show as a danger Banner right above the main button, never as red text.
 // The in-app demo (dev builds only, demo/config.ts): afzal.demo@tamadamedia.com with Demo@123 walks the
 // same steps without the network — straight to choosing how to get the code (the
-// WhatsApp step wants 8328617610), then 123456 and the "Explore DASH as…" role picker.
+// WhatsApp step wants DEMO_PHONE), then 123456 and the "Explore DASH as…" role picker.
 //
 // The sign-in extras (signin domain, docs/port/signin-push.md §5): "Forgot password?" under the password
 // opens /forgot with the typed email, and "New here? Create your account" under the "Or" divider opens

@@ -113,21 +113,21 @@ export default function AnnouncementsScreen() {
       scroll={false}
       header={
         <NavHeader
-          title="News"
+          title="Announcements"
           actions={studio ? [{ key: 'studio', icon: PenLine, label: 'News studio', onPress: () => router.push('/admin/news') }] : []}
         />
       }>
       {!allowed ? (
         <EmptyState
           icon={<Megaphone color={palette.textMuted} strokeWidth={1.8} />}
-          title="News isn’t on for you"
-          message="Your company admin can turn it on."
+          title="Announcements aren’t on for you"
+          message="Your company admin can turn them on."
         />
       ) : ann.isPending ? (
-        // isPending also covers restoring the saved cache on a cold start (no "No news right now" flash).
+        // isPending also covers restoring the saved cache on a cold start (no "No announcements right now" flash).
         <SkeletonFeed />
       ) : ann.isError && !ann.data ? (
-        <ErrorState message={ann.error?.message ?? 'News could not be loaded.'} onRetry={() => void ann.refetch()} />
+        <ErrorState message={ann.error?.message ?? 'Announcements could not be loaded.'} onRetry={() => void ann.refetch()} />
       ) : (
         <View style={styles.fill}>
           <FlashList
@@ -149,7 +149,7 @@ export default function AnnouncementsScreen() {
             ListEmptyComponent={
               <EmptyState
                 icon={<Megaphone color={palette.textMuted} strokeWidth={1.8} />}
-                title="No news right now"
+                title="No announcements right now"
                 message="New ones will show up here."
               />
             }

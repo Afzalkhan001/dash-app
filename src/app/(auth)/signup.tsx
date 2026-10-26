@@ -30,7 +30,7 @@ import { AuthFooterLink, AuthNote, AuthShell, BackButton } from '@/auth/auth-she
 import { useAuthFlow } from '@/auth/flow';
 import { useSession } from '@/auth/session';
 import { DEMO_SIGNUP_EMAIL, DEMO_UNLISTED_EMAIL, isDemoExtraEmail } from '@/demo/auth-extras';
-import { DEMO_EMAIL, DEMO_ENABLED } from '@/demo/config';
+import { DEMO_EMAIL, DEMO_ENABLED, DEMO_TYPED_SIGN_IN } from '@/demo/config';
 import { startStaffDemo } from '@/features/demo/role-picker';
 import { isValidEmail, MIN_PASSWORD, PASSWORDS_DIFFER, SIGNUP_FAILED, SOMETHING_WENT_WRONG } from '@/features/signin/rules';
 import { ROLE_LABEL } from '@/lib/access';
@@ -50,6 +50,7 @@ const roleLabel = (role: string) => ROLE_LABEL[role] ?? role.replace(/_/g, ' ');
 
 /** A short note on the demo addresses, so each path can be tried. */
 function demoNoteFor(email: string) {
+  if (!DEMO_TYPED_SIGN_IN) return null;
   const e = email.trim().toLowerCase();
   if (e === DEMO_SIGNUP_EMAIL) return 'Demo · a new joiner on the list. Nothing is saved.';
   if (e === DEMO_EMAIL) return 'Demo · this person already has an account.';

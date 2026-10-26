@@ -1,3 +1,5 @@
+// NOTE: More itself is now drawn from the website's sidebar (features/more/nav.ts); this grouping is
+// kept for the tour (`keys`: which domain rows this person has).
 // More › Workspace: the grouped list sections under More's app grid, built from every domain's
 // workspaceRows(access) (features/<domain>/nav.ts, through features/domains). One pattern for every
 // admin and desk area, in place of separate "Manage", "HR admin", "Accounts desk", "IT desk", "Admin",
@@ -50,11 +52,15 @@ export type Workspace = {
   keys: string[];
 };
 
+/** Rows the owner asked to take out of the app (Agreements). More leaves them out too (features/more/nav). */
+const REMOVED_ROWS = new Set(['accounts.agreements']);
+
 const KNOWN = new Set<string>(['links', ...WORKSPACE_SECTIONS.map((s) => s.key)]);
 
 /** Everything the domains offer this person in More, grouped. Pure: call it during render. */
 export function buildWorkspace(access: Access): Workspace {
   const rows = domainWorkspaceRows(access).filter((r) => {
+    if (REMOVED_ROWS.has(r.key)) return false;
     const ok = KNOWN.has(r.section) && typeof r.label === 'string' && !!r.label && !!r.href && !!r.icon;
     if (!ok && __DEV__) console.warn(`[workspace] row "${r.key}" needs a known section, a label, an href and an icon — dropped`);
     return ok;

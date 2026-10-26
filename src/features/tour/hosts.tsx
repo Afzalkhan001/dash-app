@@ -68,7 +68,8 @@ export function StaffTourHost({ creating }: { creating: boolean }) {
     isSystemRole: access.isSystemRole,
     meSegments: meSegmentsFor(access.sections, leave.enabled, pay.pay),
     leaveBalance: leave.enabled && leave.hasLeave,
-    shortcuts: shortcuts.map((s) => s.key),
+    // Home no longer draws the shortcut row (owner request), so the tour has no shortcuts step.
+    shortcuts: [],
     leaveShortcut,
     whosIn: !!whosIn,
     needsYou: summary.total > 0 || toRead > 0,

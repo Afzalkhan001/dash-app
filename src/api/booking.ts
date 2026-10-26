@@ -15,6 +15,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 
+import { FALLBACK_PURPOSES } from '@/api/booking-purposes';
 import { api, unwrap } from '@/api/client';
 import type { Booking, Task } from '@/api/tasks';
 import { useSession } from '@/auth/session';
@@ -98,19 +99,9 @@ export type LocTimeBooking = { id: string; locationId: string; date: string; sta
 export type Hold = { holdId: string; resourceType: string; resourceId: string; date: string; slotIndex: number; userId?: string; userName?: string; expiresAt?: string };
 export type HoldResource = 'room' | 'loc' | 'pro';
 
-// The five purposes the website falls back to when IT Admin has none (dash.html:897, server.js:3186).
-export const FALLBACK_PURPOSES: RoomPurpose[] = [
-  { id: 'business_meeting', label: 'Business Meeting', active: true },
-  { id: 'client_meeting', label: 'Client Meeting', active: true, requiresClient: true, requiresRequirements: true },
-  {
-    id: 'shooting',
-    label: 'Shooting',
-    active: true,
-    notice: 'If any employee needs this conference room at the same time for a business purpose, your booking may be cancelled by the IT Admin without any prior notice.',
-  },
-  { id: 'training', label: 'Training', active: true },
-  { id: 'team_standup', label: 'Team Standup', active: true },
-];
+// The website's fallback purposes live in a file with no imports, so the demo fixtures can use them
+// without a require cycle (api/client → demo/server → fixtures → api/booking → api/client).
+export { FALLBACK_PURPOSES };
 
 // ── Keys ─────────────────────────────────────────────────────────────────────
 // The feed sits under ['inbox', 'booking', …] so the Inbox's one-minute poll and pull to refresh

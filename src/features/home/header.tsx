@@ -2,7 +2,7 @@
 // left (→ My profile), a small muted "Good morning 👋" over my first name, and on the right the Lendora
 // IconPillGroup — one frosted pill holding two round buttons, each with a red dot when there is
 // something new (never a number: the count itself is only on the Inbox tab):
-//   bell   → News (the company announcements), only for people who can see announcements; the dot
+//   bell   → Announcements (the company announcements), only for people who can see announcements; the dot
 //            shows while something was posted in the last 2 days
 //   inbox  → Inbox; the dot shows while something waits on me
 //   chat   → (slot) the chat domain's button, before the inbox, when features/chat/header-action
@@ -67,10 +67,10 @@ export function HomeTopBar() {
       avatarUri={photo}
       onAvatarPress={() => router.push('/profile')}
       avatarTourId="home.avatar"
-      // The bell is News; without News the pill holds the inbox alone.
+      // The bell is Announcements; without them the pill holds the inbox alone.
       onBellPress={news ? () => router.push('/announcements') : undefined}
       bellDot={freshNews}
-      bellLabel={freshNews ? 'News, new posts' : 'News'}
+      bellLabel={freshNews ? 'Announcements, new posts' : 'Announcements'}
       actions={chat && roomy ? [chat, inboxAction] : [inboxAction]}
     />
   );

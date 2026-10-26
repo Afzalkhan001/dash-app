@@ -6,6 +6,12 @@ A plain-words guide for the DASH mobile app. It covers three things:
 2. Every role, and what each one sees in the app and on the website.
 3. The demo account: one login that lets you try every role.
 
+## How to open the demo (since 26 Oct 2026)
+
+Tap **Try a demo role** on the sign-in screen, pick a role, and enter the code **123456**. That button is the only way in.
+
+Typing a number or email always signs in to the **real** DASH. **8328617610 is no longer the demo number**: it signs in for real like any other number. The demo email `afzal.demo@tamadamedia.com` and the demo sign-up / forgot-password addresses below no longer open the demo either. (Developers: `DEMO_TYPED_SIGN_IN` in `src/demo/config.ts` brings them back.) The parts below that mention typing them describe how it used to work.
+
 ## Is 8328617610 in the DASH database?
 
 **No.** The demo number 8328617610, the code 123456, the email `afzal.demo@tamadamedia.com` and every "Afzal" person are **not** in the DASH database.

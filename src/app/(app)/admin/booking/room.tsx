@@ -1,7 +1,8 @@
 // Book a conference room (web: BookRoom, dash.html:27955–28157). Pick a room and a day (up to 30 days
 // ahead), then half-hour slots on a grid: tap a free slot to start, tap later to stretch, tap the ends
-// to shrink (handleSlotClick :28002). Booked slots are filled, slots someone else is holding say who,
-// past slots are off. The picked slots are held for you while you finish. Then the purpose (IT Admin's
+// to shrink (handleSlotClick :28002). Booked slots are filled and say who booked them (first name; the
+// "Booked on this day" list under the grid has the full name, time and purpose), slots someone else is
+// holding say who, past slots are off. The picked slots are held for you while you finish. Then the purpose (IT Admin's
 // list; its notice, client name and special requirements when it asks for them).
 // Booking is two steps, as on the web: POST /room_slot_bookings claims the slots (409 if someone got
 // there first), then POST /bookings records it, approved. Rooms never need approval. If the second
@@ -13,7 +14,7 @@ import { ArrowRight, DoorClosed } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { postBooking, postRoomSlot, type Room, useBookingFeed, useRoomPurposes, useRooms, useRoomSlots } from '@/api/booking';
+import { FALLBACK_PURPOSES, postBooking, postRoomSlot, type Room, useBookingFeed, useRoomPurposes, useRooms, useRoomSlots } from '@/api/booking';
 import { useNow } from '@/features/attendance/use-now';
 import { canBook } from '@/features/booking/access';
 import { refreshBookings, StepError } from '@/features/booking/actions';
@@ -283,7 +284,7 @@ export default function BookRoomScreen() {
                         </Text>
                         {booked || held ? (
                           <Text variant="micro" color={held ? palette.warningInk : palette.textMuted} numberOfLines={1} maxFontSizeMultiplier={1}>
-                            {booked ? 'Booked' : (held?.userName || 'Held').split(' ')[0]}
+                            {booked ? (booked.bookedBy || 'Booked').split(' ')[0] : (held?.userName || 'Held').split(' ')[0]}
                           </Text>
                         ) : null}
                       </PressableScale>
@@ -295,6 +296,19 @@ export default function BookRoomScreen() {
           )}
           <Button title={allDay ? 'Show 7 AM to 10 PM only' : 'Show earlier and later times'} variant="text" size="sm" onPress={() => setAllDay((v) => !v)} style={styles.change} />
         </Card>
+        {slotData && state.booked.length ? (
+          <ActivityList title="Booked on this day">
+            {state.booked.map((b) => (
+              <ActivityRow
+                key={b.id}
+                person={{ name: b.bookedBy || 'Someone' }}
+                title={b.bookedBy || 'Someone'}
+                subtitle={`${hmLabel(slotToTime(b.startSlot))} – ${hmLabel(slotToTime(b.endSlot))}`}
+                note={purposes.data?.find((x) => x.id === b.purpose)?.label || FALLBACK_PURPOSES.find((x) => x.id === b.purpose)?.label || null}
+              />
+            ))}
+          </ActivityList>
+        ) : null}
         <HoldNotice secsLeft={hold.secsLeft} holdErr={hold.holdErr} />
         {err ? <Banner tone="danger" title="Couldn’t book it" message={err} /> : null}
         {sel ? (

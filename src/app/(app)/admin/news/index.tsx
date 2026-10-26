@@ -61,7 +61,7 @@ export default function NewsStudioScreen() {
           value={live.length}
           unit={live.length === 1 ? 'post' : 'posts'}
           info={scheduled ? { label: 'Scheduled', value: String(scheduled) } : popups ? { label: 'Pop-ups', value: String(popups) } : undefined}
-          sub="A post reaches Home, News and the office TVs at once."
+          sub="A post reaches Home, Announcements and the office TVs at once."
           action={{ title: 'New post', icon: <Plus />, onPress: compose }}
         />
       )}

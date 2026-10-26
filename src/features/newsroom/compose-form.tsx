@@ -367,7 +367,7 @@ export function ComposeForm({ initial }: { initial: Announcement | null }) {
       ? `It goes live for everyone in ${whereText} on ${goesLive}. No one is emailed or messaged.`
       : popup
         ? `It opens over the Home page for everyone in ${whereText} at once. No one is emailed or messaged.`
-        : `Everyone in ${whereText} sees it on Home and in News at once, and the office TVs pick it up. No one is emailed or messaged.`;
+        : `Everyone in ${whereText} sees it on Home and in Announcements at once, and the office TVs pick it up. No one is emailed or messaged.`;
 
   if (done) {
     const verb = editing ? 'Changes saved' : schedule ? 'Post scheduled' : 'Posted';
@@ -405,7 +405,7 @@ export function ComposeForm({ initial }: { initial: Announcement | null }) {
             setFile(null);
           }}
           options={[
-            { value: 'announcement', label: 'Announcement', icon: Megaphone, sub: 'In News', disabled: editing && f.kind !== 'announcement' },
+            { value: 'announcement', label: 'Announcement', icon: Megaphone, sub: 'In Announcements', disabled: editing && f.kind !== 'announcement' },
             { value: 'popup', label: 'Pop-up', icon: BellRing, sub: 'Over Home', disabled: editing && f.kind !== 'popup' },
           ]}
         />

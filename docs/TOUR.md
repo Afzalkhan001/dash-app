@@ -239,18 +239,17 @@ A **target id** is a stable name for one control. Screens mark them with `<TourT
 | `inbox.firstItem` | the first row of the list (first ActivityRow in `InboxGroups`) | at least 1 item |
 | `inbox.history` | the round Past decisions button in the header (TabRootHeader `actions` gets `tourId`), circle | someone who reviews requests or project claims |
 
-**Staff: More** (`(tabs)/more.tsx`; tiles get `tourId` from `MenuItem` in `features/more/menu.ts`)
+**Staff: More** (`(tabs)/more.tsx`; More is the website's sidebar, `features/more/nav.ts`; each page carries its `tourId`, and a folder holding the step's target opens by itself while the tour points at it, `features/more/nav-list.tsx`)
 
 | Target id | What it is | Present when |
 |---|---|---|
-| `more.expenseClaims` | "Expense claims" tile | `webNavHas(role, 'accounts')` |
 | `more.pettyCash` | "Petty cash" tile | same |
 | `more.myTasks` | "My tasks" tile | `mytasks` or `tasks` in the role's menu |
 | `more.support` | "Help & support" tile | `support` in the role's menu |
 | `more.myTeam` | "My team" tile | org on and `hasTeam(role)` |
 | `more.people` | "People" tile (directory, for no-team logins) | org on and not `hasTeam(role)` (master admin, display) |
-| `more.news` | "News" tile | `canSeeAnnouncements` |
-| `more.bounty` | "Bounty rewards" tile | `bounty` in the role's menu and switched on |
+| `more.news` | "Announcements" page | `canSeeAnnouncements` |
+| `more.bounty` | "Bounty system" page | `bounty` in the role's menu and switched on |
 | `more.appLock` | the App lock row | always shown; the step needs `support.hardware && support.enrolled` |
 | `more.appearance` | the Appearance row | always |
 | `more.showMeAround` | **new** "Show me around" row (Account list, under Appearance) | always |

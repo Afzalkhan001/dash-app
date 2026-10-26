@@ -12,6 +12,10 @@
 //
 // expo-notifications is required lazily (notificationsModule) so nothing touches it on web, and in
 // Expo Go only once the demo or the settings screen asks — Expo Go warns as soon as it loads.
+// It needs native modules some Expo Go builds don't have (e.g. Android's ExpoTopicSubscriptionModule).
+// A failing require is NOT caught by try/catch here (Metro reports it to the global error handler
+// as fatal and the app closes), so the native module is checked first and notifications are simply
+// off when it is missing.
 //
 // Taps: a notification carries data {url, kind}. Only URLs that match a screen the app has
 // (safePushUrl) are opened, after the session is ready; anything else opens the Inbox.
@@ -21,6 +25,7 @@
 // "default" channel app.json names for anything without a channel.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { requireOptionalNativeModule } from 'expo';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { type Href, router } from 'expo-router';
@@ -37,10 +42,27 @@ type NotificationsModule = typeof import('expo-notifications');
 type NotificationResponse = import('expo-notifications').NotificationResponse;
 
 // ── The module, loaded on first use ─────────────────────────────────────────
+// Every native module expo-notifications 57 requires as it loads (its build/*.native.js, plus the
+// Android-only topic module). If one is missing, requiring it would close the app.
+const NATIVE_MODULES = () => [
+  'ExpoBackgroundNotificationTasksModule',
+  'ExpoBadgeModule',
+  'ExpoNotificationCategoriesModule',
+  'ExpoNotificationChannelGroupManager',
+  'ExpoNotificationChannelManager',
+  'ExpoNotificationPermissionsModule',
+  'ExpoNotificationPresenter',
+  'ExpoNotificationScheduler',
+  'ExpoNotificationsEmitter',
+  'ExpoNotificationsHandlerModule',
+  'ExpoPushTokenManager',
+  'NotificationsServerRegistrationModule',
+  ...(Platform.OS === 'android' ? ['ExpoTopicSubscriptionModule'] : []),
+];
 let loaded: NotificationsModule | null | undefined;
 export function notificationsModule(): NotificationsModule | null {
   if (loaded !== undefined) return loaded;
-  if (!hasLocalNotifications()) {
+  if (!hasLocalNotifications() || !NATIVE_MODULES().every((m) => requireOptionalNativeModule(m))) {
     loaded = null;
     return loaded;
   }

@@ -15,7 +15,7 @@
 // five. This file's GETs for those two are the full stores; the integrator drops the other two.
 
 import type { RoomPurpose } from '@/api/booking';
-import { FALLBACK_PURPOSES } from '@/api/booking';
+import { FALLBACK_PURPOSES } from '@/api/booking-purposes';
 import type { ConfigItem, StaffEntry, TempStaffEntry, WifiEntry } from '@/api/support';
 import { DEMO_TENANT_ID } from '@/demo/config';
 import { locationStore, roomSlotStore, roomStore } from '@/demo/fixtures/booking';

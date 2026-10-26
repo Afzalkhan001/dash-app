@@ -1,3 +1,4 @@
+// Typed demo entries below are OFF (demo/config.ts DEMO_TYPED_SIGN_IN): the demo opens only from "Try a demo role".
 // Staff "Forgot password?" — the website's LoginForm forgot tab (dash.html:1896-1925, 2236-2262, 2303-2320),
 // same calls, same order (docs/port/signin-push.md §1.1, §5.1). Public: no role gate (it runs before
 // sign-in, and every endpoint is in server.js PUBLIC_API).
@@ -18,7 +19,7 @@
 // title and one muted line, one PillField (or one pair), one full-width primary, server errors as a
 // danger Banner right above it, field errors inline under their field.
 // The demo account (dev and preview builds, demo/auth-extras.ts): afzal.demo@tamadamedia.com →
-// 8328617610 → 123456 → any password of 4+ characters; nothing is sent or stored, Demo@123 stays.
+// DEMO_PHONE → 123456 → any password of 4+ characters; nothing is sent or stored, Demo@123 stays.
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlaskConical, KeyRound, LockKeyhole, Mail, MessageCircle, RotateCw, Smartphone } from 'lucide-react-native';
@@ -31,7 +32,7 @@ import { forgotLookup, forgotReset } from '@/api/signin';
 import { AuthNote, AuthShell, BackButton, PhoneLead } from '@/auth/auth-shell';
 import { useAuthFlow } from '@/auth/flow';
 import { DEMO_OTP, DEMO_PASSWORD, demoForgotPhone, isDemoForgotEmail } from '@/demo/auth-extras';
-import { DEMO_EMAIL, DEMO_ENABLED } from '@/demo/config';
+import { DEMO_EMAIL, DEMO_ENABLED, DEMO_PHONE, DEMO_TYPED_SIGN_IN } from '@/demo/config';
 import { isValidEmail, lastFour, maskedNumber, MIN_PASSWORD, PASSWORDS_DIFFER, prettyPhone, SOMETHING_WENT_WRONG } from '@/features/signin/rules';
 import { Banner, Button, ConfirmSheet, haptic, PillField, shouldStack, SuccessSheet, SummaryCard, Text, useLayout } from '@/ui';
 
@@ -268,7 +269,7 @@ export default function ForgotPassword() {
           />
           {isDemoForgotEmail(email) ? (
             <AuthNote icon={FlaskConical}>Demo account · nothing is sent or changed</AuthNote>
-          ) : !email.trim() && DEMO_ENABLED ? (
+          ) : !email.trim() && DEMO_ENABLED && DEMO_TYPED_SIGN_IN ? (
             <AuthNote icon={FlaskConical}>{`Demo · try ${DEMO_EMAIL}`}</AuthNote>
           ) : null}
           {errorBanner}
@@ -296,7 +297,7 @@ export default function ForgotPassword() {
             error={phoneError}
             hint={last4 ? `It ends in ${last4}.` : 'The full number on your DASH profile.'}
           />
-          {demo ? <AuthNote icon={FlaskConical}>{`Demo account · use 8328617610, the code is ${DEMO_OTP}`}</AuthNote> : null}
+          {demo ? <AuthNote icon={FlaskConical}>{`Demo account · use ${DEMO_PHONE}, the code is ${DEMO_OTP}`}</AuthNote> : null}
           {errorBanner}
           <Button title="Send code" icon={<MessageCircle />} onPress={sendCode} loading={busy} disabled={digits.length !== 10} />
         </>

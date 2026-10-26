@@ -66,7 +66,7 @@ function DurationFigure({ text, greySeconds, timer, spoken }: { text: string; gr
   const parts = durationParts(text);
   if (!parts.length) {
     return (
-      <Text variant="display" color={c.white} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+      <Text variant="hero" color={c.white} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
         {text}
       </Text>
     );
@@ -85,6 +85,7 @@ function DurationFigure({ text, greySeconds, timer, spoken }: { text: string; gr
               onDark
               color={faint ? c.faint : c.white}
               animate={false}
+              size="md"
               style={styles.figurePart}
             />
           );
@@ -118,7 +119,7 @@ function LiveElapsed({ since, skewMs }: { since: string; skewMs: number }) {
   );
 }
 
-// The hero's one big action: a white pill (52 dp, like an lg Button) with a coloured icon disc and a
+// The hero's one big action: a compact white pill (46 dp, still a full touch target) with a coloured icon disc and a
 // coloured label — Clock in in green, Clock out in the brand teal with a warm sunset disc. White text
 // never sits on the green (too little contrast), so the colour is in the disc and the label ink.
 function HeroAction({
@@ -152,7 +153,7 @@ function HeroAction({
       style={[styles.heroBtn, disabled && !loading && styles.dimmed]}>
       <View style={[styles.heroBtnContent, loading && styles.hidden]}>
         <View style={[styles.heroDisc, { backgroundColor: disc }]}>
-          <Icon size={18} color={discIcon} strokeWidth={2.2} />
+          <Icon size={16} color={discIcon} strokeWidth={2.2} />
         </View>
         <Text variant="bodyStrong" color={ink} numberOfLines={1} maxFontSizeMultiplier={1.3} style={styles.shrink}>
           {title}
@@ -174,20 +175,20 @@ export function ClockSkeleton() {
     <Card tone="primary" style={[styles.card, styles.skeletonCard]} accessibilityLabel="Loading today’s attendance" accessibilityRole="progressbar">
       <View style={styles.top}>
         <View style={styles.headRow}>
-          <Skeleton height={32} width={32} radius={16} style={styles.skel} />
+          <Skeleton height={28} width={28} radius={14} style={styles.skel} />
           <Skeleton height={14} width="45%" style={styles.skel} />
         </View>
         <View style={styles.group}>
-          <Skeleton height={54} width="62%" style={styles.skel} />
+          <Skeleton height={40} width="55%" style={styles.skel} />
           <Skeleton height={12} width="40%" style={styles.skel} />
         </View>
       </View>
       <View style={{ flex: 1 }} />
       <View style={styles.actions}>
         <View style={{ flex: 1 }}>
-          <Skeleton height={52} radius={radius.pill} style={styles.skel} />
+          <Skeleton height={46} radius={radius.pill} style={styles.skel} />
         </View>
-        <Skeleton height={52} width={52} radius={26} style={styles.skel} />
+        <Skeleton height={46} width={46} radius={23} style={styles.skel} />
       </View>
     </Card>
   );
@@ -439,7 +440,7 @@ export function ClockCard({ tourId }: { tourId?: string } = {}) {
         {/* Payno's top row: a small icon disc and the label (the day), and how it ended once it has */}
         <View style={styles.headRow}>
           <View style={styles.headDisc} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Clock3 size={16} color={c.white} strokeWidth={1.8} />
+            <Clock3 size={14} color={c.white} strokeWidth={1.8} />
           </View>
           {/* 2 lines: with large text beside the status pill the date wraps instead of being cut */}
           <Text variant="label" color={c.muted} numberOfLines={2} style={styles.flexText}>
@@ -470,7 +471,7 @@ export function ClockCard({ tourId }: { tourId?: string } = {}) {
               </>
             ) : (
               <>
-                <Text variant="hero" color={c.white} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                <Text variant="heading" color={c.white} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
                   Not clocked in
                 </Text>
                 {s.shiftName && s.shiftStart ? (
@@ -586,8 +587,8 @@ export function ClockCard({ tourId }: { tourId?: string } = {}) {
           )}
           {done ? null : (
             // Always a labelled menu, never a bare icon whose meaning has to be guessed.
-            <IconButton tone="onPrimary" size={52} accessibilityLabel="More options" disabled={busy || locating} onPress={() => setMenu(true)}>
-              {locating ? <ActivityIndicator color={c.white} /> : <MoreHorizontal size={22} color={c.white} strokeWidth={1.8} />}
+            <IconButton tone="onPrimary" size={46} accessibilityLabel="More options" disabled={busy || locating} onPress={() => setMenu(true)}>
+              {locating ? <ActivityIndicator color={c.white} /> : <MoreHorizontal size={20} color={c.white} strokeWidth={1.8} />}
             </IconButton>
           )}
         </View>
@@ -618,18 +619,19 @@ export function ClockCard({ tourId }: { tourId?: string } = {}) {
 }
 
 const styles = themedStyles(() => ({
-  // Payno balance hero: plenty of air between the label + figure, any message, and the pill.
-  card: { gap: space.lg },
-  skeletonCard: { minHeight: 248 },
+  // Compact hero (owner request): tighter padding and gaps than a full Payno balance card, so Home's
+  // other sections show above the fold — still the one bold colour moment.
+  card: { gap: space.sm, paddingHorizontal: space.md, paddingVertical: space.md },
+  skeletonCard: { minHeight: 176 },
   // Translucent white on the vermilion gradient (the same in light and dark: the hero doesn't change).
   skel: { backgroundColor: 'rgba(255,255,255,0.18)' },
-  top: { gap: space.sm },
-  group: { gap: space.xxs },
-  headRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 32 },
+  top: { gap: space.xs },
+  group: { gap: 2 },
+  headRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 28 },
   headDisc: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -649,7 +651,7 @@ const styles = themedStyles(() => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    minHeight: 52,
+    minHeight: 48,
     backgroundColor: 'rgba(255,255,255,0.10)',
     borderRadius: radius.md,
     paddingHorizontal: space.sm,
@@ -666,16 +668,16 @@ const styles = themedStyles(() => ({
   heroSlot: { flex: 1, minWidth: 0 },
   heroBtn: {
     flex: 1,
-    minHeight: 52,
+    minHeight: 46,
     borderRadius: radius.pill,
     backgroundColor: palette.surface,
     paddingHorizontal: space.xs,
     justifyContent: 'center',
   },
   heroBtnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, minWidth: 0 },
-  heroDisc: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  heroDisc: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   dimmed: { opacity: 0.4 },
   hidden: { opacity: 0 },
   spinner: { alignItems: 'center', justifyContent: 'center' },
-  doneRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 52 },
+  doneRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 46 },
 }));

@@ -13,7 +13,8 @@
 // as the persona's by demo/server.ts. Two "someone else is booking" holds never lapse, so the room grid
 // and the professional form always show one.
 
-import { FALLBACK_PURPOSES, type Hold, type LocTimeBooking, type Location, type Room, type RoomSlotBooking } from '@/api/booking';
+import type { Hold, LocTimeBooking, Location, Room, RoomSlotBooking } from '@/api/booking';
+import { FALLBACK_PURPOSES } from '@/api/booking-purposes';
 import { DEMO_USER } from '@/demo/config';
 import { personById } from '@/demo/fixtures/org';
 import { bookingStore, createTask, type DemoBooking, removeTask, taskStore } from '@/demo/fixtures/tasks';

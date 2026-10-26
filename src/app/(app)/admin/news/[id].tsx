@@ -57,7 +57,7 @@ export default function NewsPostScreen() {
           onClose={() => router.back()}
           onPrimary={() => router.back()}
           title="Post deleted"
-          subtitle={`“${gone}” is gone from Home, News and the office TVs.`}
+          subtitle={`“${gone}” is gone from Home, Announcements and the office TVs.`}
         />
       </Screen>
     );
@@ -151,7 +151,7 @@ export default function NewsPostScreen() {
             onError: (e) => toast.show(`Couldn’t delete: ${e.message}`, 'danger'),
           })
         }
-        note="It disappears from Home, News and every office TV at once. This can’t be undone. No one is notified."
+        note="It disappears from Home, Announcements and every office TV at once. This can’t be undone. No one is notified."
       />
     </Screen>
   );

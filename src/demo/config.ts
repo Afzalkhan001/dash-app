@@ -1,5 +1,7 @@
-// Demo account — sign in with 8328617610 and code 123456 (or afzal.demo@tamadamedia.com, password
-// Demo@123, then 123456), pick a role in "Explore DASH as…", and explore the app on sample data.
+// Demo account — on the sign-in screen tap "Try a demo role", pick a role, enter the code 123456 and
+// explore the app on sample data. That button is the ONLY way in (owner, 2026-10-26): typing a number
+// or email always goes to the real DASH, so 8328617610 (a real person's number, once the demo's) and
+// afzal.demo@… sign in for real. DEMO_TYPED_SIGN_IN brings the old typed demo entries back if needed.
 //
 // It lives entirely on the phone: requests made with a demo token are answered by src/demo/server.ts
 // and never reach DASH, so it needs no server or database change and can never touch real records.
@@ -19,7 +21,10 @@ import type { StaffUser } from '@/auth/session';
 
 export const DEMO_ENABLED =
   __DEV__ || (process.env.EXPO_PUBLIC_DEMO === '1' && process.env.EXPO_PUBLIC_BUILD_PROFILE === 'preview');
-export const DEMO_PHONE = '8328617610';
+/** Typed demo entries (demo number / email / sign-up and forgot addresses). Off: only the button opens the demo. */
+export const DEMO_TYPED_SIGN_IN = false;
+/** The demo person's number: shown on the demo profile only, never sent anywhere, not anyone's login. */
+export const DEMO_PHONE = '9000000000';
 export const DEMO_OTP = '123456';
 export const DEMO_EMAIL = 'afzal.demo@tamadamedia.com';
 export const DEMO_PASSWORD = 'Demo@123';
@@ -36,8 +41,8 @@ export const VENDOR_DEMO_TOKEN_PREFIX = 'demo-vendor-token:';
 export const isDemoToken = (token: unknown): token is string =>
   DEMO_ENABLED && typeof token === 'string' && token.startsWith(DEMO_TOKEN_PREFIX);
 
-export const isDemoPhone = (phone: string) => DEMO_ENABLED && phone.replace(/\D/g, '').slice(-10) === DEMO_PHONE;
-export const isDemoEmail = (email: string) => DEMO_ENABLED && email.trim().toLowerCase() === DEMO_EMAIL;
+export const isDemoPhone = (phone: string) => DEMO_ENABLED && DEMO_TYPED_SIGN_IN && phone.replace(/\D/g, '').slice(-10) === DEMO_PHONE;
+export const isDemoEmail = (email: string) => DEMO_ENABLED && DEMO_TYPED_SIGN_IN && email.trim().toLowerCase() === DEMO_EMAIL;
 
 export const DEMO_TENANT_ID = 't-demo';
 
@@ -57,8 +62,8 @@ export const DEMO_USER: StaffUser = {
   departmentId: 'dept-creative',
   kekaCode: 'TM-1042',
   employeeNumber: 'TM-1042',
-  mobile: '+918328617610',
-  phone: '+918328617610',
+  mobile: '+919000000000',
+  phone: '+919000000000',
   jobTitle: 'Video Editor',
   reportingTo: 'u-priya',
   reportingManager: 'Priya Sharma',

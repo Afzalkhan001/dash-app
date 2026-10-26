@@ -1,150 +1,266 @@
-// Company news on Home: a "News" section (the More tile's name for announcements) with a "See all"
-// link (→ the full list), under the same kit SectionHeader as Home's other sections (docs/REFERENCE-
-// COMPONENTS.md item 6), over, in order of preference:
-//   1. the Home-banner announcements (the ones HR published "with a Home Banner Image") as a
-//      swipeable strip of their artwork — what the web's HomeAnnouncementBanner shows (dash.html
-//      ~L19322); tapping always opens the announcement (its link is the button there);
-//   2. otherwise one news card for the newest announcement from the last two weeks: a frosted card
-//      (kit ActivityList / ActivityRow) with its type's icon in the News colour, the title (2 lines)
-//      over "Latest · Today", and a chevron;
-//   3. otherwise nothing — no placeholder, like the web.
-// useHomeAnnouncements() decides which (null for "nothing"), so Home can leave the section out
-// entirely instead of rendering an empty slot; <AnnouncementBanner data={…}/> draws it.
-// Pop-ups (kind 'popup') are a website-only feature and are not shown in the app.
-// The strip rotates on its own (every 7 s, like the web) until it is swiped — and never with the
-// system's Reduce Motion setting on.
+// Company announcements on Home: an "Announcements" section (kit SectionHeader, "See all" → the full
+// list) over a swipeable carousel — the app's take on the website's announcement slideshow
+// (dash.html AnnouncementsInlineSlideshow ~L19214 on the Announcements page, and the Home banner strip
+// HomeAnnouncementBanner ~L19322).
 //
-// Light / dark: the News tint is read at render time (theme/tokens moduleTone, a dark tint of the same
-// blue in dark mode); the strip's page dots sit on the artwork itself, so they stay white.
+// Which announcements: exactly the website's set — GET /announcements, then announcementVisible()
+// (published: not scheduled for later, not past its expiry day; my branch or "all"; the auto-posted
+// birthday / anniversary cards only while HR has them switched on), pop-ups left out, newest first
+// (api/announcements useVisibleAnnouncements, the same feed the "See all" list shows). Before this,
+// Home only showed the few posts that carried a Home Banner Image, or else the single newest post
+// from the last two weeks — that is why the app showed fewer than the website.
+// Home leaves out the birthday / work-anniversary cards here because its Celebrations section (at the
+// top of Home) already shows them; they are still in "See all". At most MAX_SLIDES slides.
+//
+// Each slide is a full-width card that opens the announcement when tapped:
+//   - Home Banner Image  → the artwork alone, edge to edge (the website draws nothing over it);
+//   - image post         → its picture, with the title on a dark scrim at the bottom (a "full bleed"
+//                          poster is shown whole, on its colour, with nothing over it);
+//   - anything else      → a styled text card on a module gradient: type chip, when it was posted,
+//                          the title and two lines of the text, and what is attached (a link's site,
+//                          a video, a file).
+// While a picture loads (or if it fails) the text card shows instead, so a slide is never blank.
+// The carousel moves on by itself every 7 s (the website's pace) and pauses while it is touched or
+// dragged; it never moves on its own with Reduce Motion or a screen reader on. Page dots sit under it.
+//
+// Light / dark: the slides are coloured cards with white text in both schemes (module gradients from
+// theme/tokens, read at render time); the page dots and the section use the live palette.
 
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { Download, ExternalLink, Video } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
-import { type Announcement, isCelebration, useAnnouncementBanner, useVisibleAnnouncements } from '@/api/announcements';
+import { type Announcement, isCelebration, useAnnouncementBanner, useAnnouncementMedia, useVisibleAnnouncements } from '@/api/announcements';
 import { useMyTenant } from '@/api/me';
 import { useSession } from '@/auth/session';
-import { announcementA11yLabel, postedLabel, postedWithin, TypeIcon } from '@/features/announcements/parts';
+import { announcementA11yLabel, linkHost, postedLabel, TypeIcon, typeLabel } from '@/features/announcements/parts';
 import { useNow } from '@/features/attendance/use-now';
 import { canSeeAnnouncements } from '@/features/more/menu';
-import { gradient, moduleTone, palette, radius, space } from '@/theme/tokens';
+import { moduleTone, palette, radius, space } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
-import { ActivityList, ActivityRow, SectionHeader } from '@/ui';
+import { SectionHeader, Text, useLayout } from '@/ui';
 
-const RECENT_DAYS = 14;
-const ROTATE_MS = 7000; // same pace as the web's banner
+const MAX_SLIDES = 10;
+const ROTATE_MS = 7000; // same pace as the website's slideshow
 
-function BannerSlide({
+// The text cards take turns over a few calm module gradients, so neighbouring slides differ. Read at
+// render time (never a module-level token read).
+const TEXT_TONES = ['news', 'visitors', 'leave', 'policies'] as const;
+const slideGradient = (i: number) => moduleTone[TEXT_TONES[i % TEXT_TONES.length]!].gradient;
+
+// What is attached, in a few words (for the text card's last line).
+function attachment(a: Announcement) {
+  if (a.linkUrl) return { kind: 'link' as const, text: linkHost(a) || 'Link' };
+  if (a.type === 'video' && a.hasMedia) return { kind: 'video' as const, text: 'Video' };
+  if ((a.type === 'excel' || a.type === 'ppt') && a.hasMedia) return { kind: 'file' as const, text: a.fileName || 'Attachment' };
+  return null;
+}
+
+// The styled text card (also what shows under a picture while it loads).
+function TextSlide({ ann, index, now, roomy }: { ann: Announcement; index: number; now: number; roomy: boolean }) {
+  const white = palette.onPrimary;
+  const muted = palette.onPrimaryMuted;
+  const posted = postedLabel(ann.createdAt, now);
+  const extra = attachment(ann);
+  const ExtraIcon = extra?.kind === 'link' ? ExternalLink : extra?.kind === 'video' ? Video : Download;
+  return (
+    <View style={styles.fill}>
+      <LinearGradient colors={slideGradient(index)} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View style={styles.textSlide}>
+        <View style={styles.chipRow}>
+          <View style={styles.chip}>
+            <TypeIcon type={ann.type} size={14} color={white} />
+            <Text variant="labelStrong" color={white} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+              {typeLabel(ann)}
+            </Text>
+          </View>
+          {posted ? (
+            <Text variant="caption" color={muted} numberOfLines={1} maxFontSizeMultiplier={1.3} style={styles.shrink}>
+              {posted}
+            </Text>
+          ) : null}
+        </View>
+        <View style={styles.textBody}>
+          <Text variant="heading" color={white} numberOfLines={2} maxFontSizeMultiplier={1.4}>
+            {ann.title || 'Announcement'}
+          </Text>
+          {ann.body ? (
+            <Text variant="label" color={muted} numberOfLines={roomy ? 2 : 1} maxFontSizeMultiplier={1.4}>
+              {ann.body}
+            </Text>
+          ) : null}
+        </View>
+        {extra ? (
+          <View style={styles.extra}>
+            <ExtraIcon size={14} color={muted} />
+            <Text variant="caption" color={muted} numberOfLines={1} maxFontSizeMultiplier={1.3} style={styles.shrink}>
+              {extra.text}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+// A picture slide: the Home Banner Image (artwork alone) or an image post's own picture.
+function PictureLayer({ ann, banner, index }: { ann: Announcement; banner: boolean; index: number }) {
+  const bannerArt = useAnnouncementBanner(ann, banner);
+  const media = useAnnouncementMedia(ann, !banner);
+  const uri = banner ? bannerArt.value : media.value;
+  if (!uri) return null;
+  const poster = !banner && !!ann.fullBleed;
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      {poster ? <LinearGradient colors={slideGradient(index)} style={StyleSheet.absoluteFill} /> : null}
+      <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit={poster ? 'contain' : 'cover'} transition={200} />
+      {banner || poster ? null : (
+        <>
+          <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.68)']} start={{ x: 0, y: 0.35 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
+          <View style={styles.caption}>
+            <Text variant="heading" color={palette.onPrimary} numberOfLines={2} maxFontSizeMultiplier={1.4}>
+              {ann.title || 'Announcement'}
+            </Text>
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
+function Slide({
   ann,
-  width,
-  ratio,
   index,
   total,
-  onRatio,
+  width,
+  height,
+  now,
+  roomy,
   onPress,
 }: {
   ann: Announcement;
-  width: number;
-  ratio: number;
   index: number;
   total: number;
-  onRatio: (r: number) => void;
+  width: number;
+  height: number;
+  now: number;
+  roomy: boolean;
   onPress: () => void;
 }) {
-  const { value } = useAnnouncementBanner(ann);
+  const banner = !!ann.hasHomeBanner;
+  const picture = banner || (ann.type === 'image' && !!ann.hasMedia);
+  const posted = postedLabel(ann.createdAt, now);
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${ann.title || 'Announcement'}${total > 1 ? `, ${index + 1} of ${total}` : ''}`}
+      accessibilityLabel={`${announcementA11yLabel(ann, posted)}${total > 1 ? `. ${index + 1} of ${total}` : ''}`}
       accessibilityHint="Opens the announcement"
-      style={({ pressed }) => [{ width }, pressed && { opacity: 0.92 }]}>
-      <View style={[styles.slide, { aspectRatio: ratio }]}>
-        {value ? (
-          <Image
-            source={{ uri: value }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            transition={200}
-            onLoad={(e) => {
-              const { width: w, height: h } = e.source;
-              if (w && h) onRatio(Math.min(3.2, Math.max(1.2, w / h)));
-            }}
-          />
-        ) : null}
+      style={({ pressed }) => [{ width, height }, styles.slideOuter, pressed && styles.pressed]}>
+      <View style={styles.slide}>
+        <TextSlide ann={ann} index={index} now={now} roomy={roomy} />
+        {picture ? <PictureLayer ann={ann} banner={banner} index={index} /> : null}
       </View>
     </Pressable>
   );
 }
 
-function BannerStrip({ items }: { items: Announcement[] }) {
+function Carousel({ items, now }: { items: Announcement[]; now: number }) {
   const router = useRouter();
   const reduced = useReducedMotion();
+  const { fontScale } = useLayout();
   const scroller = useRef<ScrollView>(null);
+  const current = useRef(0);
   const [width, setWidth] = useState(0);
   const [idx, setIdx] = useState(0);
-  const [ratio, setRatio] = useState(16 / 7);
-  const [touched, setTouched] = useState(false);
-  const current = useRef(0);
+  const [held, setHeld] = useState(false);
+  const [reader, setReader] = useState(false);
+  const n = items.length;
+  const shown = Math.min(idx, Math.max(0, n - 1));
 
-  // Rotates every 7 s like the web, until the person swipes it themselves.
+  // No moving on its own while a screen reader is on (it would pull the focus away). On the web
+  // react-native-web always answers "on" (it cannot tell), so the web preview skips the check.
   useEffect(() => {
-    if (items.length < 2 || !width || touched || reduced) return;
+    if (Platform.OS === 'web') return;
+    let live = true;
+    AccessibilityInfo.isScreenReaderEnabled()
+      .then((on) => live && setReader(!!on))
+      .catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('screenReaderChanged', (on) => setReader(!!on));
+    return () => {
+      live = false;
+      sub?.remove?.();
+    };
+  }, []);
+
+  // Moves on every 7 s, paused while touched; the timer starts over after each touch.
+  useEffect(() => {
+    if (n < 2 || !width || held || reduced || reader) return;
     const t = setInterval(() => {
-      const next = (current.current + 1) % items.length;
-      scroller.current?.scrollTo({ x: next * width, animated: true });
+      const next = (current.current + 1) % n;
       current.current = next;
+      scroller.current?.scrollTo({ x: next * width, animated: true });
       setIdx(next);
     }, ROTATE_MS);
     return () => clearInterval(t);
-  }, [items.length, width, touched, reduced]);
+  }, [n, width, held, reduced, reader]);
 
   const onLayout = (e: LayoutChangeEvent) => setWidth(Math.round(e.nativeEvent.layout.width));
-  const onEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (!width) return;
-    const i = Math.max(0, Math.min(items.length - 1, Math.round(e.nativeEvent.contentOffset.x / width)));
-    current.current = i;
-    setIdx(i);
+    const i = Math.max(0, Math.min(n - 1, Math.round(e.nativeEvent.contentOffset.x / width)));
+    if (i !== current.current) {
+      current.current = i;
+      setIdx(i);
+    }
   };
-  // Always the announcement itself, so its text can be read in the app; its link is the primary
-  // button there.
   const open = (a: Announcement) => router.push(`/announcements/${encodeURIComponent(String(a.id))}`);
 
+  // A wide card (about 16:9), taller with large text so the title and a line of text still fit.
+  const roomy = fontScale <= 1.15;
+  const base = Math.round(width * 0.56);
+  const height = Math.max(roomy ? 176 : 216, Math.min(240, base));
+
   return (
-    <View onLayout={onLayout} style={styles.strip}>
-      {/* The brand gradient shows while the artwork loads (and behind any transparent parts). */}
-      <LinearGradient colors={gradient.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
-      {width > 0 ? (
-        <ScrollView
-          ref={scroller}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScrollBeginDrag={() => setTouched(true)}
-          onMomentumScrollEnd={onEnd}>
+    <View style={styles.carousel}>
+      <View onLayout={onLayout} style={[styles.track, { minHeight: height }]}>
+        {width > 0 ? (
+          <ScrollView
+            ref={scroller}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            scrollEventThrottle={32}
+            onScroll={onScroll}
+            onTouchStart={() => setHeld(true)}
+            onTouchEnd={() => setHeld(false)}
+            onTouchCancel={() => setHeld(false)}
+            onScrollBeginDrag={() => setHeld(true)}
+            onMomentumScrollEnd={() => setHeld(false)}>
+            {items.map((a, i) => (
+              <Slide key={a.id} ann={a} index={i} total={n} width={width} height={height} now={now} roomy={roomy} onPress={() => open(a)} />
+            ))}
+          </ScrollView>
+        ) : null}
+      </View>
+      {n > 1 ? (
+        <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           {items.map((a, i) => (
-            <BannerSlide
-              key={a.id}
-              ann={a}
-              width={width}
-              ratio={ratio}
-              index={i}
-              total={items.length}
-              onRatio={(r) => i === 0 && setRatio(r)}
-              onPress={() => open(a)}
-            />
-          ))}
-        </ScrollView>
-      ) : (
-        <View style={[styles.slide, { aspectRatio: ratio }]} />
-      )}
-      {items.length > 1 ? (
-        <View style={styles.dots} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          {items.map((a, i) => (
-            <View key={a.id} style={[styles.dot, i === idx && styles.dotOn]} />
+            <View key={a.id} style={[styles.dot, i === shown && styles.dotOn]} />
           ))}
         </View>
       ) : null}
@@ -152,81 +268,66 @@ function BannerStrip({ items }: { items: Announcement[] }) {
   );
 }
 
-// The newest recent announcement as one list row: its type's icon in the News colour, the title (2
-// lines) over "Latest · Today", and a chevron (it opens the announcement).
-function LatestRow({ ann, now }: { ann: Announcement; now: number }) {
-  const router = useRouter();
-  const posted = postedLabel(ann.createdAt, now);
-  return (
-    <ActivityRow
-      left={
-        // News wears the News module's colour (theme/tokens moduleTone), like its tile on More.
-        <View style={styles.newsBadge}>
-          <TypeIcon type={ann.type} size={20} color={moduleTone.news.fg} />
-        </View>
-      }
-      title={ann.title || ann.body || 'New announcement'}
-      subtitle={posted ? `Latest · ${posted}` : 'Latest'}
-      chevron
-      onPress={() => router.push(`/announcements/${encodeURIComponent(String(ann.id))}`)}
-      accessibilityLabel={`Latest announcement. ${announcementA11yLabel(ann, posted)}`}
-      accessibilityHint="Opens the announcement"
-    />
-  );
-}
-
-export type HomeAnnouncements = { strip: Announcement[]; latest?: Announcement; now: number };
+export type HomeAnnouncements = { items: Announcement[]; now: number };
 
 /**
- * What Home's news section shows: the banner strip, or else the newest recent announcement. null
- * when there is nothing (not allowed, still loading, or nothing to show) — then render nothing.
+ * What Home's Announcements section shows: the website's visible feed (newest first, no pop-ups),
+ * without the celebration cards, at most MAX_SLIDES. null when there is nothing (not allowed, still
+ * loading, or no posts) — then Home renders nothing.
  */
 export function useHomeAnnouncements(): HomeAnnouncements | null {
   const role = useSession((s) => s.user?.role);
   const tenant = useMyTenant().data;
   const now = useNow();
   const allowed = canSeeAnnouncements(role, tenant);
-  const { feed, banners, isLoading } = useVisibleAnnouncements();
+  const { feed, isLoading } = useVisibleAnnouncements();
   if (!allowed || isLoading) return null;
-  const strip = (Array.isArray(banners) ? banners : []).filter((a) => a && a.id != null);
-  const latest = strip.length
-    ? undefined
-    : (Array.isArray(feed) ? feed : []).find((a) => a && !isCelebration(a) && postedWithin(a, RECENT_DAYS, now));
-  if (!strip.length && !latest) return null;
-  return { strip, latest, now };
+  const items = (Array.isArray(feed) ? feed : []).filter((a) => a && a.id != null && !isCelebration(a)).slice(0, MAX_SLIDES);
+  if (!items.length) return null;
+  return { items, now };
 }
 
-/** Home's news section. Pass useHomeAnnouncements()'s result; render it only when that is not null. */
+/** Home's Announcements section. Pass useHomeAnnouncements()'s result; render it only when not null. */
 export function AnnouncementBanner({ data }: { data: HomeAnnouncements }) {
   const router = useRouter();
-  const strip = Array.isArray(data?.strip) ? data.strip : [];
-  const latest = data?.latest;
-  if (!strip.length && !latest) return null;
-  const seeAll = () => router.push('/announcements');
-  if (!strip.length && latest) {
-    return (
-      <ActivityList title="News" onSeeAll={seeAll} seeAllAccessibilityLabel="See all news">
-        <LatestRow ann={latest} now={data.now} />
-      </ActivityList>
-    );
-  }
-  // The artwork strip sits under the same head as the lists (title left, "See all" right).
+  const items = Array.isArray(data?.items) ? data.items : [];
+  if (!items.length) return null;
   return (
     <View style={styles.section}>
-      <SectionHeader title="News" onAction={seeAll} actionAccessibilityLabel="See all news" />
-      <BannerStrip items={strip} />
+      <SectionHeader title="Announcements" onAction={() => router.push('/announcements')} actionAccessibilityLabel="See all announcements" />
+      <Carousel items={items} now={data.now} />
     </View>
   );
 }
 
 const styles = themedStyles(() => ({
-  strip: { borderRadius: radius.xl, overflow: 'hidden', backgroundColor: palette.primary },
-  slide: { width: '100%' },
-  dots: { position: 'absolute', bottom: 10, right: 14, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  // On the artwork (any scheme): translucent white, like a photo carousel's dots.
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
-  dotOn: { width: 16, backgroundColor: palette.onPrimary },
-  newsBadge: { width: 40, height: 40, borderRadius: 20, backgroundColor: moduleTone.news.bg, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   // The same gap as the kit ActivityList: the SectionHeader, then 4 above the content.
   section: { gap: space.xxs },
+  carousel: { gap: space.xs },
+  track: { borderRadius: radius.xl, overflow: 'hidden', backgroundColor: palette.surfaceMuted },
+  slideOuter: { overflow: 'hidden' },
+  slide: { flex: 1, borderRadius: radius.xl, overflow: 'hidden' },
+  pressed: { opacity: 0.92 },
+  fill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  textSlide: { flex: 1, padding: space.md, gap: space.xs, justifyContent: 'space-between' },
+  chipRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.xs },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: space.sm,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    backgroundColor: palette.frostOnDark,
+    borderWidth: 1,
+    borderColor: palette.frostEdgeOnDark,
+    flexShrink: 1,
+  },
+  textBody: { gap: 2 },
+  extra: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  shrink: { flexShrink: 1 },
+  caption: { position: 'absolute', left: space.md, right: space.md, bottom: space.md },
+  dots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: palette.track },
+  dotOn: { width: 18, backgroundColor: palette.primary },
 }));

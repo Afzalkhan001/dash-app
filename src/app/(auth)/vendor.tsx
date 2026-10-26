@@ -1,3 +1,4 @@
+// Typed demo entries below are OFF (demo/config.ts DEMO_TYPED_SIGN_IN): the demo opens only from "Try a demo role".
 // Vendor sign-in — the website's VendorAuth (dash.html ~30935), three views on one screen:
 //   Log in    mobile number + password                 → POST /vendor/auth/login
 //   Register  mobile number + email → WhatsApp code    → /vendor-otp → POST /vendor/auth/whatsapp-verify
@@ -18,8 +19,8 @@
 // Banner above the button. Field hints are neutral, as the form serves both Register and Forgot.
 //
 // The in-app demo (development builds only, demo/config.ts) has two ways in here, neither reaching DASH:
-//   Sign in            8328617610 with the password 123456 (or Demo@123)
-//   Register / Forgot  8328617610 or afzal.demo@tamadamedia.com → /vendor-otp (no WhatsApp) → 123456
+//   Sign in            DEMO_PHONE with the password 123456 (or Demo@123)
+//   Register / Forgot  DEMO_PHONE or afzal.demo@tamadamedia.com → /vendor-otp (no WhatsApp) → 123456
 // Both open "Explore DASH as…" with only its Vendor portal section (features/demo/role-picker.tsx);
 // picking an Afzal Vendor signs straight in to the portal. A note under the form says so.
 

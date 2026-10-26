@@ -201,7 +201,7 @@ export default function OfficeTvsScreen() {
             },
           );
         }}
-        note="It joins every TV’s rotation within a few seconds. It never shows in News or on Home. No one is notified.">
+        note="It joins every TV’s rotation within a few seconds. It never shows in Announcements or on Home. No one is notified.">
         <SummaryCard rows={[{ key: 'size', label: 'Size', value: picked ? `${(picked.file.size / (1024 * 1024)).toFixed(1)} MB` : '—' }]} />
       </ConfirmSheet>
 

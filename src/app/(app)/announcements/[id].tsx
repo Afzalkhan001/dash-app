@@ -122,7 +122,7 @@ export default function AnnouncementScreen() {
   if (!canSeeAnnouncements(role, tenant)) {
     return (
       <Screen header={<NavHeader title="Announcement" />}>
-        <EmptyState icon={<Megaphone color={palette.textMuted} strokeWidth={1.8} />} title="News isn’t on for you" message="Your company admin can turn it on." />
+        <EmptyState icon={<Megaphone color={palette.textMuted} strokeWidth={1.8} />} title="Announcements aren’t on for you" message="Your company admin can turn them on." />
       </Screen>
     );
   }

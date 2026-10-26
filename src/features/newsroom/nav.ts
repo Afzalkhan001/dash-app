@@ -2,7 +2,7 @@
 //   More › Workspace   "News studio" (Company) for people who can post news (canUseNewsStudio:
 //                      the Announcements page + isAnnouncementCreator); "Office TVs" (IT & office) for
 //                      Super Admin, CEO and COO (Config › TV Displays on the website).
-//   + sheet            "Post news" for the same people as the studio.
+//   + sheet            "Post announcement" for the same people as the studio.
 //   Home               nothing (the News section and banner already show the posts).
 // Pure: reads `access` only.
 
@@ -47,7 +47,7 @@ export function workspaceRows(access: Access): WorkspaceRow[] {
 
 export function createActions(access: Access): CreateAction[] {
   if (!canUseNewsStudio(access.user, access.tenant)) return [];
-  return [{ key: 'newsroom.post', label: 'Post news', href: '/admin/news/compose', icon: PenLine, module: 'news', hint: 'Opens a new post for everyone', order: 60 }];
+  return [{ key: 'newsroom.post', label: 'Post announcement', href: '/admin/news/compose', icon: PenLine, module: 'news', hint: 'Opens a new post for everyone', order: 60 }];
 }
 
 export function homeCards(_access: Access): HomeCard[] {

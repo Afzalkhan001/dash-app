@@ -42,7 +42,7 @@ export function resetSignedOutGuard() {
 
 type FetchOpts = { method?: string; body?: unknown; timeoutMs?: number; signal?: AbortSignal };
 
-// True while the in-app demo account (8328617610 / 123456; dev and preview builds, never store
+// True while the in-app demo account ("Try a demo role" → 123456; dev and preview builds, never store
 // builds) is signed in — as any of its roles (every demo token starts with 'demo-', see demo/config.ts).
 export const isDemoSession = () => isDemoToken(bridge.getToken());
 
