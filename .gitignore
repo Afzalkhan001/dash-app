@@ -44,3 +44,7 @@ example
 # generated native folders
 /ios
 /android
+
+# Firebase Android config: not committed. EAS builds get it from the GOOGLE_SERVICES_JSON file
+# variable on expo.dev (app.config.js); local builds use this file.
+google-services.json

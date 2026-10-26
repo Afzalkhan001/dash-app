@@ -4,7 +4,7 @@
 import type { LucideIcon } from 'lucide-react-native';
 import { AppWindow, Armchair, Car, CircleAlert, CircleCheck, CircleMinus, CircleX, Computer, Laptop, Monitor, Package, Printer, Smartphone, Tablet, Zap } from 'lucide-react-native';
 
-import type { Asset, Invitee } from '@/api/itdesk';
+import { type Asset, commentsWithoutLabel, type Invitee } from '@/api/itdesk';
 import type { PickPerson } from '@/features/shared/person-picker';
 import { addDaysYmd, istIsoAt } from '@/lib/ist';
 import { istDateOf } from '@/lib/dates';
@@ -41,9 +41,23 @@ export const PURPOSE_SWATCHES: { color: string; bg: string; name: string }[] = [
 ];
 
 // ── Asset state ──────────────────────────────────────────────────────────────
-/** dash.html:20430 assetStatus — an employee number means "assigned", whatever the stored status. */
-export const assetStatus = (a: Asset) => (a.assignedToEmpNo ? 'assigned' : a.status || 'available');
+/**
+ * dash.html:20529 assetStatus — an employee number means "assigned", whatever the stored status; then
+ * "allocated" when a third party has it.
+ */
+export const assetStatus = (a: Asset) => (a.assignedToEmpNo ? 'assigned' : isAllocated(a) ? 'allocated' : a.status || 'available');
 export const isAssigned = (a: Asset) => !!a.assignedToEmpNo;
+/** dash.html:20518 isAllocated — with a third party (someone outside DASH). Never in stock, never assignable. */
+export const isAllocated = (a: Asset) => !a.assignedToEmpNo && a.status === 'allocated' && !!a.thirdParty?.name;
+/** In stock: with no employee and no third party. */
+export const isInStock = (a: Asset) => !isAssigned(a) && !isAllocated(a);
+/** "Ravi Kumar (Sai Studios)" — who has an allocated asset. */
+export const thirdPartyName = (a: Asset) => (a.thirdParty ? `${a.thirdParty.name}${a.thirdParty.organisation ? ` (${a.thirdParty.organisation})` : ''}` : '');
+/**
+ * What a list row shows of the Comments: an allocated asset's remarks and what IT wrote besides the
+ * "Allocated to …" label (the row's subtitle already says who has it); otherwise the Comments as they are.
+ */
+export const commentsNote = (a: Asset) => (isAllocated(a) ? [a.thirdParty?.note, commentsWithoutLabel(a)].filter(Boolean).join(' · ') : a.comments.trim());
 
 /** dash.html:20504 ackCell: acknowledged / waiting (a link was sent) / not sent. */
 export type AckState = 'none' | 'done' | 'waiting' | 'not-sent';
@@ -90,16 +104,18 @@ export const warrantyGone = (a: Asset, today: string) => {
   return !!d && d < today;
 };
 
-export type AssetKpis = { total: number; value: number; assigned: number; available: number; ackWaiting: number; ackDone: number; soon: number; expired: number };
+export type AssetKpis = { total: number; value: number; assigned: number; allocated: number; available: number; ackWaiting: number; ackDone: number; soon: number; expired: number };
 
-/** dash.html:20477–20482 */
+/** dash.html:20770–20774: available = total − assigned − with third parties. */
 export function assetKpis(list: Asset[], today: string): AssetKpis {
   const assigned = list.filter(isAssigned);
+  const allocated = list.filter(isAllocated).length;
   return {
     total: list.length,
     value: list.reduce((s, a) => s + (Number(a.price) || 0), 0),
     assigned: assigned.length,
-    available: list.length - assigned.length,
+    allocated,
+    available: list.length - assigned.length - allocated,
     ackWaiting: assigned.filter((a) => !a.acknowledged && a.ackToken).length,
     ackDone: assigned.filter((a) => a.acknowledged).length,
     soon: list.filter((a) => warrantySoon(a, today)).length,
@@ -169,14 +185,15 @@ export function grouping(list: Asset[]): Grouping {
   return { catOf, kindOf };
 }
 
-/** dash.html:20484 groups: category → total / assigned, sorted by name. */
+/** dash.html:20581 groups: category → total / assigned / with third parties, sorted by name. */
 export function categoryCounts(list: Asset[], g: Grouping) {
-  const m = new Map<string, { cat: string; total: number; assigned: number }>();
+  const m = new Map<string, { cat: string; total: number; assigned: number; allocated: number }>();
   list.forEach((a) => {
     const c = g.catOf(a);
-    const row = m.get(c) ?? { cat: c, total: 0, assigned: 0 };
+    const row = m.get(c) ?? { cat: c, total: 0, assigned: 0, allocated: 0 };
     row.total++;
     if (isAssigned(a)) row.assigned++;
+    else if (isAllocated(a)) row.allocated++;
     m.set(c, row);
   });
   return [...m.values()].sort((x, y) => x.cat.localeCompare(y.cat));
@@ -234,11 +251,11 @@ export function assignPool(users: PickPerson[], invitees: Invitee[], roles: stri
   return [...signed.map((u): AssignCandidate => ({ ...u, email: emailOf(u), notSignedUp: false })), ...invited].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// ── Search (dash.html:20473 matchQ) ──────────────────────────────────────────
+// ── Search (dash.html:20571 matchQ) ──────────────────────────────────────────
 export function matchesAsset(a: Asset, q: string, holder: string) {
   const needle = q.trim().toLowerCase();
   if (!needle) return true;
-  return [a.assetId, a.name, a.serial, a.assignedToEmpNo, holder].filter(Boolean).join(' ').toLowerCase().includes(needle);
+  return [a.assetId, a.name, a.serial, a.assignedToEmpNo, holder, a.thirdParty?.name, a.thirdParty?.organisation, a.comments].filter(Boolean).join(' ').toLowerCase().includes(needle);
 }
 
 /** Barcodes an asset tag can carry: the QR and the common printed 1-D labels and Data Matrix. */

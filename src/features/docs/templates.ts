@@ -248,7 +248,8 @@ export function assetDoc(a: Asset, o: { letterhead: PdfLetterhead; today: string
           ['Purchase date', pdfDate(a.purchaseDate) || a.purchaseDate || '—'],
           ['Price', `Rs. ${(Number(a.price) || 0).toLocaleString('en-IN')}`],
           ['Status', (a.status || 'available').toUpperCase()],
-          ['Assigned to', a.assignedTo || 'Unassigned'],
+          // dash.html:20478: an asset with a third party says so.
+          ['Assigned to', a.assignedTo || (a.status === 'allocated' && a.thirdParty?.name ? `Third party: ${a.thirdParty.name}` : 'Unassigned')],
           ...(a.assetId ? ([['Asset ID', a.assetId]] as [string, string][]) : []),
         ],
       },
@@ -257,7 +258,14 @@ export function assetDoc(a: Asset, o: { letterhead: PdfLetterhead; today: string
         table: {
           head: ['Action', 'Employee', 'Date & time', 'Remarks'],
           widths: ['18%', '26%', '26%'],
-          rows: hist.map((h) => (h.action === 'assigned' ? ['ASSIGNED', h.to, pdfStamp(h.at), ''] : ['RETURNED', h.from, pdfStamp(h.at), h.note || ''])),
+          // dash.html:20450 histRow.
+          rows: hist.map((h) =>
+            h.action === 'assigned'
+              ? ['ASSIGNED', h.to, pdfStamp(h.at), '']
+              : h.action === 'allocated'
+                ? ['ALLOCATED (THIRD PARTY)', h.to, pdfStamp(h.at), [h.org, h.note].filter(Boolean).join(' - ')]
+                : ['RETURNED', h.from, pdfStamp(h.at), h.note || ''],
+          ),
           empty: 'No assignment history yet.',
         },
       },

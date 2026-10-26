@@ -1,18 +1,21 @@
 // Expense report for one set of bills — the website's "Statement of Expenses" (PettyCashStatementModal,
 // dash.html ~L16427, data from GET /petty_cash_bill_submissions/statement/:batchId). One section per
 // project code: petty cash received / spent / balance, spending by expense type, the payments received
-// (when there is more than one), every bill, and any bills Accounts rejected.
+// (when there is more than one), every bill, and any bills Accounts rejected or the employee withdrew
+// (neither is counted).
 // /petty-cash/statement/_?request=<id> shows the bills claimed in an automatic "extra" request.
 // "Share report" exports the same printable page the website prints, as an HTML file.
 // Accounts (accounts domain): a bill the server marks `canReject` opens a menu with "Reject this bill"
 // (POST /petty_cash_bill_submissions/:id/reject, reason required). The employee is emailed; a bill inside
 // an extra claim shrinks or closes that claim, and the toast says by how much.
+// The employee: a bill the server marks `canWithdraw` (theirs, and not inside an extra claim that has
+// been decided) opens the same menu with "Withdraw this bill" (DELETE /petty_cash_bill_submissions/:id).
 // Layout: a light summary hero (total spent, bills and when they were sent), then per project a
 // SummaryCard of money in / spent / left over, spending by expense type, payments, and the bills.
 
 import { useMutation } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
-import { Ban, FileSpreadsheet, Paperclip, ReceiptText, Share2 } from 'lucide-react-native';
+import { Ban, FileSpreadsheet, Paperclip, ReceiptText, Share2, Undo2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
 
@@ -28,6 +31,7 @@ import { PettyIdleFooter } from '@/features/petty-cash/components';
 import { PettyExcessBanner } from '@/features/petty-cash/lists';
 import { amount, list, money, roleSeesPettyCash, rowMoney, shortDate, statementHtml } from '@/features/petty-cash/logic';
 import { useReceiptViewer } from '@/features/petty-cash/receipt';
+import { useWithdrawBill } from '@/features/petty-cash/withdraw';
 import { plural } from '@/lib/format';
 import { palette, radius } from '@/theme/tokens';
 import {
@@ -73,15 +77,16 @@ function StatementSheetView({
   today: string;
   onReceipt: (id: string) => void;
   busyId: string | null;
-  /** Accounts: a bill the server lets them reject opens the line menu instead. */
+  /** A bill the server lets this person reject (Accounts) or withdraw (its sender) opens the line menu instead. */
   onLine?: (line: PettyCashStatementLine) => void;
 }) {
   const { gap } = useLayout();
   // Every line is listed (as the hero's bill count and the shared report count them); one without an
   // id just can't open its receipt.
   const lines = list(st.lines).filter(Boolean);
-  const active = lines.filter((l) => l.status !== 'rejected');
+  const active = lines.filter((l) => l.status !== 'rejected' && l.status !== 'withdrawn');
   const rejected = lines.filter((l) => l.status === 'rejected');
+  const withdrawn = lines.filter((l) => l.status === 'withdrawn');
   const heads = list(st.heads).filter((h) => !!h && amount(h.total));
   const inflow = list(st.inflow).filter(Boolean);
   // One payment is just the "received" row again, so its date and reference go under that row; only
@@ -130,6 +135,7 @@ function StatementSheetView({
           const busy = !!l.id && busyId === l.id;
           const canOpen = !!l.id && !!l.hasFile;
           const rejectable = !!l.id && !!l.canReject && !!onLine;
+          const withdrawable = !!l.id && !!l.canWithdraw && !!onLine;
           return (
             <ActivityRow
               key={l.id || `${l.voucherNumber || 'line'}-${i}`}
@@ -137,10 +143,18 @@ function StatementSheetView({
               icon={l.hasFile ? Paperclip : ReceiptText}
               title={[l.description, l.paidTo].filter(Boolean).join(' — ') || 'Bill'}
               subtitle={[l.head, l.date ? shortDate(l.date, today) : null].filter(Boolean).join(' · ') || null}
-              note={[l.voucherNumber ? `Bill no. ${l.voucherNumber}` : null, canOpen ? (busy ? 'Opening receipt…' : 'Receipt attached') : null, rejectable ? 'Tap to check or reject' : null].filter(Boolean).join(' · ') || null}
+              note={
+                [
+                  l.voucherNumber ? `Bill no. ${l.voucherNumber}` : null,
+                  canOpen ? (busy ? 'Opening receipt…' : 'Receipt attached') : null,
+                  rejectable ? 'Tap to check or reject' : withdrawable ? 'Tap to see or withdraw' : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || null
+              }
               value={rowMoney(l.amount)}
-              chevron={canOpen || rejectable}
-              onPress={rejectable ? () => onLine!(l) : canOpen ? () => onReceipt(l.id) : undefined}
+              chevron={canOpen || rejectable || withdrawable}
+              onPress={rejectable || withdrawable ? () => onLine!(l) : canOpen ? () => onReceipt(l.id) : undefined}
             />
           );
         })}
@@ -163,6 +177,27 @@ function StatementSheetView({
               value={rowMoney(l.amount)}
               valueColor={palette.textMuted}
               status={{ label: 'Not counted', tone: 'failed' }}
+            />
+          ))}
+        </ActivityList>
+      ) : null}
+
+      {withdrawn.length ? (
+        <ActivityList title="Withdrawn by the employee">
+          {withdrawn.map((l, i) => (
+            <ActivityRow
+              key={l.id || `${l.voucherNumber || 'line'}-${i}`}
+              left={
+                <IconBadge bg={palette.surfaceSunken}>
+                  <Undo2 size={20} color={palette.textMuted} strokeWidth={1.8} />
+                </IconBadge>
+              }
+              title={[l.description, l.paidTo].filter(Boolean).join(' — ') || 'Bill'}
+              subtitle={[l.head, l.date ? shortDate(l.date, today) : null].filter(Boolean).join(' · ') || null}
+              note={[`By ${l.withdrawnByName || 'the employee'}${l.withdrawnAt ? ` on ${shortDate(l.withdrawnAt, today)}` : ''}`, l.voucherNumber ? `Bill no. ${l.voucherNumber}` : null].filter(Boolean).join(' · ')}
+              value={rowMoney(l.amount)}
+              valueColor={palette.textMuted}
+              status={{ label: 'Withdrawn', tone: 'neutral' }}
             />
           ))}
         </ActivityList>
@@ -193,6 +228,7 @@ function PettyCashStatementBody() {
   const [rejecting, setRejecting] = useState<PettyCashStatementLine | null>(null);
   const [reason, setReason] = useState('');
   const invalidateAccounts = useInvalidateAccounts();
+  const withdraw = useWithdrawBill(() => void statementQ.refetch());
   const reject = useMutation({
     mutationFn: (l: PettyCashStatementLine) => unwrap(rejectSubmission(l.id, reason.trim())),
     onSuccess: (r) => {
@@ -228,6 +264,8 @@ function PettyCashStatementBody() {
   const totalSpent = sheets.reduce((s, st) => s + amount(st.total), 0);
   const allLines = sheets.flatMap((st) => list(st.lines).filter(Boolean));
   const rejectedCount = allLines.filter((l) => l.status === 'rejected').length;
+  const withdrawnCount = allLines.filter((l) => l.status === 'withdrawn').length;
+  const notCounted = [rejectedCount ? `${rejectedCount} rejected` : null, withdrawnCount ? `${withdrawnCount} withdrawn` : null].filter(Boolean).join(', ');
   const submittedAt = sheets.map((st) => st.submittedAt || '').sort().pop();
   const loading = statementQ.isLoading;
   const ready = !!data && sheets.length > 0;
@@ -262,8 +300,8 @@ function PettyCashStatementBody() {
             value={totalSpent}
             currency="₹"
             info={{
-              label: plural(allLines.length - rejectedCount, 'bill'),
-              value: rejectedCount ? `${rejectedCount} rejected` : undefined,
+              label: plural(allLines.length - rejectedCount - withdrawnCount, 'bill'),
+              value: notCounted || undefined,
             }}
             sub={[employee?.name, submittedAt ? `Sent ${shortDate(submittedAt, today)}` : null].filter(Boolean).join(' · ') || undefined}
           />
@@ -300,21 +338,42 @@ function PettyCashStatementBody() {
                 },
               ]
             : []),
-          {
-            key: 'reject',
-            label: 'Reject this bill',
-            icon: Ban,
-            tone: 'danger' as const,
-            hint: 'The employee is emailed your reason',
-            onPress: () => {
-              const l = line;
-              setLine(null);
-              setReason('');
-              setTimeout(() => setRejecting(l), 400);
-            },
-          },
+          ...(line?.canReject
+            ? [
+                {
+                  key: 'reject',
+                  label: 'Reject this bill',
+                  icon: Ban,
+                  tone: 'danger' as const,
+                  hint: 'The employee is emailed your reason',
+                  onPress: () => {
+                    const l = line;
+                    setLine(null);
+                    setReason('');
+                    setTimeout(() => setRejecting(l), 400);
+                  },
+                },
+              ]
+            : []),
+          ...(line?.canWithdraw
+            ? [
+                {
+                  key: 'withdraw',
+                  label: 'Withdraw this bill',
+                  icon: Undo2,
+                  tone: 'danger' as const,
+                  hint: 'Sent by mistake? It stops counting',
+                  onPress: () => {
+                    const l = line;
+                    setLine(null);
+                    setTimeout(() => withdraw.ask(l), 400);
+                  },
+                },
+              ]
+            : []),
         ]}
       />
+      {withdraw.sheet}
       <ReasonConfirmSheet
         visible={!!rejecting}
         onClose={() => setRejecting(null)}

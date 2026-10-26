@@ -1,10 +1,12 @@
 // Assets (web: AssetCatalog, dash.html:20140–20982) — the company's equipment for the IT Admin.
 //
-// NavHeader (filters, add) → SummaryHero (how many, total value, with people · in stock) → the website's
-// KPIs as tiles that narrow the list (waiting to acknowledge, warranty ending in 60 days, warranty
-// ended, no name found) → All / With people / In stock → categories (the website's grouping: the Mac
-// family is one kind, case and space variants are one label) → search (asset ID, name, serial, employee
-// number, name) → rows, 40 at a time. A row opens the asset, where assign / return / condition / delete are.
+// NavHeader (filters, add) → SummaryHero (how many, total value, with people · with third parties · in
+// stock) → the website's KPIs as tiles that narrow the list (waiting to acknowledge, warranty ending in 60
+// days, warranty ended, no name found) → All / With people / With third parties / In stock (an asset
+// allocated to a third party is never "in stock") → categories (the website's grouping: the Mac family is
+// one kind, case and space variants are one label) → search (asset ID, name, serial, employee number,
+// name, third party, comments) → rows, 40 at a time; a row's note is its Comments. A row opens the asset,
+// where assign / allocate / return / condition / delete are.
 // The scan button in the search field reads an asset tag (barcode or QR: asset ID, serial or a link to it) and opens the asset.
 // The filter sheet holds Location, Condition, Warranty status and the warranty-end range.
 // Stays on the website: bulk upload from Excel, the template, Excel / PDF reports, "Delete all assets".
@@ -25,14 +27,17 @@ import {
   assetIcon,
   assetsForTag,
   assetKpis,
-  assetStatus,
   categoryCounts,
+  commentsNote,
   conditionTone,
   conditionWords,
   grouping,
   holderOf,
+  isAllocated,
   isAssigned,
+  isInStock,
   matchesAsset,
+  thirdPartyName,
   warrantyGone,
   warrantySoon,
   warrantyYmd,
@@ -67,7 +72,7 @@ import {
 } from '@/ui';
 
 const PAGE = 40;
-type Seg = 'all' | 'assigned' | 'available';
+type Seg = 'all' | 'assigned' | 'allocated' | 'available';
 type Quick = 'ackWaiting' | 'soon' | 'expired' | 'noRecord';
 const QUICK_WORDS: Record<Quick, string> = { ackWaiting: 'Waiting to acknowledge', soon: 'Warranty ends in 60 days', expired: 'Warranty ended', noRecord: 'No name found' };
 type Filters = { location: string; condition: string; warrantyStatus: string; expFrom: string; expTo: string };
@@ -134,7 +139,7 @@ export default function AssetsScreen() {
             : true;
   const visible = list.filter(
     (a) =>
-      (seg === 'all' || assetStatus(a) === seg || (seg === 'available' && !isAssigned(a))) &&
+      (seg === 'all' || (seg === 'assigned' ? isAssigned(a) : seg === 'allocated' ? isAllocated(a) : isInStock(a))) &&
       inQuick(a) &&
       (!cat || g.catOf(a) === cat) &&
       (kind === null || (g.kindOf(a) || '') === kind) &&
@@ -220,7 +225,7 @@ export default function AssetsScreen() {
           label="Company equipment"
           value={k.total}
           info={{ label: 'Total value', value: inr(k.value, { decimals: false }) }}
-          sub={`${plural(k.assigned, 'asset')} with people · ${k.available} in stock`}
+          sub={[`${plural(k.assigned, 'asset')} with people`, ...(k.allocated ? [`${k.allocated} with third parties`] : []), `${k.available} in stock`].join(' · ')}
         />
       ) : (
         <Skeleton height={176} radius={radius.xxl} />
@@ -249,6 +254,8 @@ export default function AssetsScreen() {
         options={[
           { key: 'all', label: 'All' },
           { key: 'assigned', label: 'With people' },
+          // dash.html:20774 "With third parties": shown once something is allocated outside the company.
+          ...(k.allocated || seg === 'allocated' ? [{ key: 'allocated' as const, label: 'With third parties' }] : []),
           { key: 'available', label: 'In stock' },
         ]}
         value={seg}
@@ -343,14 +350,15 @@ export default function AssetsScreen() {
             <ActivityList>
               {visible.slice(0, shown).map((a) => {
                 const who = holder(a);
+                const ids = [a.assetId, a.serial].filter(Boolean).join(' · ');
                 return (
                   <StatusRow
                     key={a.id}
                     module="support"
                     icon={assetIcon(a.assetType, a.category)}
                     title={a.name}
-                    subtitle={isAssigned(a) ? (who ? `With ${who}` : `Employee ${a.assignedToEmpNo}`) : 'In stock'}
-                    note={[a.assetId, a.serial].filter(Boolean).join(' · ') || undefined}
+                    subtitle={isAssigned(a) ? (who ? `With ${who}` : `Employee ${a.assignedToEmpNo}`) : isAllocated(a) ? `Allocated to ${thirdPartyName(a)}` : 'In stock'}
+                    note={commentsNote(a) || ids || undefined}
                     status={pill(a)}
                     chevron
                     onPress={() => router.push(`/admin/it-desk/assets/${encodeURIComponent(a.id)}`)}

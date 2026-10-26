@@ -29,12 +29,25 @@ export function sourceLabel(source?: string | null) {
   }
 }
 
-/** "Afzal Visitor Manager in the app" / "Naveen Kumar on WhatsApp" (web: "by <decidedBy> (<via>)"). */
-export function decidedByLine(v: Pick<Visit, 'decidedBy' | 'decidedVia'>) {
-  const by = str(v.decidedBy);
-  if (!by) return '';
-  const via = v.decidedVia === 'whatsapp' ? 'on WhatsApp' : v.decidedVia === 'app' ? 'in the app' : '';
-  return via ? `${by} ${via}` : by;
+/**
+ * The desk's let-in clock (web: VisitCard, dash.html:35821). The host gets `afterMin` minutes to answer;
+ * after that the desk may let the visitor in. `now` is the SERVER's time (Date.now() + skew), so a phone
+ * whose clock is off neither unlocks early (the server would refuse) nor late.
+ */
+export function letInClock(v: Pick<Visit, 'createdAt' | 'letInAt'>, now: number, afterMin: number) {
+  const created = Date.parse(String(v.createdAt));
+  const sent = Date.parse(String(v.letInAt ?? ''));
+  const opensAt = Number.isFinite(sent) ? sent : Number.isFinite(created) ? created + afterMin * 60_000 : now;
+  const waitedMs = Number.isFinite(created) ? Math.max(0, now - created) : 0;
+  const leftMs = Math.max(0, opensAt - now);
+  return { canLetIn: leftMs <= 0, leftMs, waitedMs };
+}
+
+/** "4:05" for a span in ms, "2 h 0 min" past an hour (web: visitClock). */
+export function mmss(ms: number) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s >= 3600) return `${Math.floor(s / 3600)} h ${Math.floor((s % 3600) / 60)} min`;
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
 /** Digits to dial ('tel:'), or '' when there is no usable number. */

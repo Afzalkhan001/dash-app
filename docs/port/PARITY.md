@@ -8,6 +8,10 @@ CeoCooDash, AdminViews, HRViews, ITAdminViews, ManagerViews, AccountsViews, AppM
 VisitorManagerViews), plus the HR hub's sections (`HR_SECTIONS`, dash.html:5299) and the pages outside
 the sidebar (sign-in, Meets, public pages).
 
+Audited against the website at **935a761 (26 Oct 2026)**, including every change since 5e3d500: petty
+cash bill rules, withdrawals and the shared pool, Accounts controls, user phone and Edit user, the visitor
+desk's 5-minute let-in, decision lines and log filter, the kiosk board, and assets lent to third parties.
+
 Status:
 - **done** — the website feature is in the app, with the website's role rules.
 - **partial** — in the app, with a stated gap.
@@ -99,6 +103,10 @@ tab row (registry: `src/features/domains.ts`).
 | Draft an agreement + signature spots (NewAgreementModal) | EMPLOYEE_ROLES with Agreements | `admin/accounts/agreements/new.tsx` (header + on the list, + sheet "Agreement") | done |
 | Signed agreement copy (certificate PDF) | same | `admin/docs/agreement/[id].tsx`; the agreement page's "Signed copy" row and success sheet | done: a countersigner who is neither drafter nor overseer reopens it from "You countersigned" (Vendor agreements) or Documents: the phone keeps the agreement's details when they sign (`features/docs/countersigned.ts`) and the server still serves them the files. The countersignature's certificate number is only on copies the lists carry |
 | Petty cash: request, bills, statements, reject a bill | staff, approvers | `petty-cash/**`; Inbox `petty`, `petty-acct`; statement PDF in Documents | done |
+| Petty cash bill rules: a photo or PDF on every bill, a bill date within the last 180 days, the "looks identical" warning with Submit anyway (`confirmDuplicates`) | staff | `petty-cash/bills/new.tsx` (date picker floor, swipe becomes "Swipe to submit anyway") | done |
+| Withdraw a bill sent by mistake; withdrawn and rejected bills never count, and the extra claims sharing that petty cash shrink or close | staff | My bills menu and the expense report (`features/petty-cash/withdraw.tsx`); totals, reports, ledger and tracking leave withdrawn bills out | done |
+| Two sign-offs on a request: only the code's owner gives the first approval (Accounts only on a code with no owner), it always goes on to Accounts, whoever gave it can't authorize it, every reject needs a reason | owners, accounts | `features/petty-cash/logic.ts` canApprove; Inbox `petty`, `petty-acct` ("You gave the first approval": Reject only) | partial: Accounts can't reject a request still at an owned code's owner stage (the server allows it); the Inbox offers Reject only to whoever can approve |
+| Vendor bills: nobody approves or rejects a bill they sent; every Accounts reject needs a reason | accounts, super_admin | `features/accounts/item-detail.tsx` ("This one is yours") | done |
 | `ledger` PettyCashLedger (+ custom range, Excel, print) | accounts, super_admin | Big tables › `admin/grids/petty-ledger.tsx` (CSV): a row opens its bills with "View receipt" and the request's History; a claim opens its bill and History | done |
 | Expense claims (reimbursements) | staff, approvers | `reimbursements/**`; Inbox `reimbursements`, `reimb-acct` | done |
 | `subscriptions` SubscriptionsHub (overview, list, payments, add/edit) | subscription admins + grants, it_admin | `admin/company/subscriptions/**` | done |
@@ -113,6 +121,8 @@ tab row (registry: `src/features/domains.ts`).
 | Website | Roles | App | Status |
 |---|---|---|---|
 | `assets` AssetCatalog (list, KPIs, detail, add, assign/return, approvals) | it_admin + assets | `admin/it-desk/assets/**`; Inbox `desk-it` | done |
+| Allocate to a third party, return from a third party, Comments (list, detail, Add asset, registers, PDF) | it_admin + assets | `admin/it-desk/assets/[id].tsx`, `index.tsx` ("With third parties"), `new.tsx`; `features/excel/exports/it.tsx`, `features/docs/templates.ts` | done |
+| One Asset ID per company (Add asset and bulk import refuse a used one) | it_admin | `admin/it-desk/assets/new.tsx`, `features/excel/parse.ts` | done |
 | Asset bulk upload + history | it_admin | `admin/import/assets.tsx`, `history.tsx` | done |
 | Asset register reports (Excel / PDF) | it_admin | Import & export (4 registers + one asset's history); Documents › asset | done |
 | "Delete all assets" | it_admin | More › Delete data › `admin/advanced/delete-assets.tsx` (type "delete N assets") | done |
@@ -129,6 +139,7 @@ tab row (registry: `src/features/domains.ts`).
 | Website | Roles | App | Status |
 |---|---|---|---|
 | `users` UserMgmt (provision, edit, delete, invites) | super_admin, ceo, coo + users | `admin/company/users.tsx` | done |
+| Optional phone when adding a login; Edit user (name, email through change-email, phone, role with Accounts, display branch) | same | `admin/company/users.tsx`, `api/company.ts` useEditUser | done |
 | `config` ConfigToggles: feature switches, "Who can…" lists, HR by department, Team Roster, visitor settings, App Manager approvals | super_admin, ceo, coo + config | `admin/company/settings/**` | done |
 | Config: logo text, sidebar logo, report logo | same | More › Branding `admin/hr-advanced/branding.tsx` | done |
 | Config: professional categories | same | More › Professional categories `admin/hr-advanced/categories.tsx` | done |
@@ -145,10 +156,15 @@ tab row (registry: `src/features/domains.ts`).
 |---|---|---|---|
 | `visitors` MyVisitorsHub (waiting for me, invite, history) | everyone except master, display, visitor_manager | `visitors/**`; Inbox `visitors` | done |
 | `visitors-desk` / `-dashboard` Today's board (approve for host, check out) | visitor_manager, super_admin | `admin/desk/index.tsx`; Inbox `desk` | done |
+| Desk let-in only after the host's 5 minutes ("Let in after m:ss"), who-decided lines (let in without the host, desk, invite, host by WhatsApp/app), "Let in by desk" count, Check out on Inside now | same | `features/desk/decide-screen.tsx`, `visit-row.tsx`, `visit-sheet.tsx`, `features/visitors/history-list.tsx` | done |
 | `visitors-log` | same | `admin/desk/log.tsx` | done |
+| Log "Decided by" filter (host, without the host, any desk decision) and search by who decided | same | `admin/desk/log.tsx` | done |
 | `visitors-invites` | same | `admin/desk/invites.tsx` (+ Passes with a QR) | done |
 | `visitors-qr` QR code + poster | same | `admin/desk/qr.tsx` (real QR, Print, Poster PDF, share, new link) | done |
 | `visitors-kiosk` Kiosk mode | same | `admin/desk/kiosk.tsx` (keep-awake, QR pass scan, live selfie, device-auth exit) | done |
+| Kiosk board: the waiting screen frees itself after 12 s, a "waiting for their host" pill and a banner after each answer (`/visitors/kiosk/board`) | same | `features/desk/kiosk/board.tsx`, `wizard.tsx` | done |
+| Kiosk tablet layout and logo | same | — | n/a: a large-screen layout; the phone kiosk shows the same board |
+| Check out from the host's WhatsApp page | hosts | — | n/a: a public page outside the app |
 | Scan a visitor pass | same | `admin/desk/scan.tsx`; + Scan a pass | done (the server's WhatsApp pass image still has no QR; those guests type their code) |
 
 ## 8. Meets, sign-in and notifications
@@ -185,13 +201,13 @@ tab row (registry: `src/features/domains.ts`).
 
 | Status | Count |
 |---|---|
-| done | 105 |
-| partial | 3 |
+| done | 114 |
+| partial | 4 |
 | blocked | 3 |
-| n/a | 7 |
-| **Total rows** | **118** |
+| n/a | 9 |
+| **Total rows** | **130** |
 
-Of the 111 rows that have something to port (all but n/a), 105 are done (95%), 3 partial and 3 blocked
+Of the 121 rows that have something to port (all but n/a), 114 are done (94%), 4 partial and 3 blocked
 only by things outside the app (a native build, a server deploy, owner credentials).
 
 ### Small gaps fixed in this pass
@@ -213,7 +229,7 @@ only by things outside the app (a native build, a server deploy, owner credentia
 - Google: client ids + new build (`docs/GOOGLE-SIGNIN.md`).
 - Partial rows above: someone else's timesheet lines (needs a server route), vendor Google (owner's
   client ids and a build), department view-as (a desktop-only impersonated view; the data is in Employees,
-  Managers and Reports).
+  Managers and Reports), Accounts rejecting a petty cash request at an owned code's owner stage.
 
 ### Closed in pass 4
 - Asset tag scanning: Assets › the scan button in the search field reads a QR or printed barcode (asset ID,

@@ -8,7 +8,8 @@
 //   Project:     POST /reimbursements/:id/keka-approve {} — the swipe is the confirm the web asks for;
 //                POST /reimbursements/:id/keka-reject { reason } — reason required.
 //   Petty cash:  POST /petty_cash_requests/:id/approve {} (the swipe is the confirm, as on the Petty
-//                cash screen); POST /petty_cash_requests/:id/reject { reason } — reason optional.
+//                cash screen); POST /petty_cash_requests/:id/reject { reason } — reason required.
+//                Approving is the project owner's first sign-off: it always goes on to Accounts.
 //   Visitors:    POST /visitors/:id/decide { decision } (useDecideVisit) — the server takes no note,
 //                so Turn away asks first, as the Visitors screen does. The bar says "Let in" /
 //                "Turn away" here: you approve a request, not a person.
@@ -93,7 +94,7 @@ import {
   visitorArrived,
 } from '@/features/inbox/format';
 import { useLeaveNames } from '@/features/inbox/leave-names';
-import { canApprove, isOwnRequest, isPettyCashApprover, list, roleSeesPettyCash } from '@/features/petty-cash/logic';
+import { canApprove, isOwnRequest, list, roleSeesPettyCash } from '@/features/petty-cash/logic';
 import { phoneLabel } from '@/features/visitors/format';
 import { VisitPhoto } from '@/features/visitors/visit-photo';
 import { durationLabel } from '@/lib/dates';
@@ -137,8 +138,8 @@ const safely = <T,>(find: () => T | null): T | null => {
 
 // The same words after every decision, for every kind: "Leave request approved", "Petty cash rejected".
 const decidedTitle = (noun: string, decision: Decision) => (decision === 'approve' ? `${noun} approved` : `${noun} rejected`);
-// After a reject: the reason goes to the person who asked (when one was given).
-const rejectedLine = (name: string, gaveReason: boolean) => (gaveReason ? `${name} will see your reason.` : 'It’s no longer waiting on you.');
+// After a reject: the reason (always required) goes to the person who asked.
+const rejectedLine = (name: string) => `${name} will see your reason.`;
 
 // ── HR approvals ─────────────────────────────────────────────────────────────
 function HrItem({ kind, id, status }: { kind: HrKindKey; id: string; status?: string }) {
@@ -188,7 +189,7 @@ function HrItem({ kind, id, status }: { kind: HrKindKey; id: string; status?: st
             {
               decision,
               title: decidedTitle(d.noun, decision),
-              subtitle: decision === 'approve' ? 'It’s no longer waiting on you.' : rejectedLine(name, true),
+              subtitle: decision === 'approve' ? 'It’s no longer waiting on you.' : rejectedLine(name),
               rows: [
                 { key: 'who', label: 'From', value: name },
                 { key: 'what', label: d.noun, value: figureText },
@@ -301,7 +302,7 @@ function KekaItem({ id }: { id: string }) {
           {
             decision,
             title: decidedTitle(title, decision),
-            subtitle: decision === 'approve' ? 'It goes to Accounts next.' : rejectedLine(name, true),
+            subtitle: decision === 'approve' ? 'It goes to Accounts next.' : rejectedLine(name),
             rows: [
               { key: 'who', label: 'From', value: name },
               { key: 'amount', label: 'Amount', value: inr(item.amount) },
@@ -406,14 +407,17 @@ function PettyItem({ id }: { id: string }) {
     mutationFn: ({ rid, decision, why }: { rid: string; decision: Decision; why?: string }) =>
       unwrap(decision === 'approve' ? approvePettyCashRequest(rid) : rejectPettyCashRequest(rid, why ?? '')),
     onSuccess: (_r, { rid, decision }) => {
-      // Out of the Inbox at once (Accounts clears both stages in one step); the refetch brings the server's status.
-      const next = decision === 'reject' ? 'rejected' : isPettyCashApprover(user) ? 'ready_for_payment' : 'pending_accounts_approval';
+      // Out of the Inbox at once; an approval always goes on to Accounts. The refetch brings the server's status.
+      const next = decision === 'reject' ? 'rejected' : 'pending_accounts_approval';
       qc.setQueriesData<PettyCashOverview>({ queryKey: ['petty', 'overview'] }, (old) =>
         old && Array.isArray(old.requests) ? { ...old, requests: old.requests.map((x) => (x && x.id === rid ? { ...x, status: next } : x)) } : old,
       );
     },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: ['petty'] });
+      // An approval lands in Accounts' queue (accountsKeys.petty) — for an Accounts approver on a code
+      // with no owner, their own queue, where only Reject is left to them.
+      void qc.invalidateQueries({ queryKey: ['inbox', 'petty-acct'] });
     },
   });
 
@@ -441,8 +445,9 @@ function PettyItem({ id }: { id: string }) {
   const raisedBy = r.onBehalf ? textOr(r.requestedByName) : '';
   const why = textOr(r.rejectionReason);
   const status = pettyStatus(r);
-  // Where it goes after the approval: Accounts approve straight to "ready to pay".
-  const next = isPettyCashApprover(user) ? 'It is then ready to pay.' : 'It goes to Accounts next.';
+  // Where it goes after the approval: always to Accounts. On a code with no owner Accounts gives this
+  // first approval, so another Accounts person has to authorize it.
+  const next = r.costCodeOwnerId ? 'It goes to Accounts next.' : 'Another Accounts person must authorize it next.';
 
   const close = () => {
     setRejecting(false);
@@ -462,7 +467,7 @@ function PettyItem({ id }: { id: string }) {
             {
               decision,
               title: decidedTitle(title, decision),
-              subtitle: decision === 'approve' ? next : rejectedLine(name, !!text),
+              subtitle: decision === 'approve' ? next : rejectedLine(name),
               rows: [
                 { key: 'who', label: 'From', value: name },
                 { key: 'amount', label: 'Amount', value: inr(r.amount) },
@@ -497,7 +502,7 @@ function PettyItem({ id }: { id: string }) {
                 },
                 approving: decide.isPending && decide.variables?.decision === 'approve',
                 disabled: decide.isPending,
-                note: isPettyCashApprover(user) ? 'Approving makes it ready to pay.' : 'Approving sends it to Accounts next.',
+                note: r.costCodeOwnerId ? 'Approving sends it to Accounts next.' : 'Another Accounts person must authorize it next.',
               }
             : null
         }>
@@ -530,10 +535,10 @@ function PettyItem({ id }: { id: string }) {
         visible={rejecting}
         onClose={() => setRejecting(false)}
         title="Reject this request?"
-        subtitle={`Add a reason if you like. ${name} will see it.`}
+        subtitle={`${name} will see your reason.`}
         note={reason}
         onChangeNote={setReason}
-        minLength={0}
+        minLength={1}
         placeholder="Why it can’t be approved"
         busy={decide.isPending}
         onSubmit={() => run('reject', reason.trim())}

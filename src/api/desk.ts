@@ -1,11 +1,15 @@
 // The visitor desk (visitors.js DESK section, :556-665): the reception side of Visitor Management.
 // Only `visitor_manager` and `super_admin` may call these (server DESK_ROLES; features/desk/access.ts).
 //
-//   GET  /visitors/today              → { visits: Visit[], stats: { total, waiting, inside, rejected, noResponse } }
-//                                       tenant-wide, work_date = today (IST), newest first
-//   GET  /visitors/log?from&to&status&q → { visits: Visit[] }  (on work_date, newest first, max 2000)
+//   GET  /visitors/today              → { visits: Visit[], stats: { total, waiting, inside, rejected, noResponse, letIn },
+//                                         serverNow, letInAfterMin }   tenant-wide, work_date = today (IST), newest first
+//   GET  /visitors/log?from&to&status&q&by → { visits: Visit[], letInAfterMin }  (on work_date, newest first, max 2000;
+//                                       by = host | desk | override; q also matches who decided)
 //   POST /visitors/:id/check-out      {} → { id, status: 'checked_out' }   (409 when already out; no undo)
-//   POST /visitors/:id/decide         { decision }  (the host OR a desk role; WhatsApps the visitor)
+//   POST /visitors/:id/decide         { decision } → { id, status, via }  (the host OR a desk role). The desk may turn
+//                                       away at any time, but let in only after letInAfterMin (5) minutes without an
+//                                       answer (else 409 "Give <host> a chance to answer first …"); that is 'desk_override'
+//   GET  /visitors/kiosk/board        → { waiting, recent, serverNow }  (the lobby board: first name + last initial only)
 //   GET  /visitors/qr                 → { tenantId, token, path, companyName }   (mints the token on first call)
 //   POST /visitors/qr/regenerate      {} → { token, path }   (every printed poster and running kiosk stops working)
 //
@@ -19,10 +23,17 @@ import { type Visit, visitorKeys } from '@/api/visitors';
 import { useSession } from '@/auth/session';
 import { DASH_URL } from '@/config';
 
-export type DeskStats = { total: number; waiting: number; inside: number; rejected: number; noResponse: number };
-export type DeskToday = { visits: Visit[]; stats: DeskStats };
+/** letIn = let in by the desk because the host did not answer (decided_via 'desk_override'). */
+export type DeskStats = { total: number; waiting: number; inside: number; rejected: number; noResponse: number; letIn: number };
+/** skewMs = the server's clock minus this phone's, at the fetch (web: Date.parse(serverNow) − Date.now()). */
+export type DeskToday = { visits: Visit[]; stats: DeskStats; letInAfterMin: number; skewMs: number };
 export type DeskQr = { tenantId: string; token: string; path: string; companyName: string };
-export type VisitorLogFilter = { from: string; to: string; status: string; q: string };
+/** Who decided: '' anyone · host (app / WhatsApp) · desk (any desk decision) · override (let in without the host). */
+export type DecidedByFilter = '' | 'host' | 'desk' | 'override';
+export type VisitorLogFilter = { from: string; to: string; status: string; q: string; by: DecidedByFilter };
+
+/** The server's LET_IN_AFTER_MIN default, until it says otherwise. */
+export const LET_IN_AFTER_MIN = 5;
 
 /** The server's VISIT_STATUSES (visitors.js) — the log's status filter accepts exactly these. */
 export const VISIT_STATUSES = ['pending', 'approved', 'rejected', 'no_response', 'checked_out'] as const;
@@ -36,20 +47,27 @@ export const deskKeys = {
   // Under ['inbox', 'desk', …]: the Inbox's focus refresh, pull to refresh and one-minute poll cover it.
   today: (userId?: string) => ['inbox', 'desk', userId] as const,
   logAll: (userId?: string) => ['desk-log', userId] as const,
-  log: (userId: string | undefined, f: VisitorLogFilter) => ['desk-log', userId, f.from, f.to, f.status, f.q] as const,
+  log: (userId: string | undefined, f: VisitorLogFilter) => ['desk-log', userId, f.from, f.to, f.status, f.q, f.by] as const,
   qr: (userId?: string) => ['desk-qr', userId] as const,
 };
 
+/** The server's clock minus this phone's (0 when the server sent no time). */
+const skewOf = (serverNow?: unknown) => {
+  const t = typeof serverNow === 'string' ? Date.parse(serverNow) : NaN;
+  return Number.isFinite(t) ? t - Date.now() : 0;
+};
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const visitsOf = (x: unknown): Visit[] => (Array.isArray(x) ? x.filter((v): v is Visit => !!v && typeof v === 'object' && typeof v.id === 'string') : []);
 
 /** Fetches today's board. Shared by the Inbox plug-in, Home's hero and the board itself. */
 export async function fetchDeskToday(signal?: AbortSignal): Promise<DeskToday> {
-  const r = await unwrap(api.get<{ ok: true; visits: Visit[]; stats: Partial<DeskStats> }>('/visitors/today', signal));
+  const r = await unwrap(api.get<{ ok: true; visits: Visit[]; stats: Partial<DeskStats>; serverNow?: string; letInAfterMin?: number }>('/visitors/today', signal));
   const s = (r.stats && typeof r.stats === 'object' ? r.stats : {}) as Partial<DeskStats>;
   return {
     visits: visitsOf(r.visits),
-    stats: { total: num(s.total), waiting: num(s.waiting), inside: num(s.inside), rejected: num(s.rejected), noResponse: num(s.noResponse) },
+    stats: { total: num(s.total), waiting: num(s.waiting), inside: num(s.inside), rejected: num(s.rejected), noResponse: num(s.noResponse), letIn: num(s.letIn) },
+    letInAfterMin: num(r.letInAfterMin) || LET_IN_AFTER_MIN,
+    skewMs: skewOf(r.serverNow),
   };
 }
 
@@ -76,6 +94,7 @@ export function useVisitorLog(filter: VisitorLogFilter, enabled = true) {
       if (filter.to) p.set('to', filter.to);
       if (filter.status) p.set('status', filter.status);
       if (filter.q.trim()) p.set('q', filter.q.trim().slice(0, 60));
+      if (filter.by) p.set('by', filter.by);
       const r = await unwrap(api.get<{ ok: true; visits: Visit[] }>(`/visitors/log?${p.toString()}`, signal));
       return visitsOf(r.visits);
     },
@@ -100,15 +119,17 @@ function useRefreshDesk() {
 }
 
 /**
- * Let in / turn away for the host (POST /visitors/:id/decide). Recorded as the desk user, and the
- * visitor gets a WhatsApp (visitorApproved / visitorRejected). A 409 means someone already decided —
- * the lists reload either way, as on the web.
+ * Let in / turn away for the host (POST /visitors/:id/decide), recorded as the desk user. Turn away
+ * works at any time and WhatsApps the visitor (visitorRejected). Let in works only once the visitor has
+ * waited letInAfterMin minutes (else a 409 in the server's words) and is 'desk_override'; nobody is
+ * messaged then (visitors.js decideVisit). Another 409 means someone already decided — the lists
+ * reload either way, as on the web.
  */
 export function useDeskDecide() {
   const refresh = useRefreshDesk();
   return useMutation({
     mutationFn: ({ id, decision }: { id: string; decision: 'approve' | 'reject' }) =>
-      unwrap(api.post<{ ok: true; id: string; status: string }>(`/visitors/${encodeURIComponent(id)}/decide`, { decision })),
+      unwrap(api.post<{ ok: true; id: string; status: string; via?: string }>(`/visitors/${encodeURIComponent(id)}/decide`, { decision })),
     onSettled: refresh,
   });
 }
@@ -239,6 +260,40 @@ export async function kioskInviteCode(base: string, code: string): Promise<Kiosk
 export async function kioskInviteArrive(base: string, inviteId: string, photo: string) {
   const r = await kioskCall<{ visitId?: string; hostName?: string }>(`${base}/invite/${encodeURIComponent(inviteId)}/arrive`, 'POST', { photo });
   return { visitId: strOf(r.visitId), hostName: strOf(r.hostName) };
+}
+
+// ── The lobby board on the kiosk (web: VisitKioskBoard, dash.html:36166) ─────────────────────────
+// GET /visitors/kiosk/board (the desk session, not the public token): who is still waiting for their
+// host, and who was answered in the last 5 minutes and is not checked out. A public screen, so the server
+// sends only "First L.", the host's first name, a status and a time. Polled every 5 s while the kiosk runs.
+
+export type KioskBoardWaiting = { id: string; name: string; host: string; createdAt: string };
+export type KioskBoardRecent = { id: string; name: string; host: string; status: string; at: string; letIn: boolean };
+export type KioskBoard = { waiting: KioskBoardWaiting[]; recent: KioskBoardRecent[]; skewMs: number };
+
+const rowsOf = (x: unknown) =>
+  Array.isArray(x) ? x.filter((r): r is Record<string, unknown> => !!r && typeof r === 'object' && typeof (r as { id?: unknown }).id === 'string') : [];
+
+export async function fetchKioskBoard(signal?: AbortSignal): Promise<KioskBoard> {
+  const r = await unwrap(api.get<{ ok: true; waiting?: unknown; recent?: unknown; serverNow?: string }>('/visitors/kiosk/board', signal));
+  return {
+    waiting: rowsOf(r.waiting).map((w) => ({ id: String(w.id), name: strOf(w.name) || 'Visitor', host: strOf(w.host), createdAt: strOf(w.createdAt) })),
+    recent: rowsOf(r.recent).map((w) => ({ id: String(w.id), name: strOf(w.name) || 'Visitor', host: strOf(w.host), status: strOf(w.status), at: strOf(w.at), letIn: w.letIn === true })),
+    skewMs: skewOf(r.serverNow),
+  };
+}
+
+/** The kiosk's board, every 5 s (the web's interval). Never cached: visitor names stay in memory. */
+export function useKioskBoard(enabled = true) {
+  const userId = useSession((s) => s.user?.id);
+  return useQuery({
+    queryKey: ['kiosk', 'board', userId],
+    enabled: enabled && !!userId,
+    queryFn: ({ signal }) => fetchKioskBoard(signal),
+    refetchInterval: 5_000,
+    gcTime: 0,
+    meta: PRIVATE,
+  });
 }
 
 /** Leave kiosk mode with the desk user's DASH password. 403 = wrong password (never 401: no sign-out).

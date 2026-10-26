@@ -142,3 +142,30 @@ export function timeWindow(from?: string, to?: string) {
   if (end) return `Until ${end}`;
   return '';
 }
+
+/**
+ * Who answered a visit, in one line (web: visitDecision, dash.html:35357). `override` = the desk let
+ * the visitor in because the host did not answer — the line worth noticing (amber on the web). Null
+ * while the visit is still waiting, or when nobody is recorded.
+ *   desk_override  "Let in by Visitor Manager Afzal — host did not answer (waited 7 min)"
+ *   desk           "Approved by Visitor Manager Afzal" / "Rejected by …"
+ *   invite         "Pre-approved — invited by Naveen Kumar"
+ *   whatsapp/app   "Approved by host Naveen Kumar (WhatsApp)" / "Rejected by host Naveen Kumar"
+ */
+export function visitDecision(
+  v: Pick<Visit, 'status' | 'decidedBy' | 'decidedVia' | 'waitedMin' | 'source' | 'hostName'> | null | undefined,
+): { text: string; override: boolean } | null {
+  if (!v || v.status === 'pending' || v.status === 'no_response') return null;
+  const by = typeof v.decidedBy === 'string' ? v.decidedBy.trim() : '';
+  const host = typeof v.hostName === 'string' ? v.hostName.trim() : '';
+  const word = v.status === 'rejected' ? 'Rejected' : 'Approved';
+  if (v.decidedVia === 'desk_override') {
+    const waited = typeof v.waitedMin === 'number' && Number.isFinite(v.waitedMin) ? ` (waited ${v.waitedMin} min)` : '';
+    return { text: `Let in by Visitor Manager ${by} — host did not answer${waited}`, override: true };
+  }
+  if (v.decidedVia === 'desk') return { text: `${word} by Visitor Manager ${by}`, override: false };
+  if (v.source === 'invite') return { text: `Pre-approved — invited by ${host || by || 'the host'}`, override: false };
+  if (v.decidedVia === 'whatsapp') return { text: `${word} by host ${by || host} (WhatsApp)`, override: false };
+  if (v.decidedVia === 'app') return { text: `${word} by host ${by || host}`, override: false };
+  return by ? { text: `${word} by ${by}`, override: false } : null;
+}

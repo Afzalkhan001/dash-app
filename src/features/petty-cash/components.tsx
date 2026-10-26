@@ -208,8 +208,9 @@ export function PettyCashRequestRow({
 }
 
 /**
- * One bill I added. Pressing it opens the caller's menu (receipt / expense report). The last line keeps
- * the bill number (the number people quote to Accounts), or says why the bill needs a second look.
+ * One bill I added. Pressing it opens the caller's menu (receipt / expense report / withdraw). The last
+ * line keeps the bill number (the number people quote to Accounts), or says why the bill needs a second
+ * look. A rejected or withdrawn bill is muted: it is not counted.
  */
 export function PettyCashBillRow({
   b,
@@ -226,18 +227,28 @@ export function PettyCashBillRow({
   onPress?: () => void;
 }) {
   const rejected = b.status === 'rejected';
+  // Withdrawn by me: kept on record, muted, and never counted.
+  const withdrawn = b.status === 'withdrawn';
   const title = b.description || b.departmentName || 'Bill';
   const day = b.billDate || b.createdAt;
   const subtitle = [day ? shortDate(day, today) : null, b.kekaCode, b.description ? b.departmentName : null].filter(Boolean).join(' · ') || null;
   // Only a bill that needs a second look gets a status; an ordinary bill shows none.
-  const status = rejected ? { label: 'Rejected', tone: 'failed' as const } : b.excessRequestId ? { label: 'Extra claim', tone: 'pending' as const } : null;
+  const status = rejected
+    ? { label: 'Rejected', tone: 'failed' as const }
+    : withdrawn
+      ? { label: 'Withdrawn', tone: 'neutral' as const }
+      : b.excessRequestId
+        ? { label: 'Extra claim', tone: 'pending' as const }
+        : null;
   const meta = busy
     ? 'Opening receipt…'
     : rejected
       ? [b.rejectionReason, `By ${b.rejectedByName || 'Accounts'}`].filter(Boolean).join(' · ')
-      : b.excessRequestId
-        ? excessStatusText(excessRequest)
-        : [`Bill no. ${pettyCashRef('bill', b)}`, b.paidTo ? `Paid to ${b.paidTo}` : null].filter(Boolean).join(' · ');
+      : withdrawn
+        ? ['Not counted', b.withdrawnAt ? `withdrawn ${shortDate(b.withdrawnAt, today)}` : null].filter(Boolean).join(' · ')
+        : b.excessRequestId
+          ? excessStatusText(excessRequest)
+          : [`Bill no. ${pettyCashRef('bill', b)}`, b.paidTo ? `Paid to ${b.paidTo}` : null].filter(Boolean).join(' · ');
   const value = rowMoney(b.amount);
   return (
     <ActivityRow
@@ -247,7 +258,7 @@ export function PettyCashBillRow({
       subtitle={subtitle}
       note={meta}
       value={value}
-      valueColor={rejected ? palette.textMuted : undefined}
+      valueColor={rejected || withdrawn ? palette.textMuted : undefined}
       status={status}
       chevron={!!onPress}
       onPress={onPress}
@@ -266,7 +277,15 @@ export function PettyStatementRow({ batch, today, onPress }: { batch: BillBatch;
   const title = projects.join(', ') || codes.join(', ') || 'Expense report';
   const subtitle = projects.length ? codes.join(', ') || null : null;
   const date = batch.submittedAt ? shortDate(batch.submittedAt, today) : null;
-  const meta = [plural(batch.count - batch.rejected, 'bill'), batch.rejected ? `${batch.rejected} rejected` : null, date ? `Sent ${date}` : null].filter(Boolean).join(' · ');
+  const out = batch.rejected + batch.withdrawn;
+  const meta = [
+    plural(batch.count - out, 'bill'),
+    batch.rejected ? `${batch.rejected} rejected` : null,
+    batch.withdrawn ? `${batch.withdrawn} withdrawn` : null,
+    date ? `Sent ${date}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const value = rowMoney(batch.total);
   return (
     <ActivityRow

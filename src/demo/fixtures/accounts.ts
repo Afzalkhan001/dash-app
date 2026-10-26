@@ -9,8 +9,12 @@
 //   vendor_agreements.js /vendor-agreements/mine, pending-my-signature, draft / signatures, deadline, sign
 //   reimbursements.js    /reimbursements/accounts-all, accounts-authorize / reject, payment/start
 //   server.js            petty cash accounts-approve / reject, payment/start, old bills approve / reject,
-//                        the company's bill submissions, the expense report (with `canReject`), rejecting one
-//                        bill (which shrinks or closes an extra claim), expense types (add, switch, delete)
+//                        the company's bill submissions, the expense report (with `canReject` /
+//                        `canWithdraw`), rejecting one bill (which shrinks or closes an extra claim),
+//                        expense types (add, switch, delete)
+// Nobody acts on their own: a vendor bill the demo person sent (one waits on Accounts) can't be approved
+// or rejected by them, and the person who gave a petty cash request its first approval can't also
+// authorize it. Every reject needs a reason.
 //
 // Shared data is read and changed only through the exported stores: the vendor portal's records
 // (demo/vendor/data vendorRecord — approving a registration here flips the vendor persona until it is
@@ -43,6 +47,8 @@ import {
   pettyBillStore,
   pettyStore,
   pettySubmissionStore,
+  pullable,
+  rebalanceAfterPull,
   setPettyStage,
 } from '@/demo/fixtures/petty-cash';
 import { reimbursementStore, setReimbursementStage } from '@/demo/fixtures/reimbursements';
@@ -686,6 +692,8 @@ function otherBill(id: string, vendorId: string, projectId: string, by: string, 
 const OTHER_BILLS: StoredBill[] = [
   otherBill('vb-acct-deccan-1', 'vnd-acct-deccan', 'p-kisan', 'u-deepa', 72000, 'Aerial shots — Kisan Agro launch film, 2 days with a pilot and spare batteries', 3),
   otherBill('vb-acct-lakshmi-1', 'vnd-acct-lakshmi', 'p-sjw-diwali', 'u-priya', 15000, 'Vendor advance — lights and grip for the Diwali film shoot', 1, true),
+  // Sent by the demo person: someone else in Accounts has to approve or reject it.
+  otherBill('vb-acct-deccan-2', 'vnd-acct-deccan', 'p-kathalu', ME.id, 18500, 'Drone operator for the Kathalu title sequence — half day', 2),
 ];
 
 function allBills(): StoredBill[] {
@@ -740,6 +748,7 @@ const touch = (row: StoredBill, status: string, version: Partial<NonNullable<Ven
 function acceptBill(id: string) {
   const row = findBill(id);
   if (!row) return notFound('Bill not found.');
+  if (BILL_EXTRAS.get(id)?.submitted_by === ME.id) return fail('You can\'t authorize a bill you submitted yourself - someone else in Accounts has to.', 403);
   if (row.bill.status !== 'pending_accounts_approval') return fail('This bill is not pending Accounts approval.', 409);
   touch(row, 'accepted', { accounts_accepted_at: nowIso() });
   const x = BILL_EXTRAS.get(id);
@@ -752,6 +761,7 @@ function rejectBill(id: string, body: Record<string, unknown>) {
   if (!reason) return fail('A rejection reason is required.', 400);
   const row = findBill(id);
   if (!row) return notFound('Bill not found.');
+  if (BILL_EXTRAS.get(id)?.submitted_by === ME.id) return fail('You can\'t reject a bill you submitted yourself - someone else in Accounts has to.', 403);
   if (row.bill.status !== 'pending_accounts_approval') return fail('This bill is not pending Accounts approval.', 409);
   touch(row, 'rejected_accounts', { accounts_rejected_at: nowIso() });
   const x = BILL_EXTRAS.get(id);
@@ -1097,6 +1107,8 @@ function authorizePetty(id: string) {
   const r = findPetty(id);
   if (!r) return notFound('Request not found.');
   if (ownPetty(r)) return fail('You can’t give Accounts approval on a petty cash request that is for you or that you raised — someone else has to.', 403);
+  // Two different people sign off: whoever gave the first approval can't also authorize it.
+  if (r.kekaApprovedById && r.kekaApprovedById === ME.id) return fail('You gave the first approval on this request, so someone else in Accounts has to authorize it.', 403);
   if (r.status !== 'pending_accounts_approval') return fail('This request has already been reviewed.', 409);
   setPettyStage(id, 'ready_for_payment', { approvedAt: nowIso(), approvedByName: ME.name });
   return { ok: true };
@@ -1105,8 +1117,10 @@ function authorizePetty(id: string) {
 function rejectPetty(id: string, body: Record<string, unknown>) {
   const r = findPetty(id);
   if (!r) return notFound('Request not found.');
+  const reason = String(body.reason || '').trim();
+  if (!reason) return fail('Give the reason for rejecting this request — the employee will be shown it.', 400);
   if (r.status !== 'pending_accounts_approval') return fail('This request has already been reviewed.', 409);
-  setPettyStage(id, 'rejected', { rejectedStage: 'accounts', rejectedAt: nowIso(), rejectedByName: ME.name, rejectionReason: String(body.reason || '').trim() });
+  setPettyStage(id, 'rejected', { rejectedStage: 'accounts', rejectedAt: nowIso(), rejectedByName: ME.name, rejectionReason: reason });
   return { ok: true };
 }
 
@@ -1127,10 +1141,12 @@ function startPettyPayment(id: string) {
 function decideOldBill(id: string, approve: boolean, body: Record<string, unknown>) {
   const b = pettyBillStore.find((x) => x.id === id);
   if (!b) return notFound('Bill not found.');
+  const reason = String(body.reason || '').trim();
+  if (!approve && !reason) return fail('Give the reason for rejecting this bill — the employee will be shown it.', 400);
   if (approve && (b.uploadedById === ME.id || b.employeeId === ME.id)) return fail('You can’t approve a bill that is yours or that you uploaded — someone else has to.', 403);
   if (b.status !== 'pending') return fail('This bill has already been reviewed.', 409);
   const at = nowIso();
-  Object.assign(b, approve ? { status: 'approved', approvedAt: at } : { status: 'rejected', rejectedAt: at, rejectionReason: String(body.reason || '').trim() });
+  Object.assign(b, approve ? { status: 'approved', approvedAt: at } : { status: 'rejected', rejectedAt: at, rejectedByName: ME.name, rejectionReason: reason });
   return { ok: true };
 }
 
@@ -1148,8 +1164,10 @@ function allSubmissions(q: URLSearchParams) {
     .map(({ fileData: _f, ...rest }) => rest);
 }
 
-// GET /petty_cash_bill_submissions/statement/:batchId — server.js:4308, with `canReject` for Accounts.
+// GET /petty_cash_bill_submissions/statement/:batchId — server.js:4364, with `canReject` for Accounts and
+// `canWithdraw` for the employee who sent the bill. Rejected and withdrawn bills are listed, not counted.
 const REJECTABLE_CLAIM = ['pending_approval', 'pending_accounts_approval'];
+const counted = (b: DemoPettySubmission) => b.status !== 'rejected' && b.status !== 'withdrawn';
 function statement(batchId: string, requestId: string): (PettyCashStatement & { ok: true }) | ReturnType<typeof fail> {
   const found = requestId ? pettySubmissionStore.filter((b) => b.excessRequestId === requestId) : pettySubmissionStore.filter((b) => b.batchId === batchId);
   if (!found.length) return notFound('Statement not found.');
@@ -1160,7 +1178,7 @@ function statement(batchId: string, requestId: string): (PettyCashStatement & { 
   const byCode = new Map<string, DemoPettySubmission[]>();
   for (const b of [...found].sort((a, c) => String(a.createdAt).localeCompare(String(c.createdAt)))) byCode.set(b.kekaCode || '—', [...(byCode.get(b.kekaCode || '—') ?? []), b]);
   const statements: PettyCashStatementSheet[] = [...byCode.entries()].map(([kekaCode, all]) => {
-    const bills = all.filter((b) => b.status !== 'rejected');
+    const bills = all.filter(counted);
     const total = round2(bills.reduce((s, b) => s + b.amount, 0));
     const totals = new Map<string, number>();
     for (const b of bills) totals.set(b.departmentId || '_none', round2((totals.get(b.departmentId || '_none') ?? 0) + b.amount));
@@ -1188,7 +1206,9 @@ function statement(batchId: string, requestId: string): (PettyCashStatement & { 
       balance: round2(advance - total),
       lines: all.map((b) => {
         const rejected = b.status === 'rejected';
-        const linked = b.excessRequestId ? findPetty(b.excessRequestId) : null;
+        const withdrawn = b.status === 'withdrawn';
+        // Open until the money it adds up to is authorized (a bill inside an extra claim: while that claim waits).
+        const open = pullable(b);
         return {
           id: b.id,
           hasFile: !!b.hasFile,
@@ -1199,9 +1219,11 @@ function statement(batchId: string, requestId: string): (PettyCashStatement & { 
           project: b.projectName || '',
           description: b.description || '',
           paidTo: b.paidTo || '',
-          status: rejected ? ('rejected' as const) : ('active' as const),
-          canReject: mayReject && !rejected && b.employeeId !== ME.id && (!linked || REJECTABLE_CLAIM.includes(linked.status)),
+          status: rejected ? ('rejected' as const) : withdrawn ? ('withdrawn' as const) : ('active' as const),
+          canReject: mayReject && open && b.employeeId !== ME.id,
+          canWithdraw: open && b.employeeId === ME.id,
           ...(rejected ? { rejectionReason: b.rejectionReason || '', rejectedByName: b.rejectedByName || '', rejectedAt: b.rejectedAt || '' } : {}),
+          ...(withdrawn ? { withdrawnAt: b.withdrawnAt || '', withdrawnByName: b.withdrawnByName || '' } : {}),
         };
       }),
     };
@@ -1215,45 +1237,24 @@ function statement(batchId: string, requestId: string): (PettyCashStatement & { 
   };
 }
 
-// POST /petty_cash_bill_submissions/:id/reject — server.js:4433 + pettyCashRebalanceExtra (:4398).
-const ADVANCE = ['approved', 'ready_for_payment', 'payment_processing', 'paid', 'received', 'not_received'];
+// POST /petty_cash_bill_submissions/:id/reject — server.js:4518; the extra claims in the bill's pool are
+// measured again (rebalanceAfterPull, pettyCashRebalancePool).
 function rejectSubmission(id: string, body: Record<string, unknown>) {
   const b = pettySubmissionStore.find((x) => x.id === id);
   if (!b) return notFound('Bill not found.');
   const reason = String(body.reason || '').trim().slice(0, 500);
   if (!reason) return fail('Give the reason for rejecting this bill — the employee will be shown it.', 400);
   if (b.status === 'rejected') return fail('This bill has already been rejected.', 409);
+  if (b.status === 'withdrawn') return fail('The employee has already withdrawn this bill.', 409);
   if (b.employeeId === ME.id) return fail('You can’t reject a bill that is yours — someone else in Accounts has to.', 403);
   const linked = b.excessRequestId ? findPetty(b.excessRequestId) : null;
   if (linked && !REJECTABLE_CLAIM.includes(linked.status))
     return fail(`This bill is part of an extra claim that has already been ${linked.status === 'rejected' ? 'rejected' : 'authorized'}, so it can no longer be rejected on its own.`, 409);
+  const claimId = b.excessRequestId;
   Object.assign(b, { status: 'rejected', rejectedAt: nowIso(), rejectedByName: ME.name, rejectionReason: reason });
-  let claim: { before: number; after: number; closed: boolean } | null = null;
-  if (linked) {
-    const code = String(linked.kekaCode || '').toLowerCase();
-    const spent = round2(pettySubmissionStore.filter((x) => x.employeeId === linked.employeeId && String(x.kekaCode || '').toLowerCase() === code && x.status !== 'rejected').reduce((s, x) => s + x.amount, 0));
-    const own = pettyStore.filter((x) => x.employeeId === linked.employeeId && String(x.kekaCode || '').toLowerCase() === code);
-    const allocated = round2(own.filter((x) => x.kind !== 'excess' && ADVANCE.includes(x.status)).reduce((s, x) => s + x.amount, 0));
-    const elsewhere = round2(own.filter((x) => x.kind === 'excess' && x.id !== linked.id).reduce((s, x) => s + x.amount, 0));
-    const owed = Math.max(0, round2(spent - allocated - elsewhere));
-    const before = linked.amount;
-    const after = Math.min(before, owed);
-    let left = after;
-    const heads = new Map<string, PettyCashHeadLine>();
-    for (const x of pettySubmissionStore.filter((s) => s.excessRequestId === linked.id && s.status !== 'rejected').sort((p, q) => String(q.createdAt).localeCompare(String(p.createdAt)))) {
-      if (left <= 0) break;
-      const take = round2(Math.min(left, x.amount));
-      const k = x.departmentId || '_none';
-      const cur = heads.get(k) ?? { departmentId: x.departmentId || '', departmentName: x.departmentName || 'Not specified', amount: 0 };
-      cur.amount = round2(cur.amount + take);
-      heads.set(k, cur);
-      left = round2(left - take);
-    }
-    Object.assign(linked, { amount: after, billsTotal: spent, departments: [...heads.values()] });
-    if (after <= 0) Object.assign(linked, { status: 'rejected', rejectedStage: 'accounts', rejectedAt: nowIso(), rejectedByName: ME.name, rejectionReason: `Every bill in this extra claim was rejected by Accounts — ${reason}` });
-    claim = { before, after, closed: after <= 0 };
-  }
-  return { ok: true, bill: { id, status: 'rejected' }, claim };
+  const changes = rebalanceAfterPull(b, 'rejected', reason);
+  const own = changes.find((c) => c.requestId === claimId) ?? null;
+  return { ok: true, bill: { id, status: 'rejected' }, claim: own ? { before: own.before, after: own.after, closed: own.closed } : null, otherClaimsChanged: changes.filter((c) => c !== own).length };
 }
 
 // Expense types (petty cash "departments"), server.js:3443-3520.

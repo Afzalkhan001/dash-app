@@ -2,7 +2,9 @@
 // (Stack options by route name in (app)/_layout.tsx: no swipe-down, fade).
 //   1. The intro: what kiosk mode does, how to pin the phone (App pinning / Guided Access — Expo Go can't
 //      lock the phone itself), and Start kiosk. GET /visitors/qr gives the public check-in base.
-//   2. Running: the check-in wizard (features/desk/kiosk/wizard.tsx). The screen stays on (expo-keep-awake),
+//   2. Running: the check-in wizard (features/desk/kiosk/wizard.tsx) with the lobby board in its top bar
+//      (features/desk/kiosk/board.tsx: "N waiting", and each answer as a banner for 45 s), so the kiosk takes
+//      the next visitor while an earlier one waits. The screen stays on (expo-keep-awake),
 //      the status bar is hidden and the Android Back button does nothing. "Exit kiosk" asks for the phone's own lock or the DASH password.
 //   3. If the link stops working (someone made a new one) the kiosk says so and asks to be restarted.
 // Desk roles only (features/desk/access.ts canSeeKiosk); anyone else is sent home.
@@ -19,6 +21,7 @@ import { checkInUrl, deskKeys, kioskBase, kioskCheckLink, KioskError, useDeskQr 
 import { visitorKeys } from '@/api/visitors';
 import { useSession } from '@/auth/session';
 import { canRunDesk, canSeeKiosk } from '@/features/desk/access';
+import { useKioskBoardView } from '@/features/desk/kiosk/board';
 import { KioskExitSheet } from '@/features/desk/kiosk/exit-sheet';
 import { Art, KioskHeader, KioskLinkDead, KioskWizard, Result } from '@/features/desk/kiosk/wizard';
 import { DESK_ROUTES } from '@/features/desk/routes';
@@ -117,7 +120,8 @@ export default function KioskScreen() {
         rows={[
           { label: 'Big buttons', value: 'Meet someone, or use an invite code' },
           { label: 'Same check', value: 'A photo, then the host lets them in' },
-          { label: 'Clears itself', value: '15 seconds after each visitor' },
+          { label: 'Clears itself', value: '12 seconds after each check-in' },
+          { label: 'Who is waiting', value: 'On screen, with each host’s answer' },
         ]}
       />
       {/* The tips sat straight on the canvas; they are one frosted card of rows like every other list. */}
@@ -161,8 +165,17 @@ function RunningKiosk(props: { base: string; companyName: string; linkUrl: strin
     if (dead) onLinkDead();
   }, [dead, onLinkDead]);
 
+  const board = useKioskBoardView(!!link.data);
+
   const company = link.data?.companyName || props.companyName;
-  if (link.data) return <KioskWizard {...props} companyName={company} />;
+  if (link.data) {
+    return (
+      <>
+        <KioskWizard {...props} companyName={company} boardPill={board.pill} boardNotices={board.notices} />
+        {board.sheet}
+      </>
+    );
+  }
 
   const offline = link.error instanceof KioskError && link.error.problem === 'offline';
   return (

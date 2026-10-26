@@ -7,7 +7,12 @@
 //   GET    /assets                         every asset in the company (bare array). Never persisted
 //   POST   /assets                         the full record (id 'a'+now, status available, history [])
 //   PUT    /assets/:id                     partial merge. notify:true + an employee number = a real
-//                                          assignment: the server emails + WhatsApps the employee
+//                                          assignment: the server emails + WhatsApps the employee.
+//                                          Taking it back from someone e-mails them "Asset Recovered";
+//                                          allocating to / returning from a third party with an e-mail
+//                                          e-mails them "Asset Assigned" / "Asset Recovered".
+//                                          409 when the Asset ID is already used in the company;
+//                                          400 for a bad third-party allocation (routes/assets.js:37–48)
 //   DELETE /assets/:id                     hard delete
 //   POST   /assets/:id/resend-ack          emails + WhatsApps the acknowledgement link again
 //   GET    /users  /whitelist              the assign picker and the employee-number lookup
@@ -30,7 +35,23 @@ import { supportKeys, type ConfigItem, type StaffEntry, type TempStaffEntry, typ
 import { useSession } from '@/auth/session';
 
 // ── Types (the server's rows; schemaless JSON, so everything is optional and checked) ──────────────
-export type AssetHistory = { action: 'assigned' | 'returned' | string; to?: string; from?: string; note?: string; at?: string };
+export type AssetHistory = {
+  action: 'assigned' | 'returned' | 'allocated' | string;
+  to?: string;
+  from?: string;
+  /** The third party's organisation (an 'allocated' entry). */
+  org?: string;
+  note?: string;
+  at?: string;
+  /** A 'returned' entry for an asset that came back from a third party. */
+  thirdParty?: boolean;
+};
+
+/**
+ * Someone outside DASH the asset is allocated to (status 'allocated'): a vendor, client or contractor.
+ * `commentsLabel` is the "Allocated to X (Org) — note" text put at the front of the asset's Comments.
+ */
+export type ThirdParty = { name: string; organisation: string; phone: string; email: string; note: string; allocatedAt: string; commentsLabel: string };
 
 export type Asset = {
   id: string;
@@ -58,6 +79,8 @@ export type Asset = {
   returnNote: string;
   returnedFrom: string;
   returnedAt: string;
+  thirdParty: ThirdParty | null;
+  comments: string;
 };
 
 export type ItRoom = {
@@ -148,10 +171,36 @@ function toAsset(a: Record<string, unknown>): Asset {
     acknowledged: yes(a.acknowledged),
     acknowledgedAt: str(a.acknowledgedAt),
     ackToken: !!a.ackToken,
-    history: arr(a.history).map((h) => ({ action: str(h.action), to: str(h.to) || undefined, from: str(h.from) || undefined, note: str(h.note) || undefined, at: str(h.at) || undefined })),
+    history: arr(a.history).map((h) => ({
+      action: str(h.action),
+      to: str(h.to) || undefined,
+      from: str(h.from) || undefined,
+      org: str(h.org) || undefined,
+      note: str(h.note) || undefined,
+      at: str(h.at) || undefined,
+      thirdParty: h.thirdParty === true ? true : undefined,
+    })),
     returnNote: str(a.returnNote),
     returnedFrom: str(a.returnedFrom),
     returnedAt: str(a.returnedAt),
+    thirdParty: toThirdParty(a.thirdParty),
+    comments: str(a.comments),
+  };
+}
+
+function toThirdParty(v: unknown): ThirdParty | null {
+  if (!v || typeof v !== 'object') return null;
+  const t = v as Record<string, unknown>;
+  const name = str(t.name).trim();
+  if (!name) return null;
+  return {
+    name,
+    organisation: str(t.organisation).trim(),
+    phone: str(t.phone).trim(),
+    email: str(t.email).trim(),
+    note: str(t.note).trim(),
+    allocatedAt: str(t.allocatedAt),
+    commentsLabel: str(t.commentsLabel),
   };
 }
 
@@ -291,7 +340,68 @@ export type AssetForm = {
   condition: string;
   serial: string;
   price: string;
+  comments: string;
 };
+
+/** The Allocate form (dash.html:20516 TP_BLANK). Everything but the name is optional. */
+export type TpInput = { name: string; org: string; phone: string; email: string; note: string };
+export const TP_BLANK: TpInput = { name: '', org: '', phone: '', email: '', note: '' };
+
+const TP_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+/** dash.html:20517 tpEmailOk — blank is fine. */
+export const tpEmailOk = (t: TpInput) => !t.email.trim() || TP_EMAIL_RE.test(t.email.trim());
+/** dash.html:20519 tpLabel: "Allocated to Ravi Kumar (Sai Studios)". */
+export const tpLabel = (t: TpInput) => `Allocated to ${t.name.trim()}${t.org.trim() ? ` (${t.org.trim()})` : ''}`;
+/** The Comments label (dash.html:20522): the tpLabel, then " — remarks" when there are any. */
+export const tpCommentsLabel = (t: TpInput) => tpLabel(t) + (t.note.trim() ? ` — ${t.note.trim()}` : '');
+
+/** routes/assets.js:39 thirdPartyProblem, in the server's words: '' when the allocation is fine. */
+export function tpProblem(t: TpInput) {
+  if (t.name.trim().length < 2) return 'Say who the asset is allocated to.';
+  if (t.email.trim() && !TP_EMAIL_RE.test(t.email.trim())) return 'Enter a valid e-mail address for the third party, or leave it blank.';
+  if (t.name.trim().length > 120 || t.email.length > 120 || t.org.length > 120 || t.phone.length > 30 || t.note.length > 300) return 'The third-party details are too long.';
+  return '';
+}
+
+/** dash.html:20521 allocChanges — what allocating changes on an asset (the Allocate sheet and Add asset). */
+function allocChanges(a: { comments?: string; history: AssetHistory[] }, t: TpInput) {
+  const now = new Date().toISOString();
+  const label = tpCommentsLabel(t);
+  const prev = (a.comments || '').trim();
+  return {
+    status: 'allocated',
+    thirdParty: { name: t.name.trim(), organisation: t.org.trim(), phone: t.phone.trim(), email: t.email.trim(), note: t.note.trim(), allocatedAt: now, commentsLabel: label },
+    assignedTo: null,
+    assignedToEmpNo: '',
+    assignedToEmail: '',
+    assignmentDate: now.slice(0, 10),
+    acknowledged: false,
+    acknowledgedAt: null,
+    ackToken: null,
+    comments: prev ? `${label} · ${prev}` : label,
+    history: historyOut([...a.history, { action: 'allocated', to: t.name.trim(), org: t.org.trim(), note: t.note.trim(), at: now }]),
+  };
+}
+
+/** dash.html:20408: the Comments without the "Allocated to …" label; anything IT wrote there stays. */
+export function commentsWithoutLabel(a: Pick<Asset, 'comments' | 'thirdParty'>) {
+  const lab = a.thirdParty?.commentsLabel || '';
+  const cm = a.comments || '';
+  return lab && cm.startsWith(lab) ? cm.slice(lab.length).replace(/^\s*·\s*/, '') : cm;
+}
+
+/** An asset held by a third party (dash.html:20518 isAllocated). */
+const withThirdParty = (a: Asset) => a.status === 'allocated' && !!a.thirdParty?.name;
+
+/** dash.html:20864: the Asset ID must be unique in the company (case and outer spaces ignored). */
+export function assetIdTaken(list: readonly Pick<Asset, 'id' | 'assetId' | 'name' | 'serial'>[], assetId: string, exceptId?: string) {
+  const want = assetId.trim().toLowerCase();
+  if (!want) return null;
+  return list.find((x) => x.id !== exceptId && x.assetId.trim().toLowerCase() === want) ?? null;
+}
+/** The server's 409 (routes/assets.js:33 dupMsg). */
+export const assetIdTakenMessage = (assetId: string, clash: Pick<Asset, 'name' | 'serial'>) =>
+  `Asset ID "${assetId.trim()}" is already used by "${clash.name || clash.serial || 'another asset'}". Enter a different Asset ID.`;
 
 export function useAssetWrites() {
   const qc = useQueryClient();
@@ -299,10 +409,14 @@ export function useAssetWrites() {
   const refresh = () => qc.invalidateQueries({ queryKey: ['itdesk', 'assets'] });
   const refreshPeople = () => qc.invalidateQueries({ queryKey: ['people', 'assets'] });
 
-  /** dash.html:20752 — the Add Asset record, exactly as the website builds it. */
+  /**
+   * dash.html:20876 — the Add Asset record, exactly as the website builds it; with `allocate`, it is
+   * added already allocated to that third party (allocChanges on the new record).
+   */
   const create = useMutation({
-    mutationFn: async (f: AssetForm) => {
+    mutationFn: async ({ allocate, ...f }: AssetForm & { allocate?: TpInput | null }) => {
       const id = `a${Date.now()}`;
+      const comments = f.comments.trim();
       await unwrap(
         api.post<{ ok: true; asset?: unknown }>('/assets', {
           id,
@@ -323,6 +437,8 @@ export function useAssetWrites() {
           assignmentDate: '',
           status: 'available',
           history: [],
+          comments,
+          ...(allocate ? allocChanges({ comments, history: [] }, allocate) : null),
         }),
       );
       return id;
@@ -335,6 +451,7 @@ export function useAssetWrites() {
     mutationFn: async (v: { id: string; person: { name: string; employeeNumber: string; email: string }; today: string }) => {
       const a = await freshAsset(qc, userId, v.id);
       if (a.assignedToEmpNo) throw new Error(`This asset is already with ${a.assignedTo || `employee ${a.assignedToEmpNo}`}. Return it first.`);
+      if (withThirdParty(a)) throw new Error(`This asset is with ${a.thirdParty?.name} (a third party). Return it first.`);
       const at = new Date().toISOString();
       const history = [...a.history, { action: 'assigned', to: v.person.name, at }];
       return unwrap(
@@ -354,13 +471,32 @@ export function useAssetWrites() {
     onSettled: () => Promise.all([refresh(), refreshPeople()]),
   });
 
-  /** doReturn dash.html:20322 — history read fresh first. No one is messaged. */
+  /** Allocate to a third party (dash.html:20889) — history read fresh first. E-mails them only if an address is given. */
+  const allocate = useMutation({
+    mutationFn: async (v: { id: string; tp: TpInput }) => {
+      const problem = tpProblem(v.tp);
+      if (problem) throw new Error(problem);
+      const a = await freshAsset(qc, userId, v.id);
+      if (a.assignedToEmpNo) throw new Error(`This asset is with ${a.assignedTo || `employee ${a.assignedToEmpNo}`}. Return it first.`);
+      if (withThirdParty(a)) throw new Error(`This asset is already with ${a.thirdParty?.name}. Return it first.`);
+      return unwrap(api.put<{ ok: true }>(`/assets/${enc(v.id)}`, allocChanges(a, v.tp)));
+    },
+    onSettled: () => Promise.all([refresh(), refreshPeople()]),
+  });
+
+  /**
+   * doReturn dash.html:20400 — from an employee or from a third party; history read fresh first. The
+   * server e-mails the employee (or a third party with an e-mail) "Asset Recovered" with the remarks.
+   * From a third party the "Allocated to …" label comes back out of Comments.
+   */
   const giveBack = useMutation({
     mutationFn: async (v: { id: string; note: string }) => {
       const a = await freshAsset(qc, userId, v.id);
-      if (!a.assignedToEmpNo) throw new Error('This asset is already back in stock.');
+      const fromTp = withThirdParty(a);
+      if (!a.assignedToEmpNo && !fromTp) throw new Error('This asset is already back in stock.');
+      const from = fromTp ? (a.thirdParty?.name ?? '') : a.assignedTo;
       const at = new Date().toISOString();
-      const history = [...a.history, { action: 'returned', from: a.assignedTo, note: v.note || 'No remarks', at }];
+      const history = [...a.history, { action: 'returned', from, note: v.note || 'No remarks', at, ...(fromTp ? { thirdParty: true } : null) }];
       return unwrap(
         api.put<{ ok: true }>(`/assets/${enc(v.id)}`, {
           assignedTo: null,
@@ -371,9 +507,10 @@ export function useAssetWrites() {
           acknowledgedAt: null,
           ackToken: null,
           returnNote: v.note,
-          returnedFrom: a.assignedTo,
+          returnedFrom: from,
           returnedAt: at,
           history: historyOut(history),
+          ...(fromTp ? { thirdParty: null, comments: commentsWithoutLabel(a) } : null),
         }),
       );
     },
@@ -403,7 +540,7 @@ export function useAssetWrites() {
     onSettled: () => Promise.all([refresh(), refreshPeople()]),
   });
 
-  return { create, assign, giveBack, condition, link, resend, remove };
+  return { create, assign, allocate, giveBack, condition, link, resend, remove };
 }
 
 // ── Rooms and locations ──────────────────────────────────────────────────────

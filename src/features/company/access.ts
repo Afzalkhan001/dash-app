@@ -28,8 +28,8 @@ export const DESTRUCTIVE_ROLES = ['master_admin', 'super_admin', 'ceo', 'coo'];
 /** UserMgmt SYSTEM_ROLES (dash.html:2633): the logins this screen manages (employees live in the roster). */
 export const SYSTEM_ROLES = ['super_admin', 'ceo', 'coo', 'admin', 'hr', 'it_admin', 'manager', 'accounts', 'app_manager', 'announcement_viewer', 'visitor_manager'];
 
-/** Edit Role options, in the website's order (dash.html:2750). Accounts is only offered when adding. */
-export const EDIT_ROLES = ['ceo', 'coo', 'admin', 'hr', 'it_admin', 'manager', 'app_manager', 'visitor_manager', 'announcement_viewer'];
+/** Edit User role options, in the website's order (dash.html:2774). */
+export const EDIT_ROLES = ['ceo', 'coo', 'admin', 'hr', 'it_admin', 'manager', 'accounts', 'app_manager', 'visitor_manager', 'announcement_viewer'];
 /** Provision User options (dash.html:2779). */
 export const PROVISION_ROLES = ['ceo', 'coo', 'admin', 'hr', 'it_admin', 'manager', 'accounts', 'app_manager', 'visitor_manager', 'announcement_viewer'];
 
@@ -47,6 +47,8 @@ export const canSeeSubscriptionsHub = (u: U, t: T) => webNav(u, 'subscriptions',
 
 /** The server keeps a role change only from these (lib/authz.js filterUserWrite). */
 export const canAssignRoles = (u: U) => ROLE_ASSIGNER_ROLES.includes(role(u));
+/** PUT /users/:id and /whitelist/:id (routes/users.js:190, whitelist.js:167): name and phone; the role only for a role-assigner. */
+export const canEditUsers = (u: U) => USER_ADMIN_ROLES.includes(role(u));
 /** DELETE /users/:id (routes/users.js:383). */
 export const canRemoveUsers = (u: U) => DESTRUCTIVE_ROLES.includes(role(u));
 /** A row nobody may edit or remove here: the company owner, and yourself (nobody changes their own role). */

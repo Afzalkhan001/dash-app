@@ -1,7 +1,7 @@
 // My bills: every bill I added against a project code, newest first. A summary hero on top (what my
 // bills add up to, with "Add bills" — the one action), the one notice about bills that went over my
-// petty cash, a filter pill (All / Extra claims / Rejected), then the rows. A bill opens its receipt (or
-// asks: receipt or expense report).
+// petty cash, a filter pill (All / Extra claims / Rejected / Withdrawn), then the rows. A bill opens its
+// receipt (or asks: receipt, expense report or withdraw). Rejected and withdrawn bills are not counted.
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -12,16 +12,17 @@ import { type PettyCashSubmission, usePettyCashOverview } from '@/api/petty-cash
 import { useSession } from '@/auth/session';
 import { FilterPill } from '@/features/petty-cash/filter-pill';
 import { PettyBillsCard, PettyExcessBanner } from '@/features/petty-cash/lists';
-import { amount, list, roleSeesPettyCash } from '@/features/petty-cash/logic';
+import { amount, billCounts, list, roleSeesPettyCash } from '@/features/petty-cash/logic';
 import { plural } from '@/lib/format';
 import { palette, radius } from '@/theme/tokens';
 import { EmptyState, ErrorState, NavHeader, Screen, Skeleton, SkeletonList, SummaryHero } from '@/ui';
 
-type Filter = 'all' | 'extra' | 'rejected';
+type Filter = 'all' | 'extra' | 'rejected' | 'withdrawn';
 // The summary hero's height (label, figure, info chip, line, Add bills), for its loading placeholder.
 const HERO_H = 300;
-const FILTER_LABEL: Record<Filter, string> = { all: 'All bills', extra: 'Extra claims', rejected: 'Rejected' };
-const groupOf = (b: PettyCashSubmission): Filter => (b.status === 'rejected' ? 'rejected' : b.excessRequestId ? 'extra' : 'all');
+const FILTER_LABEL: Record<Filter, string> = { all: 'All bills', extra: 'Extra claims', rejected: 'Rejected', withdrawn: 'Withdrawn' };
+const groupOf = (b: PettyCashSubmission): Filter =>
+  b.status === 'rejected' ? 'rejected' : b.status === 'withdrawn' ? 'withdrawn' : b.excessRequestId ? 'extra' : 'all';
 
 export default function PettyCashBillsScreen() {
   const router = useRouter();
@@ -35,14 +36,15 @@ export default function PettyCashBillsScreen() {
   const bills = list(data?.subs).filter(Boolean);
   const hasBills = bills.length > 0;
 
-  const counts: Record<Filter, number> = { all: bills.length, extra: 0, rejected: 0 };
+  const counts: Record<Filter, number> = { all: bills.length, extra: 0, rejected: 0, withdrawn: 0 };
   for (const b of bills) {
     const g = groupOf(b);
     if (g !== 'all') counts[g] += 1;
   }
   // A filter whose group has emptied (after a refresh) falls back to All.
   const filter: Filter = picked !== 'all' && !counts[picked] ? 'all' : picked;
-  const inBills = bills.filter((b) => b.status !== 'rejected').reduce((s, b) => s + amount(b.amount), 0);
+  const inBills = bills.filter(billCounts).reduce((s, b) => s + amount(b.amount), 0);
+  const notCounted = [counts.rejected ? `${counts.rejected} rejected` : null, counts.withdrawn ? `${counts.withdrawn} withdrawn` : null].filter(Boolean).join(', ');
   const addBills = () => router.push('/petty-cash/bills/new');
 
   return (
@@ -63,7 +65,7 @@ export default function PettyCashBillsScreen() {
           label="Your bills add up to"
           value={inBills}
           currency="₹"
-          info={counts.rejected ? { label: 'Not counted', value: `${counts.rejected} rejected` } : undefined}
+          info={notCounted ? { label: 'Not counted', value: notCounted } : undefined}
           sub={hasBills ? plural(bills.length, 'bill') : 'Add a photo of each bill you paid with petty cash.'}
           action={{ title: 'Add bills', icon: <Camera />, onPress: addBills }}
         />
@@ -78,12 +80,12 @@ export default function PettyCashBillsScreen() {
           filter={filter === 'all' ? undefined : (b) => groupOf(b) === filter}
           empty="No bills here."
           right={
-            counts.extra || counts.rejected ? (
+            counts.extra || counts.rejected || counts.withdrawn ? (
               <FilterPill<Filter>
                 title="Show bills"
                 value={filter}
                 onChange={setFilter}
-                options={(['all', 'extra', 'rejected'] as const)
+                options={(['all', 'extra', 'rejected', 'withdrawn'] as const)
                   .filter((f) => f === 'all' || counts[f] > 0 || f === filter)
                   .map((f) => ({ value: f, label: FILTER_LABEL[f], count: counts[f] }))}
               />

@@ -11,9 +11,10 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { useRoster } from '@/api/people';
-import { type Asset, useAssets } from '@/api/itdesk';
+import { type Asset, type AssetHistory, useAssets } from '@/api/itdesk';
 import { type Tm360Employee, useTm360Employee, useTm360Roster } from '@/api/insights';
 import { useTodayIst } from '@/features/attendance/use-now';
+import { assetStatus, isAllocated, thirdPartyName } from '@/features/itdesk/format';
 import { useApiList } from '@/features/excel/api';
 import type { ExportDef } from '@/features/excel/catalog';
 import { ChoiceCard, ExportShell, PickedRow, type Range, RangeCard } from '@/features/excel/export-shell';
@@ -30,9 +31,17 @@ import { ListCard, ListRow, SelectField, Sheet, Text, TextField } from '@/ui';
 
 // ── Asset register ───────────────────────────────────────────────────────────
 type AssetView = 'all' | 'assigned' | 'ack' | 'warranty' | 'one';
-const ASSET_HEAD = ['Asset Id', 'Asset Name', 'Asset Description', 'Asset Location', 'Asset Category', 'Asset Type', 'Purchased On', 'Warranty Expiry Status', 'Warranty Expires On', 'Asset Condition', 'Assigned To (Emp No.)', 'Assigned To (Name)', 'Date of Assignment', 'Serial Number', 'Asset Value (INR)', 'Status', 'Acknowledged'];
-const ASSET_COLS = [22, 20, 35, 14, 14, 14, 14, 18, 18, 14, 20, 20, 18, 16, 14, 12, 12];
+const ASSET_HEAD = ['Asset Id', 'Asset Name', 'Asset Description', 'Asset Location', 'Asset Category', 'Asset Type', 'Purchased On', 'Warranty Expiry Status', 'Warranty Expires On', 'Asset Condition', 'Assigned To (Emp No.)', 'Assigned To (Name)', 'Date of Assignment', 'Serial Number', 'Asset Value (INR)', 'Status', 'Acknowledged', 'Allocated To (Third Party)', 'Comments'];
+const ASSET_COLS = [22, 20, 35, 14, 14, 14, 14, 18, 18, 14, 20, 20, 18, 16, 14, 12, 12, 26, 36];
 const FILE_TAG: Record<Exclude<AssetView, 'one'>, string> = { all: 'All', assigned: 'Assigned', ack: 'Pending_Ack', warranty: 'Warranty_Expiring' };
+
+/** dash.html:20450 histRow — one history entry as a report row. */
+const histRow = (h: AssetHistory): Cell[] =>
+  h.action === 'assigned'
+    ? ['ASSIGNED', h.to || '', xStamp(h.at), '']
+    : h.action === 'allocated'
+      ? ['ALLOCATED (THIRD PARTY)', h.to || '', xStamp(h.at), [h.org, h.note].filter(Boolean).join(' - ')]
+      : ['RETURNED', h.from || '', xStamp(h.at), h.note || ''];
 
 const dnum = (v: string) => {
   if (!v) return null;
@@ -65,7 +74,6 @@ export function AssetsExport({ def }: { def: ExportDef }) {
     const n = String(empNo || '').trim().replace(/\.0+$/, '').toLowerCase();
     return n ? (roster.data?.rows ?? []).find((r) => r.employeeNumber.trim().toLowerCase() === n)?.name ?? '' : '';
   };
-  const status = (a: Asset) => (a.assignedToEmpNo ? 'assigned' : a.status || 'available');
   const needle = q.trim().toLowerCase();
   const matches = all.filter((a) => !needle || [a.name, a.assetId, a.serial, a.assignedTo].some((v) => String(v || '').toLowerCase().includes(needle))).slice(0, 80);
   const count = view === 'one' ? (one ? 1 : null) : lists[view].length;
@@ -75,8 +83,8 @@ export function AssetsExport({ def }: { def: ExportDef }) {
       ready={ready && !assets.isPending}
       intro={
         view === 'one'
-          ? 'One asset: its details and every time it was assigned or returned, with remarks.'
-          : 'One row per asset with ID, description, location, category, warranty, condition, who has it and since when, serial number, value, status and whether it was acknowledged.'
+          ? 'One asset: its details and every time it was assigned, allocated to a third party or returned, with remarks.'
+          : 'One row per asset with ID, description, location, category, warranty, condition, who has it and since when, serial number, value, status, whether it was acknowledged, which third party has it and its comments.'
       }
       count={count}
       countNoun={['asset', 'assets']}
@@ -96,12 +104,12 @@ export function AssetsExport({ def }: { def: ExportDef }) {
             ['Purchase Date', one.purchaseDate || ''],
             ['Price (INR)', Number(one.price) || 0],
             ['Status', one.status || 'available'],
-            ['Currently Assigned To', one.assignedTo || 'Unassigned'],
+            ['Currently Assigned To', one.assignedTo || (isAllocated(one) ? `Third party: ${one.thirdParty?.name ?? ''}` : 'Unassigned')],
             ['Report Generated', xStamp(new Date().toISOString())],
             [''],
             ['--- Assignment History ---'],
             ['Action', 'Employee', 'Date & Time', 'Remarks'],
-            ...hist.map((h) => (h.action === 'assigned' ? ['ASSIGNED', h.to || '', xStamp(h.at), ''] : ['RETURNED', h.from || '', xStamp(h.at), h.note || ''])),
+            ...hist.map(histRow),
             ...(hist.length ? [] : [['No history yet', '', '', '']]),
           ];
           return { fileName: `Asset_Report_${one.name.replace(/\s+/g, '_')}_${today}`, sheets: [{ name: 'Asset', rows, cols: [24, 26, 22, 30] }] };
@@ -123,8 +131,10 @@ export function AssetsExport({ def }: { def: ExportDef }) {
           a.assignmentDate || '',
           a.serial || '',
           Number(a.price) || 0,
-          status(a),
+          assetStatus(a),
           a.assignedToEmpNo ? (a.acknowledged ? 'Yes' : 'No') : '',
+          isAllocated(a) ? thirdPartyName(a) : '',
+          a.comments || '',
         ]);
         const sub = `Generated: ${xStamp(new Date().toISOString())}   ·   ${rows.length} asset${rows.length !== 1 ? 's' : ''}`;
         return {

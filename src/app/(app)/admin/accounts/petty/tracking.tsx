@@ -21,15 +21,17 @@ import { palette, space } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
 import { ActivityList, ActivityRow, Button, DateField, EmptyState, ErrorState, NavHeader, PillSelector, Screen, Sheet, SkeletonList, SummaryHero, TextField } from '@/ui';
 
-type Report = { batchId: string; employee: string; at: string; count: number; rejected: number; total: number; codes: string[] };
+// Rejected and withdrawn bills stay on the report but are not counted in its total.
+type Report = { batchId: string; employee: string; at: string; count: number; rejected: number; withdrawn: number; total: number; codes: string[] };
 
 function reports(subs: PettyCashSubmission[]): Report[] {
   const by = new Map<string, Report>();
   for (const b of subs) {
     if (!b || !b.batchId) continue;
-    const r = by.get(b.batchId) ?? { batchId: b.batchId, employee: b.employeeName || 'Employee', at: b.createdAt || '', count: 0, rejected: 0, total: 0, codes: [] };
+    const r = by.get(b.batchId) ?? { batchId: b.batchId, employee: b.employeeName || 'Employee', at: b.createdAt || '', count: 0, rejected: 0, withdrawn: 0, total: 0, codes: [] };
     r.count += 1;
     if (b.status === 'rejected') r.rejected += 1;
+    else if (b.status === 'withdrawn') r.withdrawn += 1;
     else r.total += Number(b.amount) || 0;
     if (b.kekaCode && !r.codes.includes(b.kekaCode)) r.codes.push(b.kekaCode);
     if ((b.createdAt || '') > r.at) r.at = b.createdAt || r.at;
@@ -87,7 +89,7 @@ export default function PettyTrackingScreen() {
               module="pettyCash"
               icon={FileSpreadsheet}
               title={r.employee}
-              subtitle={`${plural(r.count - r.rejected, 'bill')}${r.rejected ? ` · ${r.rejected} rejected` : ''}${r.codes.length ? ` · ${r.codes.join(', ')}` : ''}`}
+              subtitle={`${plural(r.count - r.rejected - r.withdrawn, 'bill')}${r.rejected ? ` · ${r.rejected} rejected` : ''}${r.withdrawn ? ` · ${r.withdrawn} withdrawn` : ''}${r.codes.length ? ` · ${r.codes.join(', ')}` : ''}`}
               note={`Sent ${shortDate(r.at, today)}`}
               value={rowMoney(r.total)}
               chevron

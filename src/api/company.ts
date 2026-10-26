@@ -4,11 +4,13 @@
 //
 //   GET    /dashboard/summary                 routes/dashboard.js:46   { users, departments, activeTasks, pendingBookings }
 //   GET    /users                             routes/users.js:108      tenant rows (avatars stripped)
-//   PUT    /users/:id                         routes/users.js:186      { role, location? } — role needs a role-assigner
+//   PUT    /users/:id                         routes/users.js:186      { name, role, mobile, phone, location? } — role needs a
+//                                                                     role-assigner; an email change is dropped silently
 //   DELETE /users/:id                         routes/users.js:383      DESTRUCTIVE_ROLES, same company; irreversible
 //   GET    /whitelist                         routes/whitelist.js:17   invitations of my company
 //   POST   /whitelist                         routes/whitelist.js:87   UPSERTS BY EMAIL; sends the welcome email (+ WhatsApp)
-//   PUT    /whitelist/:id                     routes/whitelist.js:167  { role, location? }
+//   PUT    /whitelist/:id                     routes/whitelist.js:167  { name, role, mobile, phone, location? } (email dropped too)
+//   POST   /employees/change-email            routes/users.js:325      the only way a login email changes (api/people.ts)
 //   DELETE /whitelist/:id                     routes/whitelist.js:218  irreversible (no role check on the server)
 //   GET    /departments                       routes/departments.js:19
 //   PUT    /departments/:id                   routes/departments.js:120 { teamRosterEnabled }
@@ -28,6 +30,7 @@ import { keepPreviousData, type QueryClient, useInfiniteQuery, useMutation, useQ
 
 import { api, ApiRequestError, isApiError, unwrap } from '@/api/client';
 import type { AuditGrant, Tenant, TenantGrant } from '@/api/me';
+import { changeEmployeeEmail } from '@/api/people';
 import { useSession } from '@/auth/session';
 
 // ── Keys ─────────────────────────────────────────────────────────────────────
@@ -93,6 +96,8 @@ export type CompanyPerson = {
   jobTitle: string;
   status: string;
   resigned: boolean;
+  /** The sign-in mobile number (`mobile`, else `phone`). */
+  phone: string;
 };
 
 const s = (v: unknown) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v));
@@ -110,6 +115,7 @@ function slimPerson(raw: Record<string, unknown>): CompanyPerson {
     jobTitle: s(raw.jobTitle) || s(raw.designation),
     status: s(raw.status) || 'active',
     resigned: raw.resigned === true || raw.resigned === 'true',
+    phone: s(raw.mobile) || s(raw.phone),
   };
 }
 
@@ -182,9 +188,12 @@ export async function fetchFreshPeople(qc: QueryClient, uid: string) {
   return { users, whitelist };
 }
 
-export type ProvisionInput = { name: string; email: string; role: string; location: string | null; tenantId: string };
+export type ProvisionInput = { name: string; email: string; phone: string; role: string; location: string | null; tenantId: string };
 
-/** UserMgmt.provision (dash.html:2675): one whitelist row, the website's exact body. */
+/**
+ * UserMgmt.provision (dash.html:2704): one whitelist row, the website's exact body. An optional phone goes
+ * in as both `mobile` and `phone`, so they can also sign in with their number once they sign up.
+ */
 export function useProvisionUser() {
   const qc = useQueryClient();
   const uid = useUid();
@@ -201,6 +210,8 @@ export function useProvisionUser() {
           tenantId: v.tenantId,
           status: 'active',
           source: 'system',
+          mobile: v.phone.trim() || null,
+          phone: v.phone.trim() || null,
           location: v.location,
         }),
       ),
@@ -211,15 +222,41 @@ export function useProvisionUser() {
   });
 }
 
-/** Edit Role (dash.html:2768): PUT /users/:id when signed up, PUT /whitelist/:wlId when invited — both when both exist. */
-export function useChangeRole() {
+export type EditUserInput = {
+  userId: string | null;
+  whitelistId: string | null;
+  name: string;
+  phone: string;
+  role: string;
+  location: string | null;
+  /** A new login email: sent first through POST /employees/change-email (the PUTs drop an email change). */
+  newEmail?: string | null;
+};
+
+/**
+ * Edit User (dash.html:2795): name, phone (as `mobile` and `phone`), role and a display's branch —
+ * PUT /users/:id when signed up, PUT /whitelist/:wlId when invited, both when both exist. The website
+ * also sends the email, which both routes drop; here a changed email goes through change-email first.
+ */
+export function useEditUser() {
   const qc = useQueryClient();
   const uid = useUid();
   return useMutation({
-    mutationFn: async (v: { userId: string | null; whitelistId: string | null; role: string; location: string | null }) => {
-      const body: Record<string, unknown> = { role: v.role, ...(v.role === 'announcement_viewer' ? { location: v.location || 'ALL_BRANCHES' } : null) };
+    mutationFn: async (v: EditUserInput) => {
+      const ph = v.phone.trim();
+      const body: Record<string, unknown> = {
+        name: v.name.trim(),
+        role: v.role,
+        mobile: ph || null,
+        phone: ph || null,
+        ...(v.role === 'announcement_viewer' ? { location: v.location || 'ALL_BRANCHES' } : null),
+      };
       const done: string[] = [];
       try {
+        if (v.newEmail) {
+          await changeEmployeeEmail(v.userId ? { id: v.userId, invited: false, inviteId: v.whitelistId } : { id: v.whitelistId ?? '', invited: true, inviteId: v.whitelistId }, v.newEmail);
+          done.push('email');
+        }
         if (v.userId) {
           await write(api.put(`/users/${encodeURIComponent(v.userId)}`, body));
           done.push('account');
@@ -233,9 +270,10 @@ export function useChangeRole() {
       }
       return done;
     },
-    onSettled: () => {
+    onSettled: (_r, _e, v) => {
       void qc.invalidateQueries({ queryKey: companyKeys.users(uid) });
       void qc.invalidateQueries({ queryKey: companyKeys.whitelist(uid) });
+      if (v.newEmail) void qc.invalidateQueries({ queryKey: ['people'] });
     },
   });
 }

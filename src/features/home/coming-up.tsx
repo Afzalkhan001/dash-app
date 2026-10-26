@@ -1,7 +1,6 @@
 // "Coming up" on Home (docs/REFERENCE-COMPONENTS.md item 10, Payno "Upcoming Payments"): a short,
 // sideways-scrolling row of frosted kit UpcomingCards for what is next for me, soonest first:
-//   shift    while I'm clocked in: when my shift ends ("6:30 PM", "In 2h 10m"). Before clock-in the
-//            clock card already says the shift, and once I'm done there is nothing left today
+// (No "Shift ends" card: the owner removed it on 2026-10-26; the clock card shows the shift.)
 //   leave    my next approved leave or work from home that hasn't ended (at most 2): the kind, how
 //            long ("2 days"), the dates ("26 – 27 Oct") and when it starts ("In 6 days", "Now")
 //   holiday  the next company holiday: its name, the date ("Fri, 31 Oct") and "In 11 days"
@@ -9,7 +8,6 @@
 //
 // Data: the very queries (same hooks, keys and gates) the Me screens use, so the server never refuses
 // them and whatever one screen loaded the other shows at once:
-//   - the shift comes from today's attendance (['att-today'], the clock card's own query);
 //   - holidays: this year's list, as Me › Attendance loads it (sections.holidays; cached an hour).
 //     Next year's only once this year has none left (late December);
 //   - my requests: Me › Leave's own list (useLeaveAccess().enabled), else the lighter cached copy
@@ -20,18 +18,17 @@
 // useComingUp() builds the cards; <ComingUp items={…}/> draws them.
 
 import { type Href, useRouter } from 'expo-router';
-import { Clock, House, type LucideIcon, Palmtree, TreePalm } from 'lucide-react-native';
+import { House, type LucideIcon, Palmtree, TreePalm } from 'lucide-react-native';
 import { View } from 'react-native';
 
-import type { TodayFull } from '@/api/attendance';
 import { useMyLeaveRequests as useLeaveRequestsLite } from '@/api/attendance';
-import { useAttendanceToday, useHolidays, useLeaveBalances } from '@/api/hr';
+import { useHolidays, useLeaveBalances } from '@/api/hr';
 import { useLeaveTypes, useMyLeaveRequests } from '@/api/leave';
 import { shortDay } from '@/features/attendance/format';
 import { useNow } from '@/features/attendance/use-now';
 import { useLeaveAccess } from '@/features/leave/use-leave-access';
 import { HALF_LABEL, rangeLabel, requestDays } from '@/features/leave/rules';
-import { durationLabel, hmLabel, istParts } from '@/lib/dates';
+import { istParts } from '@/lib/dates';
 import { plural } from '@/lib/format';
 import { useAccess } from '@/lib/use-access';
 import type { ModuleKey } from '@/theme/tokens';
@@ -44,14 +41,6 @@ const MAX_LEAVE = 2;
 const isYmd = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const dayMs = (ymd: string) => Date.parse(`${ymd}T00:00:00Z`);
 const daysBetween = (a: string, b: string) => Math.round((dayMs(b) - dayMs(a)) / 86400000);
-// '09:30' / '9:30:00' → minutes after midnight; null when it isn't a time.
-function minutesOf(hm?: string | null) {
-  const m = /^(\d{1,2}):(\d{2})/.exec(typeof hm === 'string' ? hm.trim() : '');
-  if (!m) return null;
-  const h = Number(m[1]);
-  const min = Number(m[2]);
-  return h <= 23 && min <= 59 ? h * 60 + min : null;
-}
 
 /** "Today", "Tomorrow", "In 11 days". */
 function whenWords(from: string, today: string) {
@@ -88,15 +77,13 @@ export function useComingUp(): UpcomingItem[] {
   const access = useAccess();
   const leaveAccess = useLeaveAccess();
   const now = useNow();
-  const { date: today, hour, minute } = istParts(new Date(now));
+  const { date: today } = istParts(new Date(now));
   const year = today.slice(0, 4);
   const nextYear = String(Number(year) + 1);
 
   const holOn = access.sections.holidays;
   const leaveOn = leaveAccess.enabled;
 
-  // Today's attendance: the clock card's own query (same key), so no extra request.
-  const todayQ = useAttendanceToday(access.sections.clock);
   // This year's holidays (Me › Attendance's query and gate); next year's only when none are left.
   const holQ = useHolidays(year, holOn);
   const holThis = Array.isArray(holQ.data?.holidays) ? holQ.data.holidays : [];
@@ -134,35 +121,6 @@ export function useComingUp(): UpcomingItem[] {
   addNames(balancesQ.data?.balances);
 
   const out: Upcoming[] = [];
-
-  // ── Shift end, while clocked in ──
-  const t = todayQ.data as unknown as TodayFull | undefined;
-  const rec = t && typeof t === 'object' && t.record && typeof t.record === 'object' ? t.record : null;
-  const s = t && typeof t === 'object' && t.settings && typeof t.settings === 'object' ? t.settings : null;
-  if (access.sections.clock && rec && !rec.out_at && s) {
-    const start = minutesOf(s.shiftStart);
-    let end = minutesOf(s.shiftEnd);
-    const nowMin = hour * 60 + minute;
-    // A night shift ends after midnight.
-    if (end != null && start != null && end <= start && nowMin >= start) end += 24 * 60;
-    const left = end != null ? end - nowMin : 0;
-    if (end != null && left > 0 && left <= 16 * 60) {
-      const at = hmLabel(s.shiftEnd);
-      out.push({
-        key: 'shift',
-        sortKey: today,
-        icon: Clock,
-        module: 'shifts',
-        title: 'Shift ends',
-        value: at,
-        sub: s.shiftName || 'Your shift today',
-        meta: `In ${durationLabel(left)}`,
-        onPress: access.sections.shifts ? () => go('/attendance/shifts') : undefined,
-        accessibilityLabel: `Your shift ends at ${at}, in ${durationLabel(left)}`,
-        hint: access.sections.shifts ? 'Opens My shift' : undefined,
-      });
-    }
-  }
 
   // ── My next approved leave / work from home (the cards) ──
   for (const r of nextLeave) {

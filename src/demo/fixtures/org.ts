@@ -282,6 +282,8 @@ const PROJECT_SEEDS: ProjectSeed[] = [
   ['p-nimbus', 'Nimbus Fintech — Explainer Series', 'TM', 'NIM', 'EXPL', 'TM-1042', 'active', '2026-06-20'],
   ['p-reel', 'Tamada Showreel 2026 (Internal)', 'TM', 'INT', 'REEL26', 'TM-1042', 'active', '2026-04-01'],
   ['p-admin', 'Internal — Admin, Training & Pitches', 'TM', 'INT', 'ADMIN', 'TM-1002', 'active', '2025-04-01'],
+  // No Cost Code Owner (as some live codes have): Accounts gives the first petty cash approval, and someone else in Accounts authorizes it.
+  ['p-pitch', 'Internal — New Business Pitches', 'TM', 'INT', 'PITCH', '', 'active', '2026-09-01'],
   ['p-spice', 'Spice Route Travel Vlogs (2024)', 'TM', 'SRT', 'VLOG24', 'TM-1003', 'inactive', '2024-02-10'],
 ];
 

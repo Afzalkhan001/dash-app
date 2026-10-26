@@ -3,11 +3,15 @@
 // and the hosts agree: a host's Let in shows on the board, and the desk's answer reaches the host. This
 // file adds today's walk-ins for other hosts and ~30 days of history, plus one invitation for today.
 //
-//   GET  /visitors/today             today's visits (IST work date) + stats, computed the server's way
-//   GET  /visitors/log               from / to (work date), status, q (name, mobile, host, reason), ≤ 2000
+//   GET  /visitors/today             today's visits (IST work date) + stats (with letIn), serverNow, letInAfterMin
+//   GET  /visitors/log               from / to (work date), status, by (host | desk | override), q (name, mobile,
+//                                    host, reason, who decided), ≤ 2000
 //   POST /visitors/:id/check-out     404 unknown · 409 "That visitor is already checked out."
-//   POST /visitors/:id/decide        the host, or a desk role (else 403); 409 once decided; recorded as the
-//                                    signed-in person (DEMO_USER, which the demo server shows as the persona)
+//   POST /visitors/:id/decide        the host ('app'), or a desk role (else 403): turn away any time ('desk'),
+//                                    let in only after 5 minutes (else the server's 409 "Give <host> a chance to
+//                                    answer first …" + waitMoreMin, letInAfterMin), then 'desk_override'; 409 once
+//                                    decided; recorded as the signed-in person (DEMO_USER, shown as the persona)
+//   GET  /visitors/kiosk/board       the lobby board: waiting + answered in the last 5 min (short names only)
 //   GET  /visitors/qr                { tenantId, token, path, companyName }
 //   POST /visitors/qr/regenerate     rotates the token (demo-qr-<n>)
 //   POST /visitors/kiosk/exit        demo password Demo@123
@@ -18,16 +22,18 @@
 // server's 404), and a check-in lands in the shared visit store, so it shows on the board at once:
 //   GET  /public/visit/:t/:token/employees?q        >= 2 letters, name only, <= 25 (+ companyName)
 //   POST /public/visit/:t/:token                    the server's checks and words; a pending visit
-//   GET  /public/visit/:t/:token/status/:id         the host "answers" ~12 s after arrival (turned away
+//   GET  /public/visit/:t/:token/status/:id         the host "answers" ~20 s after arrival (turned away
 //                                                   when the visitor's name has "test" in it), unless
-//                                                   the desk or the host answered first
+//                                                   the desk or the host answered first. The kiosk frees
+//                                                   itself after 12 s, so the board (which runs the same
+//                                                   answer) announces it.
 //   POST /public/visit/:t/:token/invite             today's code (Kavya Reddy: 482615)
 //   POST /public/visit/:t/:token/invite/:id/arrive  an approved 'invite' visit; the invite is used
 
 import type { Invite, Visit } from '@/api/visitors';
 import { DEMO_PASSWORD, DEMO_TENANT_ID, DEMO_USER } from '@/demo/config';
 import { allPeople, personById, TENANT } from '@/demo/fixtures/org';
-import { inviteStore, makeVisit, visitStore } from '@/demo/fixtures/visitors';
+import { inviteStore, LET_IN_AFTER_MIN, makeVisit, shapeVisit, visitStore } from '@/demo/fixtures/visitors';
 import { currentPersona } from '@/demo/personas';
 import { addDays, fail, isWeeklyOff, istDateOf, istIso, minutesAgo, newId, nowIso, rand, today, type Route } from '@/demo/state';
 import { VISIT_DESK_ROLES } from '@/lib/access';
@@ -102,6 +108,21 @@ const TODAY: Visit[] = [
     checkOutAt: minutesAgo(190),
     workDate: T0,
   }),
+  // Nobody answered for Deepa, so the desk let the visitor in after the wait (stats.letIn).
+  makeVisit({
+    id: 'vis-desk-07',
+    ...hostOf('u-deepa'),
+    visitorName: 'Imran Shaikh',
+    visitorMobile: '919959012233',
+    purpose: 'Lens repair pickup',
+    source: 'kiosk',
+    status: 'approved',
+    createdAt: minutesAgo(48),
+    decidedAt: minutesAgo(41),
+    decidedVia: 'desk_override',
+    decidedBy: 'Afzal Visitor Manager',
+    workDate: T0,
+  }),
   makeVisit({
     id: 'vis-desk-06',
     ...hostOf('u-vikram'),
@@ -155,6 +176,11 @@ function history(): Visit[] {
       const decided = status !== 'no_response';
       const hostName = personById(host)?.name ?? 'Host';
       const viaWa = rand(`${seed}:v`) < 0.35;
+      // About a quarter were answered at the desk: a turn-away is 'desk'; a let-in came after the host's
+      // 5 minutes ran out ('desk_override', 6-14 minutes after arrival).
+      const byDesk = decided && rand(`${seed}:d`) < 0.25;
+      const override = byDesk && status !== 'rejected';
+      const answeredAfter = override ? 6 + Math.floor(rand(`${seed}:w`) * 9) : 2;
       out.push(
         makeVisit({
           id: `vis-log-${day}-${i}`,
@@ -167,9 +193,9 @@ function history(): Visit[] {
           status,
           createdAt,
           workDate: day,
-          decidedAt: decided ? istIso(day, inMin + 2) : null,
-          decidedVia: decided ? (viaWa ? 'whatsapp' : 'app') : '',
-          decidedBy: decided ? (rand(`${seed}:d`) < 0.25 ? 'Afzal Visitor Manager' : hostName) : '',
+          decidedAt: decided ? istIso(day, inMin + answeredAfter) : null,
+          decidedVia: !decided ? '' : override ? 'desk_override' : byDesk ? 'desk' : viaWa ? 'whatsapp' : 'app',
+          decidedBy: decided ? (byDesk ? 'Afzal Visitor Manager' : hostName) : '',
           checkOutAt: status === 'checked_out' ? istIso(day, inMin + 30 + Math.floor(rand(`${seed}:o`) * 120)) : null,
           // Photos older than the retention period (30 days on the demo company) are purged.
           photoPurged: n >= 28,
@@ -208,33 +234,69 @@ const STATUSES = ['pending', 'approved', 'rejected', 'no_response', 'checked_out
 const ymd = (v: string | null) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '');
 
 function todayBoard() {
+  settleKioskArrivals();
   const rows = visitStore.filter((v) => workDateOf(v) === today()).sort(newest);
   const count = (s: string) => rows.filter((r) => r.status === s).length;
   return {
     ok: true,
-    visits: rows,
+    visits: rows.map(shapeVisit),
     stats: {
       total: rows.length,
       waiting: count('pending'),
       inside: rows.filter((r) => r.status === 'approved' && !r.checkOutAt).length,
       rejected: count('rejected'),
       noResponse: count('no_response'),
+      letIn: rows.filter((r) => r.decidedVia === 'desk_override').length,
     },
+    serverNow: nowIso(),
+    letInAfterMin: LET_IN_AFTER_MIN,
   };
+}
+
+// The lobby board (visitors.js /visitors/kiosk/board): "First L.", the host's first name, a status, a time.
+const shortName = (n: string) => {
+  const p = String(n || '').trim().split(/\s+/).filter(Boolean);
+  return p.length > 1 ? `${p[0]} ${p[p.length - 1]![0]!.toUpperCase()}.` : p[0] || 'Visitor';
+};
+const firstOf = (n: string) => String(n || '').trim().split(/\s+/)[0] || '';
+const BOARD_RECENT_MS = 5 * 60 * 1000;
+
+function kioskBoard() {
+  settleKioskArrivals();
+  const now = Date.now();
+  const rows = visitStore.filter((v) => workDateOf(v) === today()).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const waiting = rows.filter((r) => r.status === 'pending').map((r) => ({ id: r.id, name: shortName(r.visitorName), host: firstOf(r.hostName), createdAt: r.createdAt }));
+  const recent = rows
+    .filter((r) => ['approved', 'rejected', 'no_response'].includes(String(r.status)) && !r.checkOutAt)
+    .map((r) => ({ r, at: r.decidedAt || r.createdAt }))
+    .filter((x) => now - Date.parse(x.at) <= BOARD_RECENT_MS)
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+    .map((x) => ({ id: x.r.id, name: shortName(x.r.visitorName), host: firstOf(x.r.hostName), status: x.r.status, at: x.at, letIn: x.r.decidedVia === 'desk_override' }));
+  return { ok: true, waiting, recent, serverNow: nowIso() };
 }
 
 function log(query: URLSearchParams) {
   const from = ymd(query.get('from'));
   const to = ymd(query.get('to'));
   const status = String(query.get('status') || '');
+  const by = String(query.get('by') || '');
+  const byOk = (v: Visit) =>
+    !by ||
+    (by === 'host'
+      ? ['app', 'whatsapp'].includes(String(v.decidedVia))
+      : by === 'desk'
+        ? ['desk', 'desk_override'].includes(String(v.decidedVia))
+        : by === 'override'
+          ? v.decidedVia === 'desk_override'
+          : true);
   const needle = String(query.get('q') || '').trim().slice(0, 60).toLowerCase();
   const rows = visitStore
     .filter((v) => (!from || workDateOf(v) >= from) && (!to || workDateOf(v) <= to))
     .filter((v) => !STATUSES.includes(status) || v.status === status)
     .sort(newest)
     .slice(0, 2000)
-    .filter((v) => !needle || [v.visitorName, v.visitorMobile, v.hostName, v.purpose].some((x) => String(x || '').toLowerCase().includes(needle)));
-  return { ok: true, visits: rows };
+    .filter((v) => byOk(v) && (!needle || [v.visitorName, v.visitorMobile, v.hostName, v.purpose, v.decidedBy].some((x) => String(x || '').toLowerCase().includes(needle))));
+  return { ok: true, visits: rows.map(shapeVisit), letInAfterMin: LET_IN_AFTER_MIN };
 }
 
 function checkOut(id: string) {
@@ -252,9 +314,27 @@ function decide(id: string, body: unknown) {
   if (!v) return fail('Visit not found.', 404);
   const isHost = v.hostUserId === DEMO_USER.id;
   if (!isHost && !isDesk()) return fail('Only the person being visited can decide this.', 403);
+  // The host's own answer is 'app'; the desk may turn away at any time ('desk') but let in only after the
+  // host's LET_IN_AFTER_MIN minutes ('desk_override') — the server checks that before "already decided".
+  let via = 'app';
+  if (!isHost) {
+    via = 'desk';
+    if (decision === 'approve') {
+      const waitedMs = Date.now() - Date.parse(v.createdAt);
+      if (waitedMs < LET_IN_AFTER_MIN * 60_000) {
+        const left = Math.ceil((LET_IN_AFTER_MIN * 60_000 - waitedMs) / 60_000);
+        return {
+          ...fail(`Give ${v.hostName || 'the host'} a chance to answer first - you can let this visitor in after ${LET_IN_AFTER_MIN} minutes (about ${left} more).`, 409),
+          waitMoreMin: left,
+          letInAfterMin: LET_IN_AFTER_MIN,
+        };
+      }
+      via = 'desk_override';
+    }
+  }
   if (v.status !== 'pending' && v.status !== 'no_response') return fail(`This visit was already ${String(v.status).replace('_', ' ')}.`, 409);
-  Object.assign(v, { status: decision === 'approve' ? 'approved' : 'rejected', decidedAt: nowIso(), decidedVia: 'app', decidedBy: String(DEMO_USER.name) });
-  return { ok: true, id: v.id, status: v.status };
+  Object.assign(v, { status: decision === 'approve' ? 'approved' : 'rejected', decidedAt: nowIso(), decidedVia: via, decidedBy: String(DEMO_USER.name) });
+  return { ok: true, id: v.id, status: v.status, via };
 }
 
 let token = 'demo-qr-token';
@@ -266,6 +346,7 @@ export const deskRoutes: Route[] = [
   ['GET', /^\/visitors\/log$/, (_p, _b, query) => (isDesk() ? log(query) : deskOnly())],
   ['POST', /^\/visitors\/([^/]+)\/check-out$/, ([, id]) => (isDesk() ? checkOut(id!) : deskOnly())],
   ['POST', /^\/visitors\/([^/]+)\/decide$/, ([, id], body) => decide(id!, body)],
+  ['GET', /^\/visitors\/kiosk\/board$/, () => (isDesk() ? kioskBoard() : deskOnly())],
   ['GET', /^\/visitors\/qr$/, () => (isDesk() ? { ok: true, tenantId: DEMO_TENANT_ID, token, path: qrPath(), companyName: TENANT.name ?? 'Tamada Media' } : deskOnly())],
   [
     'POST',
@@ -312,9 +393,25 @@ function photoProblem(photo: unknown) {
   if (bytes > MAX_PHOTO) return 'That photo is too large. Take it again.';
   return '';
 }
-// The demo "host" answers this long after a kiosk check-in, if nobody has answered yet.
-const HOST_ANSWERS_AFTER_MS = 12_000;
+// The demo "host" answers this long after a kiosk check-in, if nobody has answered yet: after the kiosk has
+// freed itself (12 s), so the answer shows on the kiosk's board.
+const HOST_ANSWERS_AFTER_MS = 20_000;
 const kioskArrivals = new Map<string, number>();
+
+/** Lets the demo hosts answer every kiosk check-in that has waited long enough (the polls and the board). */
+function settleKioskArrivals() {
+  for (const [id, at] of kioskArrivals) {
+    const v = visitStore.find((x) => x.id === id);
+    if (!v || v.status !== 'pending') {
+      kioskArrivals.delete(id);
+      continue;
+    }
+    if (Date.now() - at < HOST_ANSWERS_AFTER_MS) continue;
+    const approve = !/test/i.test(v.visitorName);
+    Object.assign(v, { status: approve ? 'approved' : 'rejected', decidedAt: nowIso(), decidedVia: 'whatsapp', decidedBy: v.hostName });
+    kioskArrivals.delete(id);
+  }
+}
 
 function findHosts(query: URLSearchParams) {
   const q = clip(query.get('q'), 60).toLowerCase();
@@ -365,11 +462,7 @@ function publicCheckIn(body: unknown) {
 function publicStatus(id: string) {
   const v = visitStore.find((x) => x.id === id);
   if (!v) return fail('Visit not found.', 404);
-  const at = kioskArrivals.get(id);
-  if (v.status === 'pending' && at && Date.now() - at >= HOST_ANSWERS_AFTER_MS) {
-    const approve = !/test/i.test(v.visitorName);
-    Object.assign(v, { status: approve ? 'approved' : 'rejected', decidedAt: nowIso(), decidedVia: 'whatsapp', decidedBy: v.hostName });
-  }
+  settleKioskArrivals();
   return { ok: true, status: v.status, hostName: v.hostName };
 }
 

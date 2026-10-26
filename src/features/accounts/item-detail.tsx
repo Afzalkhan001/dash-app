@@ -8,8 +8,9 @@
 //   expense claims: approve and reject email the claimant; vendor bills: approve emails the person who
 //   sent it with the payment timeline, reject emails them the reason. Starting a payment emails nobody:
 //   the person it is for confirms Received or Not received in DASH — Accounts can never mark it paid.
-// Role rules: vendor bills — accounts and super admin (no self-check before approving; the server
-// refuses starting payment on your own bill); petty cash and claims — Accounts only, never on your own.
+// Role rules: vendor bills — accounts and super admin; petty cash and claims — Accounts only. Nobody
+// approves, rejects or pays their own (vendor bills included). Every reject needs a reason. Petty cash:
+// whoever gave the first (owner-stage) approval can't also authorize it, but may still reject it.
 // Used by the Inbox kinds (/inbox/petty-acct|reimb-acct|vbill/<id>) and the desk (/admin/accounts/item/…).
 
 import { useMutation } from '@tanstack/react-query';
@@ -91,7 +92,8 @@ function toldLine(it: AccountsItem, action: Action) {
   return action === 'approve' ? 'Nobody is emailed. It moves to Ready to pay; you start the payment next.' : `Nobody is emailed. ${who} sees the reason in DASH.`;
 }
 
-const minReason = (t: ItemType) => (t === 'claim' || t === 'bill' ? 1 : 0);
+// Every reject needs a reason: the person is shown it (server.js / vendor_bills.js refuse an empty one).
+const MIN_REASON = 1;
 
 function vendorBillEvents(b: AccountsBill): TimelineEvent[] {
   const v = b.version;
@@ -174,9 +176,12 @@ export function AccountsItemScreen({ type, id }: { type: ItemType | ItemType[]; 
 
   const g = desk.gates;
   const roleMay = mayAct(g, it.type);
-  // Vendor bills have no self-check before approving (vendor_bills.js:475); everything else does.
-  const blockedOwn = it.own && !(it.type === 'bill' && it.stage === 'awaiting');
+  // Never on your own — vendor bills included ("You can't authorize a bill you submitted yourself").
+  const blockedOwn = it.own;
   const canDecide = it.stage === 'awaiting' && roleMay && !blockedOwn && !outcome.done;
+  // Petty cash whose first approval was mine (Accounts standing in on a code with no owner, or an owner
+  // who is in Accounts): someone else authorizes it. Rejecting it is still allowed.
+  const firstApprover = it.type === 'petty' && !!access.user?.id && String((it.row as PettyCashRequest).kekaApprovedById ?? '') === String(access.user.id);
   const canPay = canStartPayment(it) && roleMay && !it.own && !outcome.done;
   const t = TYPE_META[it.type];
   const pay = paymentInfo(it);
@@ -249,7 +254,9 @@ export function AccountsItemScreen({ type, id }: { type: ItemType | ItemType[]; 
     note = r.remarks || '';
     add('Project code', r.kekaCode);
     add('Project', r.projectName);
-    add('Project owner', r.costCodeOwnerName, { hint: r.kekaApprovedAt ? `Approved ${shortDate(r.kekaApprovedAt, today)}` : null });
+    add('Project owner', r.costCodeOwnerName || (r.kekaStageBy === 'accounts' ? 'None' : ''), {
+      hint: r.kekaStageNote || (r.kekaApprovedAt ? `Approved ${shortDate(r.kekaApprovedAt, today)}` : null),
+    });
     if (r.onBehalf) add('Raised by', r.requestedByName);
     add('Reference', it.ref);
     if (r.kind === 'excess') add('Bills vs petty cash', `${money(r.billsTotal)} spent of ${money(r.allocatedTotal)}`);
@@ -336,6 +343,8 @@ export function AccountsItemScreen({ type, id }: { type: ItemType | ItemType[]; 
       <Banner tone="info" icon={Hourglass} title={`Waiting for ${pay.whoConfirms}`} message="They confirm in DASH whether the money arrived. Only that completes it." />
     ) : (it.stage === 'awaiting' || canStartPayment(it)) && roleMay && blockedOwn ? (
       <Banner tone="info" title="This one is yours" message="Someone else in Accounts has to act on it." />
+    ) : canDecide && firstApprover ? (
+      <Banner tone="info" title="You gave the first approval" message="Someone else in Accounts has to authorize it. You can still reject it." />
     ) : (it.stage === 'awaiting' || canStartPayment(it)) && !roleMay ? (
       <Banner tone="info" title="View only" message="Accounts acts on this." />
     ) : null;
@@ -352,7 +361,7 @@ export function AccountsItemScreen({ type, id }: { type: ItemType | ItemType[]; 
 
   const footer = canDecide ? (
     <ActionBar note={it.type === 'bill' ? 'Approving emails the person who sent it.' : it.type === 'claim' ? 'Approving emails the claimant.' : null}>
-      <Button title="Approve" icon={<Check />} onPress={() => open('approve')} disabled={run.isPending} />
+      {firstApprover ? null : <Button title="Approve" icon={<Check />} onPress={() => open('approve')} disabled={run.isPending} />}
       <Button title="Reject" variant="ghost" icon={<X />} onPress={() => open('reject')} disabled={run.isPending} />
     </ActionBar>
   ) : canPay ? (
@@ -410,7 +419,7 @@ export function AccountsItemScreen({ type, id }: { type: ItemType | ItemType[]; 
         rows={summary}
         reason={reason}
         onReason={setReason}
-        minLength={minReason(it.type)}
+        minLength={MIN_REASON}
         placeholder={it.type === 'bill' ? 'What’s wrong with the bill' : 'Why it can’t be approved'}
         note={toldLine(it, 'reject')}
         confirmLabel="Swipe to reject"

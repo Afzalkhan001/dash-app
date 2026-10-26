@@ -30,8 +30,13 @@ export type Visit = {
   status: VisitStatus | string;
   createdAt: string;
   decidedAt?: string | null;
+  /** 'app' / 'whatsapp' (the host) · 'desk' (the desk, for the host) · 'desk_override' (the desk let them in after the host's 5 minutes). */
   decidedVia?: string;
   decidedBy?: string;
+  /** When the desk may let this visitor in without the host (created + LET_IN_AFTER_MIN; meaningful while waiting). */
+  letInAt?: string;
+  /** Minutes they waited for an answer, once there is one (null until then). */
+  waitedMin?: number | null;
   checkOutAt?: string | null;
   workDate?: string;
   photoUrl: string;

@@ -1,17 +1,19 @@
 // Past visitors (web: the History tab of MyVisitorsHub) in the Payno "Recent transactions" style:
 // one frosted ActivityList per day — photo, name, why they came, the time they arrived (and left) and
-// the status. Tapping a row opens the full record (large photo, mobile, who decided) in a sheet, so
-// each row stays short at 320 dp. <RecentVisitors> is the 3-row preview on the Visitors screen.
+// the status, and who answered (the web's decision line, dash.html:35894: "Approved by host …", or "Let in
+// by Visitor Manager … — host did not answer" when the desk let them in without you). Tapping a row opens
+// the full record (large photo, mobile, the decision) in a sheet, so each row stays short at 320 dp. <RecentVisitors> is the 3-row preview on the Visitors screen.
 
+import { ShieldAlert } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import type { Visit } from '@/api/visitors';
 import { useTodayIst } from '@/features/attendance/use-now';
-import { clockOf, dateLabel, phoneLabel, visitStatus } from '@/features/visitors/format';
+import { clockOf, dateLabel, phoneLabel, visitDecision, visitStatus } from '@/features/visitors/format';
 import { VisitPhoto } from '@/features/visitors/visit-photo';
 import { space } from '@/theme/tokens';
-import { ActivityList, ActivityRow, Sheet, StatusPill, SummaryCard, useLayout } from '@/ui';
+import { ActivityList, ActivityRow, Banner, Sheet, StatusPill, SummaryCard, useLayout } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
 
@@ -29,16 +31,18 @@ export function VisitRow({ visit, today, showDate, onPress }: { visit: Visit; to
   const outAt = visit.checkOutAt ? clockOf(visit.checkOutAt) : '';
   const value = showDate ? dateLabel(visit.createdAt, today) : inAt;
   const meta = showDate ? inAt : outAt ? `until ${outAt}` : null;
+  const decision = visitDecision(visit);
   return (
     <ActivityRow
       left={<VisitPhoto visit={visit} size={40} />}
       title={name}
       subtitle={purposeOf(visit) || 'No reason given'}
+      note={decision?.text ?? null}
       value={value}
       meta={meta}
       status={st}
       onPress={onPress}
-      accessibilityLabel={[name, st.label, showDate ? value : '', `In ${inAt}`, outAt ? `out ${outAt}` : ''].filter(Boolean).join(', ')}
+      accessibilityLabel={[name, st.label, showDate ? value : '', `In ${inAt}`, outAt ? `out ${outAt}` : '', decision?.text ?? ''].filter(Boolean).join(', ')}
     />
   );
 }
@@ -47,6 +51,7 @@ export function VisitRow({ visit, today, showDate, onPress }: { visit: Visit; to
 export function VisitSheet({ visit, open, onClose }: { visit: Visit | null; open: boolean; onClose: () => void }) {
   const today = useTodayIst();
   const st = visit ? visitStatus(visit.status) : null;
+  const decision = visitDecision(visit);
   return (
     <Sheet visible={open} onClose={onClose} title={visit ? nameOf(visit) : 'Visitor'} subtitle={visit ? dateLabel(visit.createdAt, today) : undefined}>
       {visit && st ? (
@@ -55,6 +60,7 @@ export function VisitSheet({ visit, open, onClose }: { visit: Visit | null; open
             <VisitPhoto visit={visit} size={112} />
             <StatusPill label={st.label} tone={st.tone} style={styles.center} />
           </View>
+          {decision?.override ? <Banner tone="warning" icon={ShieldAlert} message={decision.text} /> : null}
           <SummaryCard
             hideEmpty
             rows={[
@@ -62,7 +68,7 @@ export function VisitSheet({ visit, open, onClose }: { visit: Visit | null; open
               { label: 'Here for', value: purposeOf(visit) },
               { label: 'Arrived', value: clockOf(visit.createdAt) },
               { label: 'Left', value: visit.checkOutAt ? clockOf(visit.checkOutAt) : null },
-              { label: 'Decided by', value: typeof visit.decidedBy === 'string' ? visit.decidedBy : null },
+              { label: 'Decision', value: decision && !decision.override ? decision.text : null },
             ]}
           />
         </>

@@ -1,7 +1,8 @@
 // Visitors for the demo person (visitors.js, EMPLOYEE section): who is waiting downstairs
 // (`pending` = pending | no_response), past visits (shapeVisit rows, no photo in the demo), the
 // guests they invited, deciding a visit, and creating / cancelling an invitation. Deciding twice is
-// refused the server's way ("This visit was already approved.").
+// refused the server's way ("This visit was already approved."). Every visit leaves through shapeVisit,
+// which adds letInAt (created + 5 min) and waitedMin (minutes to the answer) like visitors.js.
 
 import type { Invite, Visit } from '@/api/visitors';
 import { DEMO_USER } from '@/demo/config';
@@ -78,6 +79,19 @@ const VISITS: Visit[] = [
     decidedVia: 'app',
     decidedBy: ME,
   }),
+  // You did not answer, so the desk let them in after the wait: the history says so (desk_override).
+  visit({
+    id: 'vis-demo-06',
+    visitorName: 'Kavitha Rao',
+    visitorMobile: '919848033221',
+    purpose: 'Contract papers for signature',
+    status: 'checked_out',
+    createdAt: daysAgo(3, '15:05'),
+    decidedAt: daysAgo(3, '15:12'),
+    decidedVia: 'desk_override',
+    decidedBy: 'Afzal Visitor Manager',
+    checkOutAt: daysAgo(3, '15:40'),
+  }),
 ];
 
 const invite = (i: Partial<Invite> & Pick<Invite, 'id' | 'guestName' | 'guestMobile' | 'visitDate' | 'purpose' | 'status'>): Invite => ({
@@ -146,7 +160,11 @@ export const visitorRoutes: Route[] = [
   [
     'GET',
     /^\/visitors\/mine$/,
-    () => ({ ok: true, pending: VISITS.filter((v) => mine(v) && waiting(v)).sort(newest), history: VISITS.filter((v) => mine(v) && !waiting(v)).sort(newest) }),
+    () => ({
+      ok: true,
+      pending: VISITS.filter((v) => mine(v) && waiting(v)).sort(newest).map(shapeVisit),
+      history: VISITS.filter((v) => mine(v) && !waiting(v)).sort(newest).map(shapeVisit),
+    }),
   ],
   ['POST', /^\/visitors\/([^/]+)\/decide$/, ([, id], body) => decide(id!, body)],
   ['GET', /^\/visitors\/invites$/, () => ({ ok: true, invites: [...INVITES].sort((a, b) => b.visitDate.localeCompare(a.visitDate)) })],
@@ -173,3 +191,17 @@ export const visitStore: Visit[] = VISITS;
 export const inviteStore: Invite[] = INVITES;
 /** A visit row with the server's defaults (visitors.js shapeVisit), hosted by the demo person unless given. */
 export const makeVisit = visit;
+
+/** visitors.js LET_IN_AFTER_MIN: how long the host gets before the desk may let a visitor in. */
+export const LET_IN_AFTER_MIN = 5;
+
+/** A visit as the server sends it (shapeVisit): plus letInAt and waitedMin, worked out now. */
+export function shapeVisit(v: Visit): Visit {
+  const created = Date.parse(v.createdAt);
+  const decided = v.decidedAt ? Date.parse(v.decidedAt) : NaN;
+  return {
+    ...v,
+    letInAt: new Date(created + LET_IN_AFTER_MIN * 60_000).toISOString(),
+    waitedMin: Number.isFinite(decided) ? Math.max(0, Math.round((decided - created) / 60_000)) : null,
+  };
+}

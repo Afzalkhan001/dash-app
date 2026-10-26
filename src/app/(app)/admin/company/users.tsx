@@ -1,17 +1,20 @@
 // Users — the company's system logins (UserMgmt, dash.html:2631): signed-up people with a console role
 // (GET /users) and invitations nobody has used yet (GET /whitelist, "Not signed up"). Employees and
 // professionals live in the employee roster, not here.
-//   Tap a row  → its details; Change role (PUT /users/:id and/or PUT /whitelist/:id) and Remove access
+//   Tap a row  → its details; Edit (dash.html:2795: name, phone, role incl. Accounts, a display's branch —
+//                PUT /users/:id and/or PUT /whitelist/:id; the role only for a role-assigner; a new email
+//                goes through POST /employees/change-email first, as both PUTs drop it) and Remove access
 //                (DELETE /users/:id, then DELETE /whitelist/:id — irreversible, swipe to confirm).
-//   +          → Add a login: name, work email, role (+ branch for a display). Both lists are re-read
-//                first, because POST /whitelist silently overwrites an existing invitation and would
-//                change that person's role. Sending it emails a welcome, so it is swiped to confirm.
+//   +          → Add a login: name, work email, optional phone (sent as mobile + phone, so they can also
+//                sign in with it), role (+ branch for a display). Both lists are re-read first, because
+//                POST /whitelist silently overwrites an existing invitation and would change that person's
+//                role. Sending it emails a welcome, so it is swiped to confirm.
 // The company owner (Super Admin) and your own row can't be changed here, as on the website. The
 // website's "tag every system login source:'system'" writes on opening this page are not ported.
 
 import { useQueryClient } from '@tanstack/react-query';
 import { Redirect } from 'expo-router';
-import { Mail, Plus, Search, ShieldCheck, Trash2, UserCog, UserPlus, UserX } from 'lucide-react-native';
+import { Mail, Phone, Plus, Search, ShieldCheck, Trash2, UserCog, UserPlus, UserX } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -19,14 +22,15 @@ import {
   type CompanyPerson,
   fetchFreshPeople,
   PartialError,
-  useChangeRole,
   useCompanyUsers,
+  useEditUser,
   useProvisionUser,
   useRemoveAccess,
   useWhitelist,
 } from '@/api/company';
 import {
   canAssignRoles,
+  canEditUsers,
   canRemoveUsers,
   canSeeUsers,
   EDIT_ROLES,
@@ -36,6 +40,7 @@ import {
 } from '@/features/company/access';
 import { ALL_BRANCHES, branchLabel, roleLabel } from '@/features/company/format';
 import { useCompanyAccess } from '@/features/company/gate';
+import { canChangeEmailOf } from '@/features/people/access';
 import { plural } from '@/lib/format';
 import { palette } from '@/theme/tokens';
 import {
@@ -66,7 +71,7 @@ import {
 
 type Row = CompanyPerson & { signed: boolean; whitelistId: string | null };
 type Filter = 'all' | 'active' | 'invited';
-type Mode = { kind: 'detail' | 'role' | 'remove'; row: Row } | null;
+type Mode = { kind: 'detail' | 'edit' | 'remove'; row: Row } | null;
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -84,21 +89,23 @@ export default function CompanyUsersScreen() {
   const allowed = canSeeUsers(user, tenant);
   const users = useCompanyUsers(allowed);
   const wl = useWhitelist(allowed);
-  const changeRole = useChangeRole();
+  const editUser = useEditUser();
   const remove = useRemoveAccess();
   const provision = useProvisionUser();
 
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [mode, setMode] = useState<Mode>(null);
+  const [edit, setEdit] = useState({ name: '', email: '', phone: '' });
   const [role, setRole] = useState('');
   const [branch, setBranch] = useState(ALL_BRANCHES);
+  const [editTried, setEditTried] = useState(false);
   const [roleError, setRoleError] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
 
   // Add a login
   const [adding, setAdding] = useState<'form' | 'confirm' | null>(null);
-  const [form, setForm] = useState({ name: '', email: '', role: 'admin', branch: ALL_BRANCHES });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', role: 'admin', branch: ALL_BRANCHES });
   const [formError, setFormError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [sent, setSent] = useState<{ name: string; email: string; role: string } | null>(null);
@@ -126,22 +133,40 @@ export default function CompanyUsersScreen() {
   const failed = (users.isError && !users.data) || (wl.isError && !wl.data);
 
   const openRow = (r: Row) => setMode({ kind: 'detail', row: r });
-  const startRole = (r: Row) => {
-    // Start on their current role (the website does too), so an Accounts login isn't switched by one tap.
+  const inviteOf = (r: Row) => (r.whitelistId ? (wl.data ?? []).find((w) => w.id === r.whitelistId) : undefined);
+  const startEdit = (r: Row) => {
+    // Start on what they have now (dash.html:2746), so an Accounts login isn't switched by one tap.
+    const inv = inviteOf(r);
+    setEdit({ name: r.name || inv?.name || '', email: r.email || inv?.email || '', phone: r.phone || inv?.phone || '' });
     setRole(r.role);
-    setBranch(r.location || (r.whitelistId ? (wl.data ?? []).find((w) => w.id === r.whitelistId)?.location : '') || ALL_BRANCHES);
+    setBranch(r.location || inv?.location || ALL_BRANCHES);
+    setEditTried(false);
     setRoleError(null);
-    setMode({ kind: 'role', row: r });
+    setMode({ kind: 'edit', row: r });
   };
 
-  const saveRole = (r: Row) => {
+  const editProblem = !edit.name.trim() ? 'Enter their full name.' : !EMAIL_RE.test(edit.email.trim().toLowerCase()) ? 'Enter a work email like name@company.com.' : null;
+
+  const saveEdit = (r: Row) => {
+    setEditTried(true);
     setRoleError(null);
-    changeRole.mutate(
-      { userId: r.signed ? r.id : null, whitelistId: r.whitelistId, role, location: role === 'announcement_viewer' ? branch : null },
+    if (editProblem) return;
+    const email = edit.email.trim().toLowerCase();
+    editUser.mutate(
+      {
+        userId: r.signed ? r.id : null,
+        whitelistId: r.whitelistId,
+        name: edit.name,
+        phone: edit.phone,
+        // A non-assigner's role would be dropped by the server; send what they have.
+        role: canAssignRoles(user) ? role : r.role,
+        location: role === 'announcement_viewer' ? branch : null,
+        newEmail: email !== r.email ? email : null,
+      },
       {
         onSuccess: () => {
           setMode(null);
-          toast.show(`${r.name} is now ${roleLabel(role)}`, 'success');
+          toast.show(`Updated ${edit.name.trim()}`, 'success');
         },
         onError: (e) => {
           const done = e instanceof PartialError && e.done.length ? ` Their ${e.done.join(' and ')} already changed.` : '';
@@ -169,7 +194,7 @@ export default function CompanyUsersScreen() {
   };
 
   const startAdd = () => {
-    setForm({ name: '', email: '', role: 'admin', branch: ALL_BRANCHES });
+    setForm({ name: '', email: '', phone: '', role: 'admin', branch: ALL_BRANCHES });
     setFormError(null);
     setAdding('form');
   };
@@ -199,7 +224,7 @@ export default function CompanyUsersScreen() {
     if (!tid) return;
     const v = { name: form.name.trim(), email: form.email.trim().toLowerCase(), role: form.role };
     provision.mutate(
-      { ...v, tenantId: tid, location: form.role === 'announcement_viewer' ? form.branch || ALL_BRANCHES : null },
+      { ...v, phone: form.phone, tenantId: tid, location: form.role === 'announcement_viewer' ? form.branch || ALL_BRANCHES : null },
       {
         onSuccess: () => {
           setAdding(null);
@@ -215,7 +240,9 @@ export default function CompanyUsersScreen() {
 
   const sel = mode?.row ?? null;
   const locked = sel ? isLockedRow(sel.role, sel.id, user) : false;
-  const canRole = !!sel && !locked && canAssignRoles(user);
+  const canEdit = !!sel && !locked && canEditUsers(user);
+  const canRole = canEdit && canAssignRoles(user);
+  const canEmail = canEdit && !!sel && canChangeEmailOf(user, sel.role);
   const canDel = !!sel && !locked && canRemoveUsers(user);
 
   return (
@@ -276,6 +303,7 @@ export default function CompanyUsersScreen() {
             <SummaryCard
               rows={[
                 { key: 'email', label: 'Email', value: sel.email },
+                { key: 'phone', label: 'Phone', value: sel.phone || inviteOf(sel)?.phone || '—' },
                 { key: 'role', label: 'Role', value: roleLabel(sel.role) },
                 { key: 'status', label: 'Status', value: sel.signed ? 'Signed up' : 'Not signed up', status: sel.signed ? 'done' : 'pending' },
                 ...(sel.role === 'announcement_viewer' ? [{ key: 'branch', label: 'Branch', value: branchLabel(sel.location) }] : []),
@@ -284,30 +312,64 @@ export default function CompanyUsersScreen() {
             />
             {locked ? (
               <Banner tone="info" icon={ShieldCheck} message={sel.role === 'super_admin' ? 'The company owner can’t be changed or removed here.' : 'You can’t change your own role.'} />
-            ) : canRole || canDel ? (
+            ) : canEdit || canDel ? (
               <ActionRow context="sheet">
                 {canDel ? <Button variant="danger" title="Remove" icon={<Trash2 />} onPress={() => { setRemoveError(null); setMode({ kind: 'remove', row: sel }); }} /> : null}
-                {canRole ? <Button variant="primary" title="Change role" icon={<UserCog />} onPress={() => startRole(sel)} /> : null}
+                {canEdit ? <Button variant="primary" title="Edit" icon={<UserCog />} onPress={() => startEdit(sel)} /> : null}
               </ActionRow>
             ) : null}
           </>
         ) : null}
       </Sheet>
 
-      {/* Change role (reversible: a plain save) */}
+      {/* Edit user (reversible: a plain save) */}
       <Sheet
-        visible={mode?.kind === 'role'}
+        visible={mode?.kind === 'edit'}
         onClose={() => setMode(null)}
-        title="Change role"
-        subtitle={sel?.name}
-        dirty={!!sel && role !== sel.role}
-        footer={sel ? <Button title="Save role" loading={changeRole.isPending} disabled={role === sel.role && (role !== 'announcement_viewer' || branch === (sel.location || ALL_BRANCHES))} onPress={() => saveRole(sel)} /> : null}>
-        <SelectField label="Role" value={role} options={roleOptions(sel && !EDIT_ROLES.includes(sel.role) ? [sel.role, ...EDIT_ROLES] : EDIT_ROLES)} onChange={setRole} />
-        {role === 'announcement_viewer' ? <SelectField label="Branch" value={branch} options={branchOptions} onChange={setBranch} hint="Which branch’s news this display shows." /> : null}
+        title="Edit user"
+        subtitle={sel?.name || sel?.email}
+        dirty={!!sel && (role !== sel.role || edit.name !== sel.name || edit.email.trim().toLowerCase() !== sel.email || edit.phone !== (sel.phone || inviteOf(sel)?.phone || ''))}
+        footer={sel ? <Button title="Save" loading={editUser.isPending} onPress={() => saveEdit(sel)} /> : null}>
+        <TextField
+          label="Full name"
+          value={edit.name}
+          onChangeText={(v) => setEdit((x) => ({ ...x, name: v }))}
+          placeholder="Jane Smith"
+          autoCapitalize="words"
+          maxLength={120}
+          error={editTried && !edit.name.trim() ? 'Enter their full name.' : null}
+        />
+        <TextField
+          label="Work email"
+          value={edit.email}
+          onChangeText={(v) => setEdit((x) => ({ ...x, email: v }))}
+          editable={canEmail}
+          placeholder="jane@company.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          left={<Mail size={18} color={palette.textMuted} />}
+          hint={canEmail ? 'A new email becomes their sign-in. The old address is told.' : 'Only a Super Admin can change this login’s email.'}
+          error={editTried && edit.name.trim() && editProblem ? editProblem : null}
+        />
+        <TextField
+          label="Phone (optional)"
+          value={edit.phone}
+          onChangeText={(v) => setEdit((x) => ({ ...x, phone: v }))}
+          placeholder="e.g. +91 98765 43210"
+          keyboardType="phone-pad"
+          maxLength={20}
+          left={<Phone size={18} color={palette.textMuted} />}
+          hint="If set, they can also sign in with this number."
+        />
+        {canRole ? (
+          <SelectField label="Role" value={role} options={roleOptions(sel && !EDIT_ROLES.includes(sel.role) ? [sel.role, ...EDIT_ROLES] : EDIT_ROLES)} onChange={setRole} />
+        ) : null}
+        {canRole && role === 'announcement_viewer' ? <SelectField label="Branch" value={branch} options={branchOptions} onChange={setBranch} hint="Which branch’s news this display shows." /> : null}
         <Text variant="caption" muted>
-          The new role applies the next time they open DASH. No one is notified.
+          {canRole ? 'A new role applies the next time they open DASH. ' : ''}No one is notified{canEmail ? ' unless the email changes' : ''}.
         </Text>
-        {roleError ? <Banner tone="danger" title="Couldn’t change the role" message={roleError} /> : null}
+        {roleError ? <Banner tone="danger" title="Couldn’t save the changes" message={roleError} /> : null}
       </Sheet>
 
       {/* Remove access (irreversible) */}
@@ -340,7 +402,7 @@ export default function CompanyUsersScreen() {
         onClose={() => setAdding(null)}
         title="Add a login"
         subtitle="For admin, HR, IT and other console roles"
-        dirty={!!(form.name || form.email)}
+        dirty={!!(form.name || form.email || form.phone)}
         footer={<Button title="Continue" icon={<UserPlus />} loading={checking} onPress={() => void checkAndConfirm()} />}>
         <TextField label="Full name" value={form.name} onChangeText={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="Jane Smith" autoCapitalize="words" />
         <TextField
@@ -352,6 +414,16 @@ export default function CompanyUsersScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           left={<Mail size={18} color={palette.textMuted} />}
+        />
+        <TextField
+          label="Phone (optional)"
+          value={form.phone}
+          onChangeText={(v) => setForm((f) => ({ ...f, phone: v }))}
+          placeholder="e.g. +91 98765 43210"
+          keyboardType="phone-pad"
+          maxLength={20}
+          left={<Phone size={18} color={palette.textMuted} />}
+          hint="If added, they can also sign in with this number."
         />
         <SelectField label="Role" value={form.role} options={roleOptions(PROVISION_ROLES)} onChange={(v) => setForm((f) => ({ ...f, role: v }))} />
         {form.role === 'announcement_viewer' ? (
@@ -374,6 +446,7 @@ export default function CompanyUsersScreen() {
         <SummaryCard
           rows={[
             { key: 'email', label: 'Email', value: form.email.trim().toLowerCase() },
+            ...(form.phone.trim() ? [{ key: 'phone', label: 'Phone', value: form.phone.trim() }] : []),
             { key: 'role', label: 'Role', value: roleLabel(form.role) },
             ...(form.role === 'announcement_viewer' ? [{ key: 'branch', label: 'Branch', value: branchLabel(form.branch) }] : []),
             { key: 'told', label: 'Who is told', value: 'They get a welcome email, and a WhatsApp if a mobile number is on file' },

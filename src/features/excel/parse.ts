@@ -409,10 +409,16 @@ export type AssetRow = {
   issues: RowIssue[];
 };
 
-export function parseAssets(book: Workbook, people: readonly RosterPerson[], existing: readonly { serial?: string; assetId?: string }[], now: string, idSeed: number): AssetRow[] {
+export function parseAssets(book: Workbook, people: readonly RosterPerson[], existing: readonly { serial?: string; assetId?: string; name?: string }[], now: string, idSeed: number): AssetRow[] {
   const raw = sheetObjects(book, 0);
   const serials = new Set(existing.map((a) => low(a.serial)).filter(Boolean));
-  const ids = new Set(existing.map((a) => low(a.assetId)).filter(Boolean));
+  // Asset ID → who uses it: an asset already in DASH (its name) or an earlier row of this sheet. The server
+  // refuses a used Asset ID (routes/assets.js:33, 409), so such a row is an error, not a warning.
+  const ids = new Map<string, { name: string } | { line: number }>();
+  existing.forEach((a) => {
+    const k = low(a.assetId);
+    if (k && !ids.has(k)) ids.set(k, { name: String(a.name || a.serial || 'another asset') });
+  });
   const out: AssetRow[] = [];
   raw.forEach((r, i) => {
     const c = (keys: string[]) => pick(r, keys);
@@ -448,11 +454,17 @@ export function parseAssets(book: Workbook, people: readonly RosterPerson[], exi
     const issues: RowIssue[] = [];
     if (empNo && !who) issues.push({ level: 'warning', text: `No one on the roster has employee number ${empNo}. The asset is saved as assigned to that number.` });
     if (body.serial && serials.has(low(body.serial))) issues.push({ level: 'warning', text: 'An asset with this serial number already exists.' });
-    if (body.assetId && ids.has(low(body.assetId))) issues.push({ level: 'warning', text: 'An asset with this asset ID already exists.' });
+    const usedBy = body.assetId ? ids.get(low(body.assetId)) : undefined;
+    if (usedBy) {
+      issues.push({
+        level: 'error',
+        text: 'line' in usedBy ? `Same Asset ID as row ${usedBy.line} of this sheet. The second one will be refused.` : `Asset ID "${body.assetId.trim()}" is already used by "${usedBy.name}". This row will be refused.`,
+      });
+    }
     if (priceText && !price) issues.push({ level: 'warning', text: `The value “${priceText}” is not a number; saved as ₹0.` });
     if (body.warrantyExpiry && !looksLikeDate(body.warrantyExpiry)) issues.push({ level: 'warning', text: 'The warranty date may not read as a date.' });
     if (body.serial) serials.add(low(body.serial));
-    if (body.assetId) ids.add(low(body.assetId));
+    if (body.assetId && !usedBy) ids.set(low(body.assetId), { line: i + 2 });
     out.push({ key: `a${i}`, line: i + 2, body, issues });
   });
   return out;

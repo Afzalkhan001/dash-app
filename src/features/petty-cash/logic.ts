@@ -24,7 +24,7 @@ export const roleSeesPettyCash = (u?: StaffUser | null) => !!u && !NO_PETTY_CASH
 
 export const PETTY_CASH_ADMIN_ROLES = ['accounts', 'super_admin', 'master_admin', 'ceo', 'coo'];
 export const isPettyCashAdmin = (u?: StaffUser | null) => !!u && PETTY_CASH_ADMIN_ROLES.includes(u.role);
-// Only Accounts signs anything off; everyone else needs to be the request's Keka Code Owner.
+// Accounts gives the second sign-off (server.js PETTY_CASH_APPROVER_ROLES).
 export const isPettyCashApprover = (u?: StaffUser | null) => !!u && u.role === 'accounts';
 
 export const AUTHORIZED_STATES = ['approved', 'ready_for_payment', 'payment_processing', 'paid', 'received', 'not_received'];
@@ -34,10 +34,24 @@ export const isAuthorized = (r?: PettyCashRequest | null) => !!r && AUTHORIZED_S
 
 export const isOwnRequest = (u: StaffUser | null | undefined, r: PettyCashRequest) => !!u && (r.employeeId === u.id || r.requestedById === u.id);
 
+// A bill Accounts rejected or the employee withdrew stays on record but never counts as spent
+// (server.js pettyCashBillCounts).
+export const billCounts = (b: { status?: string } | null | undefined) => !!b && b.status !== 'rejected' && b.status !== 'withdrawn';
+// Claims still waiting to be authorized: a bill inside one can still be pulled out (PETTY_CASH_BILL_REJECTABLE_REQUEST).
+export const BILL_PULLABLE_CLAIM = ['pending_approval', 'pending_accounts_approval'];
+/**
+ * Whether I can withdraw a bill I sent (dash.html canWithdraw): it still counts, and it is not part of
+ * an extra claim that has been authorized or rejected. `claim` is that extra claim, when there is one.
+ */
+export const canWithdrawBill = (b: PettyCashSubmission, claim?: PettyCashRequest | null) =>
+  billCounts(b) && (!b.excessRequestId || (!!claim && BILL_PULLABLE_CLAIM.includes(claim.status)));
+
+// The first (project owner's) approval belongs to the Keka Code Owner alone; Accounts stands in only
+// on a code with no owner (server.js canActAtPettyCashOwnerStage). Accounts may still reject at that stage.
 export function canApprove(u: StaffUser | null | undefined, r: PettyCashRequest) {
   if (!u) return false;
-  if (isPettyCashApprover(u)) return true;
-  return !!r.costCodeOwnerId && String(r.costCodeOwnerId) === String(u.id);
+  if (r.costCodeOwnerId) return String(r.costCodeOwnerId) === String(u.id);
+  return isPettyCashApprover(u);
 }
 
 // Requests waiting on this person as project owner (the Inbox's petty cash queue). Extra claims are handled by Accounts.
@@ -177,7 +191,7 @@ export function pettyCashPool(requests: PettyCashRequest[], subs: PettyCashSubmi
   const reqs = list(requests);
   const allocated = reqs.filter((x) => same(x) && x.kind !== 'excess' && isAuthorized(x)).reduce((s, x) => s + amountOf(x.amount), 0);
   const spent = list(subs)
-    .filter((b) => same(b))
+    .filter((b) => same(b) && billCounts(b))
     .reduce((s, b) => s + amountOf(b.amount), 0);
   const extras = reqs.filter((x) => same(x) && x.kind === 'excess');
   const extra: 'none' | 'open' | 'rejected' = !extras.length ? 'none' : extras.some((x) => x.status !== 'rejected') ? 'open' : 'rejected';
@@ -192,7 +206,7 @@ export function myTotals(userId: string, requests: PettyCashRequest[], bills: Pe
   const awaitingPayment = sum(mine.filter((r) => UNPAID_AUTHORIZED.includes(r.status)));
   const received = sum(mine.filter((r) => r.status === 'received'));
   const spent =
-    sum(list(subs).filter((b) => !!b && b.employeeId === userId && b.status !== 'rejected')) +
+    sum(list(subs).filter((b) => !!b && b.employeeId === userId && billCounts(b))) +
     sum(list(bills).filter((b) => !!b && b.status === 'approved' && b.employeeId === userId));
   const advance = sum(mine.filter((r) => r.kind !== 'excess' && isAuthorized(r)));
   const extra = sum(mine.filter((r) => r.kind === 'excess' && r.status !== 'rejected'));
@@ -209,11 +223,23 @@ export function historyEvents(r: PettyCashRequest, today?: string): HistoryEvent
   const ev: HistoryEvent[] = [];
   ev.push({ kind: 'step', label: 'Requested', at: r.createdAt, by: r.requestedByName, note: r.onBehalf ? `For ${r.employeeName || 'a teammate'}` : undefined });
   if (r.confirmedAt) ev.push({ kind: 'step', label: 'Confirmed with the code', at: r.confirmedAt, by: r.employeeName });
-  if (r.kekaApprovedAt) ev.push({ kind: 'step', label: 'Approved by the project owner', at: r.kekaApprovedAt, by: r.kekaApprovedByName });
+  if (r.kekaApprovedAt)
+    ev.push({
+      kind: 'step',
+      label: r.kekaStageBy === 'accounts' ? 'First approval by Accounts' : 'Approved by the project owner',
+      at: r.kekaApprovedAt,
+      by: r.kekaApprovedByName,
+      note: r.kekaStageNote,
+    });
   if (r.status === 'rejected')
     ev.push({
       kind: 'bad',
-      label: `Rejected${r.rejectedStage === 'accounts' ? ' by Accounts' : r.rejectedStage === 'keka' ? ' by the project owner' : ''}`,
+      label:
+        r.rejectedStage === 'withdrawn'
+          ? 'Closed – every bill withdrawn'
+          : r.rejectedStage === 'pool'
+            ? 'No longer needed'
+            : `Rejected${r.rejectedStage === 'accounts' ? ' by Accounts' : r.rejectedStage === 'keka' ? ' by the project owner' : ''}`,
       at: r.rejectedAt,
       by: r.rejectedByName,
       note: r.rejectionReason,
@@ -246,14 +272,16 @@ export function historyEvents(r: PettyCashRequest, today?: string): HistoryEvent
 }
 
 // ── Bill submission batches (one expense report each) ────────────────────────
-export type BillBatch = { batchId: string; submittedAt: string; count: number; total: number; rejected: number; codes: string[]; projects: string[] };
+/** `rejected` and `withdrawn` are counted apart: neither adds to `total`. */
+export type BillBatch = { batchId: string; submittedAt: string; count: number; total: number; rejected: number; withdrawn: number; codes: string[]; projects: string[] };
 export function billBatches(subs: PettyCashSubmission[]): BillBatch[] {
   const map = new Map<string, BillBatch>();
   for (const b of list(subs)) {
     if (!b?.batchId) continue;
-    const cur = map.get(b.batchId) ?? { batchId: b.batchId, submittedAt: '', count: 0, total: 0, rejected: 0, codes: [], projects: [] };
+    const cur = map.get(b.batchId) ?? { batchId: b.batchId, submittedAt: '', count: 0, total: 0, rejected: 0, withdrawn: 0, codes: [], projects: [] };
     cur.count++;
     if (b.status === 'rejected') cur.rejected++;
+    else if (b.status === 'withdrawn') cur.withdrawn++;
     else cur.total += amountOf(b.amount);
     if ((b.createdAt || '') > cur.submittedAt) cur.submittedAt = b.createdAt || '';
     if (b.kekaCode && !cur.codes.includes(b.kekaCode)) cur.codes.push(b.kekaCode);
@@ -264,6 +292,16 @@ export function billBatches(subs: PettyCashSubmission[]): BillBatch[] {
 }
 
 export const localToday = () => todayIst();
+
+// How old a bill's date may be (server.js PETTY_CASH_MAX_BILL_AGE_DAYS, dash.html PETTY_CASH_MAX_BILL_AGE_DAYS_UI).
+export const MAX_BILL_AGE_DAYS = 180;
+/** The oldest bill date accepted, from `today` ('YYYY-MM-DD'). */
+export function oldestBillDate(today: string) {
+  const d = new Date(`${today}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return '';
+  d.setUTCDate(d.getUTCDate() - MAX_BILL_AGE_DAYS);
+  return d.toISOString().slice(0, 10);
+}
 
 // ── Expense report as a printable HTML page (the website's print layout, in plain words) ──
 const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -311,7 +349,7 @@ export function statementHtml(d: PettyCashStatement, tenant: Tenant | null | und
         inflowRows.length ? inflowRows.map((i) => `<tr><td class="r">${dDay(i.date)}</td><td class="r">${num(i.amount)}</td></tr>`).join('') : '<tr><td>&nbsp;</td><td>&nbsp;</td></tr>'
       }<tr class="tot"><td>Total</td><td class="r">${num(st.advance)}</td></tr></table>`;
       const allLines = list(st.lines).filter(Boolean);
-      const active = allLines.filter((l) => l.status !== 'rejected');
+      const active = allLines.filter((l) => l.status !== 'rejected' && l.status !== 'withdrawn');
       const annex = `<div class="sec" style="color:#000">3. Every bill</div><table><tr class="b c"><td>Expense type</td><td>Amount</td><td>Date</td><td>Project</td><td>What for / paid to</td></tr>${active
         .map((l) => `<tr><td>${esc(l.head)}</td><td class="r">${num(l.amount)}</td><td class="r">${dDay(l.date)}</td><td>${esc(l.project)}</td><td>${esc(l.description)}${l.paidTo ? ` — ${esc(l.paidTo)}` : ''}</td></tr>`)
         .join('')}</table>`;
@@ -321,7 +359,13 @@ export function statementHtml(d: PettyCashStatement, tenant: Tenant | null | und
             .map((l) => `<tr><td>${esc(l.head)}</td><td class="r">${num(l.amount)}</td><td class="r">${dDay(l.date)}</td><td>${esc(l.description)}${l.paidTo ? ` — ${esc(l.paidTo)}` : ''}</td><td>${esc(l.rejectedByName)}</td><td>${esc(l.rejectionReason)}</td></tr>`)
             .join('')}</table>`
         : '';
-      return `<div class="sheet">${head}${outflow}${inflow}${annex}${rej}</div>`;
+      const withdrawn = allLines.filter((l) => l.status === 'withdrawn');
+      const wd = withdrawn.length
+        ? `<div class="sec" style="color:#000">Withdrawn by the employee – not counted above</div><table><tr class="b c"><td>Expense type</td><td>Amount</td><td>Date</td><td>What for / paid to</td><td>Withdrawn on</td></tr>${withdrawn
+            .map((l) => `<tr><td>${esc(l.head)}</td><td class="r">${num(l.amount)}</td><td class="r">${dDay(l.date)}</td><td>${esc(l.description)}${l.paidTo ? ` — ${esc(l.paidTo)}` : ''}</td><td class="r">${dDay(String(l.withdrawnAt || '').slice(0, 10))}</td></tr>`)
+            .join('')}</table>`
+        : '';
+      return `<div class="sheet">${head}${outflow}${inflow}${annex}${rej}${wd}</div>`;
     })
     .join('');
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Expense report</title><style>@page{size:A4;margin:10mm}body{margin:0}${CSS}</style></head><body><div class="pcs">${sheets}</div></body></html>`;

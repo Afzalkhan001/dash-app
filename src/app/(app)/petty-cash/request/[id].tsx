@@ -9,7 +9,7 @@
 //     has arrived" after reporting it missing) — the same bar and sheet as an expense claim;
 //   an automatic extra claim → the bills it claims.
 // Approving and rejecting happen in one place only, the Inbox: a request waiting on this person as
-// project owner (or Accounts) opens /inbox/petty/<id> instead of this screen.
+// project owner (or Accounts, on a code with no owner) opens /inbox/petty/<id> instead of this screen.
 // The request comes from the cached overview (the server has no single-request read).
 
 import { useMutation } from '@tanstack/react-query';
@@ -276,7 +276,8 @@ function PettyCashRequestBody() {
               key: 'owner',
               label: 'Project owner',
               value: r.costCodeOwnerName || 'None',
-              hint: r.costCodeOwnerName ? null : 'Accounts approves it',
+              // No owner: one Accounts person gives the first approval and another authorizes it.
+              hint: r.costCodeOwnerName ? null : 'Two people in Accounts approve it',
             },
             { key: 'on', label: 'Requested on', value: shortDate(r.createdAt, today) },
             { key: 'note', label: 'Note', value: r.remarks },

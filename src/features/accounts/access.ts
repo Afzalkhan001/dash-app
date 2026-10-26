@@ -34,7 +34,7 @@ export const isPettyCashAdmin = (u: U) => PETTY_CASH_ADMIN_ROLES.includes(role(u
 
 /** Bill Approvals' vendor tab: the page (accounts-bill-review) AND a role the server serves (ACCOUNTS_ROLES). */
 export const canSeeVendorBills = (a: Access) => a.web('accounts-bill-review') && ACCOUNTS_ROLES.includes(role(a.user));
-/** Authorize / reject / start paying vendor bills: same as seeing them (no self-check on accept). */
+/** Authorize / reject / start paying vendor bills: same as seeing them, never on a bill you submitted (isOwnBill; the server refuses). */
 export const canActVendorBills = canSeeVendorBills;
 
 /**

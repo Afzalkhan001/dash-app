@@ -8,7 +8,11 @@
 //                  fallback), shrunk to ≤ 640 px / ≤ 550 KB like visitShrink
 //   details        name · mobile (visitMobileOk) · purpose (VISIT_PURPOSES, Other = free text) · consent
 //                  (the web's exact words) → a ConfirmSheet + swipe naming who gets the WhatsApp
-//   waiting        polls GET base/status/:id every 5 s → approved / rejected / no answer (the web's copy)
+//   waiting        "take a seat — your name will appear on this screen": the kiosk frees itself after 12 s
+//                  (or on Done) so the next visitor is not stuck behind someone whose host has not answered
+//                  (dash.html:35546); until then it polls GET base/status/:id every 5 s → approved /
+//                  rejected / no answer (the web's copy). The lobby board in the header (KioskBoardPill /
+//                  KioskBoardNotices, kiosk.tsx) keeps their place and announces the answer.
 //   code           6 digits on the kit's OtpBoxes + NumericKeypad, or "Scan my pass" (front camera reads the
 //                  pass QR, features/deskqr/pass) → POST base/invite
 //   invite_selfie  "Welcome, <guest>" → photo → ConfirmSheet + swipe → POST base/invite/:id/arrive
@@ -40,7 +44,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { type ReactNode, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Switch, View } from 'react-native';
+import { Pressable, Switch, View } from 'react-native';
 
 import {
   type KioskHost,
@@ -91,6 +95,7 @@ const PURPOSES = ['Meeting', 'Interview', 'Delivery', 'Vendor', 'Personal', 'Oth
 export const CONSENT_TEXT =
   'I agree that my photo, name and mobile number are recorded for security, shared with the person I am visiting, and that the result is sent to my mobile on WhatsApp. My photo is deleted after a short retention period.';
 const RESET_AFTER = 15; // seconds (dash.html:35370)
+const SEAT_AFTER = 12; // seconds: the waiting screen frees itself (dash.html:35550)
 const POLL_MS = 5_000; // the waiting screen's poll (dash.html:35361)
 
 type Step = 'start' | 'host' | 'selfie' | 'details' | 'waiting' | 'code' | 'invite_selfie' | 'invite_done';
@@ -116,9 +121,13 @@ export type KioskWizardProps = {
   /** A public call said the link is no longer valid (it was regenerated). */
   onLinkDead: () => void;
   onAskExit: () => void;
+  /** The lobby board's "N waiting" pill, in the header. */
+  boardPill?: ReactNode;
+  /** The lobby board's answers ("Ravi K. — approved …"), under the header. */
+  boardNotices?: ReactNode;
 };
 
-export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit }: KioskWizardProps) {
+export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit, boardPill, boardNotices }: KioskWizardProps) {
   const [step, setStep] = useState<Step>('start');
   const [q, setQ] = useState('');
   const [host, setHost] = useState<KioskHost | null>(null);
@@ -132,6 +141,8 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
   const [confirm, setConfirm] = useState(false);
   const [doneAt, setDoneAt] = useState<number | null>(null);
   const [left, setLeft] = useState(RESET_AFTER);
+  // How long the countdown from doneAt runs: 15 s after a result, 12 s on the "take a seat" screen.
+  const [span, setSpan] = useState(RESET_AFTER);
   const [pollTrouble, setPollTrouble] = useState(false);
   const [live, setLive] = useState(false);
   const [scanPass, setScanPass] = useState(false);
@@ -150,6 +161,7 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
     setConfirm(false);
     setDoneAt(null);
     setLeft(RESET_AFTER);
+    setSpan(RESET_AFTER);
     setPollTrouble(false);
     setLive(false);
     setScanPass(false);
@@ -158,9 +170,10 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
     setMsg(null);
     setStep(to);
   };
-  const finish = () => {
+  const finish = (after = RESET_AFTER) => {
     setDoneAt(Date.now());
-    setLeft(RESET_AFTER);
+    setSpan(after);
+    setLeft(after);
   };
   /** A public call failed: a dead link ends the kiosk; anything else is shown on the step. */
   const failed = (e: unknown) => {
@@ -203,6 +216,7 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
         if (r.status && r.status !== 'pending') {
           setVisit((v) => (v ? { ...v, status: r.status, hostName: v.hostName || r.hostName } : v));
           setDoneAt(Date.now());
+          setSpan(RESET_AFTER);
           setLeft(RESET_AFTER);
           if (r.status === 'approved') haptic.success();
         }
@@ -218,16 +232,16 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
     };
   }, [base, waitingId, onLinkDead]);
 
-  // ── after a result: back to the first screen 15 s later ──────────────────────
+  // ── back to the first screen: 15 s after a result, 12 s after "take a seat" ─────
   useEffect(() => {
     if (doneAt == null) return;
     const t = setInterval(() => {
-      const n = RESET_AFTER - Math.floor((Date.now() - doneAt) / 1000);
+      const n = span - Math.floor((Date.now() - doneAt) / 1000);
       if (n <= 0) reset();
       else setLeft(n);
     }, 500);
     return () => clearInterval(t);
-  }, [doneAt]);
+  }, [doneAt, span]);
 
   // ── actions ──────────────────────────────────────────────────────────────────
   const shoot = async (source: 'camera' | 'library' | 'live') => {
@@ -273,6 +287,7 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
       setConfirm(false);
       setVisit({ ...r, hostName: r.hostName || host.name });
       go('waiting');
+      finish(SEAT_AFTER);
     } catch (e) {
       setBusy(false);
       setConfirm(false);
@@ -316,7 +331,7 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
   };
 
   // ── screens ──────────────────────────────────────────────────────────────────
-  const header = <KioskHeader companyName={companyName} onAskExit={onAskExit} />;
+  const header = <KioskHeader companyName={companyName} onAskExit={onAskExit} pill={boardPill} notices={boardNotices} />;
   const error = msg ? <Banner tone={msg.busy ? 'warning' : 'danger'} message={msg.text} /> : null;
   const back = (to: Step) => <BackLink onPress={() => go(to)} />;
 
@@ -571,12 +586,11 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
     const hn = visit.hostName || 'Your host';
     if (st === 'pending') {
       return (
-        <Screen key="waiting" header={header} animate={false}>
+        <Screen key="waiting" header={header} footer={<NextVisitor left={left} onDone={reset} />} animate={false}>
           <Result
             art={<Art icon={BellRing} tone="brand" />}
-            title={`Waiting for ${hn}`}
-            text={`${visit.hostHasMobile ? `We have told ${first(hn)} you are here.` : `We have notified ${first(hn)}.`} This page updates by itself — please keep it open.`}>
-            <ActivityIndicator size="large" color={palette.primaryText} accessibilityLabel="Waiting for an answer" />
+            title="You are checked in"
+            text={`${visit.hostHasMobile ? `We have told ${first(hn)} you are here.` : `We have notified ${first(hn)}.`} Please take a seat — your name will appear on this screen as soon as they answer.`}>
             {pollTrouble ? (
               <View style={styles.trouble}>
                 <WifiOff size={16} color={palette.textMuted} />
@@ -671,8 +685,9 @@ export function KioskWizard({ base, companyName, linkUrl, onLinkDead, onAskExit 
 // ── Pieces ─────────────────────────────────────────────────────────────────────
 
 /** The kiosk's top bar: "Visitor check-in", the company, and a quiet "Exit kiosk". */
-export function KioskHeader({ companyName, onAskExit }: { companyName: string; onAskExit?: () => void }) {
-  return (
+/** The kiosk's top bar. `pill` (the board's "N waiting") sits before Exit; `notices` (its answers) under the bar. */
+export function KioskHeader({ companyName, onAskExit, pill, notices }: { companyName: string; onAskExit?: () => void; pill?: ReactNode; notices?: ReactNode }) {
+  const bar = (
     <View style={styles.header}>
       <View style={styles.flex}>
         <Text variant="labelStrong" color={palette.primaryText} numberOfLines={1}>
@@ -682,6 +697,7 @@ export function KioskHeader({ companyName, onAskExit }: { companyName: string; o
           {companyName || 'Welcome'}
         </Text>
       </View>
+      {pill}
       {onAskExit ? (
         <Pressable onPress={onAskExit} hitSlop={12} style={styles.exit} accessibilityRole="button" accessibilityLabel="Exit kiosk" accessibilityHint="Asks for your fingerprint, PIN or password">
           <Text variant="caption" muted>
@@ -689,6 +705,13 @@ export function KioskHeader({ companyName, onAskExit }: { companyName: string; o
           </Text>
         </Pressable>
       ) : null}
+    </View>
+  );
+  if (!notices) return bar;
+  return (
+    <View>
+      {bar}
+      {notices}
     </View>
   );
 }

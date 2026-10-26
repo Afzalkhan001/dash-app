@@ -1,7 +1,10 @@
 // Demo API for the IT desk (wave 2). Shapes and refusals follow the real handlers:
 //   routes/assets.js          GET /assets (bare array) · POST · PUT (notify:true + employee number = a real
 //                             assignment: new ack token, acknowledged false) · DELETE · POST /:id/resend-ack
-//                             (400 when not assigned)
+//                             (400 when not assigned). POST and PUT refuse an Asset ID another asset already
+//                             uses (409, case and outer spaces ignored, a blank one never clashes) and a bad
+//                             third-party allocation (400, thirdPartyProblem). No "Asset Assigned / Recovered"
+//                             e-mails go out in the demo.
 //   routes/rooms.js, locations.js  POST · PUT (merge; leaving out `images` keeps them) · DELETE.
 //                             Rows live in booking.ts's roomStore / locationStore, so the booking grid agrees.
 //   routes/room_purposes.js   GET · POST / PUT (409 when the name is taken) · DELETE (409 when a booking used it)
@@ -57,7 +60,9 @@ type DemoAsset = {
   acknowledged?: boolean;
   acknowledgedAt?: string | null;
   ackToken?: string | null;
-  history: { action: string; to?: string; from?: string; note?: string; at: string }[];
+  history: { action: string; to?: string; from?: string; org?: string; note?: string; at: string; thirdParty?: boolean }[];
+  thirdParty?: { name: string; organisation: string; phone: string; email: string; note: string; allocatedAt: string; commentsLabel: string } | null;
+  comments?: string;
   tenantId: string;
   [k: string]: unknown;
 };
@@ -141,7 +146,47 @@ const ASSETS: DemoAsset[] = [
   asset({ id: 'as-macmini', assetId: 'EDIT-WS-07', name: 'Mac mini M4 Pro edit workstation', serial: 'C07MINI-3321', assetType: 'mac mini', category: 'Electronics', location: 'Hyderabad', purchaseDate: '2025-01-20', warrantyExpiry: ahead(12), price: 159900 }),
   asset({ id: 'as-mon1', assetId: 'TM-MON-021', name: 'Dell UltraSharp 27" monitor', serial: 'U2723QE-1A', assetType: 'Monitor', purchaseDate: '2024-11-02', warrantyExpiry: '2027-11-01', price: 46000, ...given('Kavya Reddy', 'TM-1083', 40, true) }),
   asset({ id: 'as-mon2', assetId: 'TM-MON-022', name: 'Dell UltraSharp 27" monitor', serial: 'U2723QE-1B', assetType: 'monitor', purchaseDate: '2024-11-02', warrantyExpiry: '2027-11-01', price: 46000 }),
-  asset({ id: 'as-mon3', assetId: 'TM-MON-023', name: 'Dell UltraSharp 27" monitor', serial: 'U2723QE-1C', assetType: 'Monitor', condition: 'Not Working', description: 'Flickers after 10 minutes — sent for a warranty claim.', purchaseDate: '2024-11-02', warrantyExpiry: '2027-11-01', price: 46000 }),
+  asset({
+    id: 'as-mon3',
+    assetId: 'TM-MON-023',
+    name: 'Dell UltraSharp 27" monitor',
+    serial: 'U2723QE-1C',
+    assetType: 'Monitor',
+    condition: 'Not Working',
+    description: 'Flickers after 10 minutes — sent for a warranty claim.',
+    comments: 'Dell ticket 7712-0931 — pickup arranged',
+    purchaseDate: '2024-11-02',
+    warrantyExpiry: '2027-11-01',
+    price: 46000,
+  }),
+  // With a third party (a vendor outside DASH): the "With third parties" view and "Return from third party".
+  asset({
+    id: 'as-gimbal',
+    assetId: 'TM-CAM-022',
+    name: 'DJI RS 4 Pro gimbal',
+    serial: 'RS4P-6619-02',
+    assetType: 'Gimbal',
+    purchaseDate: '2025-03-18',
+    warrantyExpiry: '2027-03-17',
+    price: 76500,
+    status: 'allocated',
+    assignmentDate: ago(6),
+    thirdParty: {
+      name: 'Ravi Kumar',
+      organisation: 'Sai Studios',
+      phone: '9876543210',
+      email: 'ravi.kumar.demo@saistudios.in',
+      note: 'For the Ramoji shoot, back by Friday',
+      allocatedAt: istIso(ago(6), '15:40'),
+      commentsLabel: 'Allocated to Ravi Kumar (Sai Studios) — For the Ramoji shoot, back by Friday',
+    },
+    comments: 'Allocated to Ravi Kumar (Sai Studios) — For the Ramoji shoot, back by Friday · Comes with 2 batteries',
+    history: [
+      { action: 'allocated', to: 'Lakshmi Films', org: '', note: 'Two-day ad shoot', at: istIso(ago(70), '09:30') },
+      { action: 'returned', from: 'Lakshmi Films', note: 'All parts back', at: istIso(ago(67), '18:05'), thirdParty: true },
+      { action: 'allocated', to: 'Ravi Kumar', org: 'Sai Studios', note: 'For the Ramoji shoot, back by Friday', at: istIso(ago(6), '15:40') },
+    ],
+  }),
   asset({ id: 'as-ups', assetId: 'TM-PWR-003', name: 'APC 3 kVA online UPS', serial: 'APC3K-5530', assetType: 'UPS', location: 'Hyderabad', purchaseDate: '2022-03-15', warrantyExpiry: ago(220), warrantyStatus: 'Expired', condition: 'Fair', price: 78000 }),
   asset({ id: 'as-print', assetId: 'TM-PRN-001', name: 'HP LaserJet Pro MFP', serial: 'HPM428-0091', assetType: 'Printer', purchaseDate: '2023-06-30', warrantyExpiry: ahead(25), price: 32500 }),
   asset({ id: 'as-ipad', assetId: 'TM-TAB-004', name: 'iPad Air (storyboards)', serial: 'DMPXIPAD-44', assetType: 'Tablet', purchaseDate: '2025-02-14', warrantyExpiry: '2026-02-13', warrantyStatus: 'Expired', price: 69900, ...given('Sneha Iyer', 'TM-1061', 90, 'none') }),
@@ -152,6 +197,27 @@ const ASSETS: DemoAsset[] = [
   asset({ id: 'as-hdd', assetId: 'TM-STO-018', name: 'LaCie Rugged 4 TB drive', serial: 'LRD4-0071', assetType: 'Hard Drive', location: 'Vizag', purchaseDate: '2024-09-09', warrantyExpiry: '2027-09-08', price: 18900, assignedTo: null, assignedToEmpNo: '10249', assignmentDate: '2025-01-15', status: 'assigned', acknowledged: false, ackToken: null, history: [] }),
 ];
 
+// routes/assets.js:26 assetIdClash + :33 dupMsg — per company, case-insensitive, trimmed, skipping itself.
+function assetIdClash(assetId: unknown, exceptId?: string) {
+  const want = String(assetId ?? '').trim().toLowerCase();
+  if (!want) return null;
+  const clash = ASSETS.find((r) => r.id !== exceptId && String(r.assetId || '').trim().toLowerCase() === want);
+  return clash ? fail(`Asset ID "${String(assetId).trim()}" is already used by "${clash.name || clash.serial || 'another asset'}". Enter a different Asset ID.`, 409) : null;
+}
+
+// routes/assets.js:39 thirdPartyProblem — only a record with status 'allocated' is checked.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+function thirdPartyProblem(a: Body) {
+  if (a.status !== 'allocated') return null;
+  const t = a.thirdParty as Body | null | undefined;
+  const len = (v: unknown) => String(v ?? '').length;
+  if (!t || typeof t !== 'object' || String(t.name ?? '').trim().slice(0, 200).length < 2) return fail('Say who the asset is allocated to.');
+  if (t.email && !EMAIL_RE.test(String(t.email).trim())) return fail('Enter a valid e-mail address for the third party, or leave it blank.');
+  if (String(t.name).trim().length > 120 || len(t.email) > 120 || len(t.organisation) > 120 || len(t.phone) > 30 || len(t.note) > 300) return fail('The third-party details are too long.');
+  if (a.assignedToEmpNo) return fail('An asset cannot be assigned to an employee and allocated to a third party at once.');
+  return null;
+}
+
 function putAsset(id: string, body: unknown) {
   const a = ASSETS.find((x) => x.id === id);
   if (!a) return notFound('Asset not found');
@@ -159,6 +225,12 @@ function putAsset(id: string, body: unknown) {
   delete changes.tenantId;
   const notify = changes.notify === true;
   delete changes.notify;
+  if (changes.assetId !== undefined) {
+    const dup = assetIdClash(changes.assetId, id);
+    if (dup) return dup;
+  }
+  const tpBad = thirdPartyProblem({ ...a, ...changes });
+  if (tpBad) return tpBad;
   const empNo = changes.assignedToEmpNo !== undefined ? String(changes.assignedToEmpNo || '') : a.assignedToEmpNo;
   if (notify && empNo) Object.assign(changes, { status: 'assigned', acknowledged: false, acknowledgedAt: null, ackToken: `demo${Date.now()}` });
   Object.assign(a, changes);
@@ -408,6 +480,10 @@ export const itdeskRoutes: Route[] = [
     (_p, body) => {
       const b = clean(body);
       const row = asset({ ...(b as Partial<DemoAsset>), id: String(b.id || `a${Date.now()}`), name: String(b.name || '').trim(), status: String(b.status || 'available'), tenantId: DEMO_TENANT_ID });
+      const dup = assetIdClash(row.assetId);
+      if (dup) return dup;
+      const tpBad = thirdPartyProblem(row);
+      if (tpBad) return tpBad;
       ASSETS.push(row);
       return { ok: true, asset: row };
     },

@@ -1,13 +1,14 @@
 // Rows for the desk's lists. A waiting visitor is an AccountRow with a "Respond" pill (it opens the
 // decision on /inbox/desk/<id>); every other visit is an ActivityRow — photo, name, who they came to
-// meet, why — with the arrival time (or day) and the status on the right. One idea per line, so a row
-// stays two short lines at 320 dp.
+// meet, and who decided (the web's decision line, dash.html:35951 / :35998: "Let in by Visitor Manager …
+// — host did not answer") or, while nobody has, why they came — with the arrival time (or day) and the
+// status on the right. One idea per line, so a row stays short at 320 dp. Someone inside now is an AccountRow with a "Check out" pill.
 
 import { useRouter } from 'expo-router';
 
 import type { Visit } from '@/api/visitors';
 import { hostName, purposeOf, visitorName } from '@/features/desk/format';
-import { clockOf, dateLabel, visitStatus } from '@/features/visitors/format';
+import { clockOf, dateLabel, visitDecision, visitStatus } from '@/features/visitors/format';
 import { VisitPhoto } from '@/features/visitors/visit-photo';
 import { AccountRow, ActivityRow } from '@/ui';
 
@@ -38,18 +39,41 @@ export function DeskVisitRow({ visit, today, showDate, showStatus = true, onPres
   const inAt = clockOf(visit.createdAt);
   const outAt = visit.checkOutAt ? clockOf(visit.checkOutAt) : '';
   const purpose = purposeOf(visit);
+  const decision = visitDecision(visit);
   return (
     <ActivityRow
       left={<VisitPhoto visit={visit} size={40} />}
       title={name}
       subtitle={`To meet ${hostName(visit)}`}
-      note={purpose || null}
+      note={decision?.text ?? (purpose || null)}
       value={showDate ? dateLabel(visit.createdAt, today) : inAt}
       meta={showDate ? inAt : outAt ? `until ${outAt}` : null}
       status={showStatus ? st : null}
       subtitleLines={1}
       onPress={onPress}
-      accessibilityLabel={[name, `to meet ${hostName(visit)}`, st.label, showDate ? dateLabel(visit.createdAt, today) : '', `arrived ${inAt}`, outAt ? `left ${outAt}` : ''].filter(Boolean).join(', ')}
+      accessibilityLabel={[name, `to meet ${hostName(visit)}`, st.label, showDate ? dateLabel(visit.createdAt, today) : '', `arrived ${inAt}`, outAt ? `left ${outAt}` : '', decision?.text ?? ''].filter(Boolean).join(', ')}
+    />
+  );
+}
+
+/**
+ * Someone inside the building, with an inline "Check out" pill (web: VisitRowCard's Check out button,
+ * dash.html:35866). The row opens the visit; the pill goes straight to the check-out swipe.
+ */
+export function InsideVisitRow({ visit, onPress, onCheckOut }: { visit: Visit; onPress: () => void; onCheckOut?: () => void }) {
+  const name = visitorName(visit);
+  const since = `In since ${clockOf(visit.createdAt)}`;
+  return (
+    <AccountRow
+      left={<VisitPhoto visit={visit} size={44} />}
+      title={name}
+      sub={`${since} · to meet ${hostName(visit)}`}
+      actionLabel="Check out"
+      onPress={onPress}
+      onChange={onCheckOut}
+      actionAccessibilityLabel={`Check ${name} out`}
+      accessibilityLabel={[name, `to meet ${hostName(visit)}`, since.toLowerCase(), purposeOf(visit)].filter(Boolean).join(', ')}
+      hint="Opens the visit"
     />
   );
 }

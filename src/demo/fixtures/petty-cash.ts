@@ -2,14 +2,19 @@
 // Keka Code of), old-flow bills, my bill submissions, the over-advance "extra" claims, the Statement
 // of Expenses, and the actions: raise (for me or a teammate — the teammate's code is 123456 in the
 // demo), confirm / resend / delete an on-behalf request, approve / reject as Keka Code Owner,
-// Received / Not Received, and submitting bills (which raises an extra claim when they exceed the
-// petty cash given against that code, exactly as pettyCashSettleOverspend does).
+// Received / Not Received, submitting bills (which raises an extra claim when they exceed the petty
+// cash given against that code, exactly as pettyCashSettleOverspend does; every bill needs its receipt
+// and a date within the last 180 days; the same bill twice is a 409 warning sent again with
+// confirmDuplicates), and withdrawing a bill I sent (it stays on record but stops counting; the extra
+// claims in its pool shrink or close, as pettyCashRebalancePool does).
 //   pending_confirmation → pending_approval → pending_accounts_approval → ready_for_payment
 //   → payment_processing → received | not_received          (rejected at either approval)
 // By persona (demo/personas.ts): Accounts, the super admin and the master admin see every request
-// (PETTY_CASH_ADMIN_ROLES); Accounts approves anyone's in one step (straight to ready_for_payment,
-// as server.js does for PETTY_CASH_APPROVER_ROLES). The Nimbus and Showreel codes are the demo
-// person's only while the persona owns them (Afzal Manager), so their requests follow the owner.
+// (PETTY_CASH_ADMIN_ROLES). The first approval is the Keka Code Owner's alone — Accounts stands in only
+// on a code with no owner — and always moves the request on to Accounts (pending_accounts_approval,
+// stamped kekaApprovedById), as server.js canActAtPettyCashOwnerStage does. Accounts may reject at
+// either stage; every reject needs a reason. The Nimbus and Showreel codes are the demo person's only
+// while the persona owns them (Afzal Manager), so their requests follow the owner.
 
 import type {
   ExpenseHead,
@@ -211,7 +216,7 @@ const REQUESTS: Req[] = [
     created: daysAgo(4, '15:30'),
     extra: (b) => ({ kekaApprovedAt: later(b.createdAt!, 3), kekaApprovedByName: ME.name }),
   }),
-  // Other teams' requests, waiting on their own Keka Code Owners (Accounts sees and can approve them).
+  // Other teams' requests, waiting on their own Keka Code Owners (Accounts sees them; only the owner approves).
   request({
     seed: 'pc-meera',
     code: 'TM_AAR_BRAND26',
@@ -229,6 +234,16 @@ const REQUESTS: Req[] = [
     remarks: 'Two extra HMI lights and a genset for the night market sequence.',
     status: 'pending_approval',
     created: daysAgo(2, '17:20'),
+  }),
+  // A code with no owner: Accounts gives the first approval, then someone else in Accounts authorizes it.
+  request({
+    seed: 'pc-meera-pitch',
+    code: 'TM_INT_PITCH',
+    employee: 'u-meera',
+    departments: lines(['pcd-misc', 1400], ['pcd-travel', 600]),
+    remarks: 'Printed leave-behinds and the cab for the Kisan Agro pitch meeting.',
+    status: 'pending_approval',
+    created: minutesAgo(3 * 60),
   }),
 ];
 
@@ -255,7 +270,7 @@ const BILLS: (PettyCashBill & { tenantId: string })[] = [
 ];
 
 // ── Bill submissions (the expense log; one Statement of Expenses per batch) ──
-type Sub = PettyCashSubmission & { tenantId: string; fileData?: string; mimeType?: string };
+type Sub = PettyCashSubmission & { tenantId: string; fileData?: string; mimeType?: string; withdrawnById?: string };
 const voucher = (iso: string, seed: string) => `PCV-${iso.slice(0, 10).replace(/-/g, '')}-${hex6(seed).toUpperCase()}`;
 function sub(batchId: string, created: string, seed: string, code: string, head: string, billDate: string, description: string, paidTo: string, amount: number, extra: Partial<Sub> = {}): Sub {
   const p = projectByCode(code)!;
@@ -306,6 +321,11 @@ const AWAITING_RESPONSE = ['payment_processing', 'paid'];
 // (Accounts) may approve any of them.
 const PETTY_CASH_ADMIN_ROLES = ['accounts', 'super_admin', 'master_admin', 'ceo', 'coo'];
 const isAccounts = () => currentPersona().role === 'accounts';
+// server.js pettyCashBillCounts: a rejected or withdrawn bill is never counted as spent.
+const counts = (b: Sub) => b.status !== 'rejected' && b.status !== 'withdrawn';
+// PETTY_CASH_BILL_REJECTABLE_REQUEST: an extra claim whose bills can still be pulled out one by one.
+const PULLABLE_CLAIM = ['pending_approval', 'pending_accounts_approval'];
+const MAX_BILL_AGE_DAYS = 180;
 const visible = (r: Req) =>
   PETTY_CASH_ADMIN_ROLES.includes(currentPersona().role) || r.employeeId === ME.id || r.requestedById === ME.id || r.costCodeOwnerId === ME.id;
 
@@ -317,6 +337,8 @@ onPersonaChange(() => {
     const owner = ownerOf(projectById(r.projectId));
     const was = r.costCodeOwnerName ?? '';
     const now = owner?.name ?? '';
+    // The owner's first approval moves with the code, so the new persona isn't taken for its approver.
+    if (r.costCodeOwnerId && r.kekaApprovedById === r.costCodeOwnerId) r.kekaApprovedById = owner?.id ?? undefined;
     r.costCodeOwnerId = owner?.id ?? null;
     r.costCodeOwnerName = now;
     if (was && r.kekaApprovedByName === was) r.kekaApprovedByName = now;
@@ -339,7 +361,7 @@ function settleOverspend(batchId: string, created: Sub[]): PettyCashExcess[] {
     const allocated = round2(mine.filter((r) => r.kind !== 'excess' && ADVANCE.includes(r.status)).reduce((s, r) => s + r.amount, 0));
     if (!(allocated > 0)) continue;
     const claimed = round2(mine.filter((r) => r.kind === 'excess').reduce((s, r) => s + r.amount, 0));
-    const spent = round2(SUBS.filter((b) => b.employeeId === ME.id && b.status !== 'rejected' && b.kekaCode === code).reduce((s, b) => s + b.amount, 0));
+    const spent = round2(SUBS.filter((b) => b.employeeId === ME.id && counts(b) && b.kekaCode === code).reduce((s, b) => s + b.amount, 0));
     const excess = round2(spent - allocated - claimed);
     if (!(excess > 0)) continue;
     const batch = created.filter((b) => b.kekaCode === code);
@@ -390,7 +412,7 @@ function settleOverspend(batchId: string, created: Sub[]): PettyCashExcess[] {
 }
 
 function reconcile() {
-  const unlinked = SUBS.filter((b) => b.employeeId === ME.id && !b.excessRequestId && b.status !== 'rejected').sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  const unlinked = SUBS.filter((b) => b.employeeId === ME.id && !b.excessRequestId && counts(b)).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
   return unlinked.length ? settleOverspend(`catchup${Date.now()}`, unlinked) : [];
 }
 
@@ -461,28 +483,36 @@ function confirm(id: string, body: unknown) {
   return { ok: true };
 }
 
+// POST /petty_cash_requests/:id/approve and /reject — the Keka Code Owner's stage (server.js:3761-3815).
 function decide(id: string, approve: boolean, body: unknown) {
   const r = find(id);
   if (!r) return notFound('Request not found.');
-  if (r.costCodeOwnerId !== ME.id && !isAccounts()) return fail(`Only the Keka Code Owner or Accounts can ${approve ? 'approve' : 'reject'} this request.`, 403);
-  if (approve && (r.employeeId === ME.id || r.requestedById === ME.id)) return fail('You can’t approve a petty cash request that is for you or that you raised — someone else has to.', 403);
-  if (r.status !== 'pending_approval') return fail('This request has already been reviewed.', 409);
-  const at = nowIso();
-  if (approve && isAccounts()) {
-    // Accounts clearing the Keka stage also gives the Accounts sign-off: authorized, still to be paid.
+  if (approve) {
+    // canActAtPettyCashOwnerStage: the owner only; Accounts only when the code has no owner.
+    const may = r.costCodeOwnerId ? r.costCodeOwnerId === ME.id : isAccounts();
+    if (!may) {
+      return fail(
+        isAccounts() && r.costCodeOwnerId ? `${r.costCodeOwnerName || 'The Keka Code Owner'} has to approve this first - Accounts authorizes it afterwards.` : 'Only the Keka Code Owner can approve this request.',
+        403,
+      );
+    }
+    if (r.employeeId === ME.id || r.requestedById === ME.id) return fail('You can’t approve a petty cash request that is for you or that you raised — someone else has to.', 403);
+    if (r.status !== 'pending_approval') return fail('This request has already been reviewed.', 409);
+    // The first of two sign-offs: it always moves on to Accounts, whoever gave it.
     Object.assign(r, {
-      status: 'ready_for_payment',
-      kekaApprovedAt: at,
+      status: 'pending_accounts_approval',
+      kekaApprovedAt: nowIso(),
+      kekaApprovedById: ME.id,
       kekaApprovedByName: ME.name,
-      approvedAt: at,
-      approvedByName: ME.name,
-      paymentHistory: [...(r.paymentHistory ?? []), hist('ready_for_payment', at, ME)],
+      ...(r.costCodeOwnerId ? {} : { kekaStageBy: 'accounts', kekaStageNote: 'This Keka Code has no owner, so Accounts gave the owner-stage approval.' }),
     });
-  } else if (approve) Object.assign(r, { status: 'pending_accounts_approval', kekaApprovedAt: at, kekaApprovedByName: ME.name });
-  else {
-    const reason = String((body as { reason?: unknown })?.reason ?? '').trim();
-    Object.assign(r, { status: 'rejected', rejectedStage: 'keka', rejectedAt: nowIso(), rejectedByName: ME.name, rejectionReason: reason });
+    return { ok: true };
   }
+  if (r.costCodeOwnerId !== ME.id && !isAccounts()) return fail('Only the Keka Code Owner or Accounts can reject this request.', 403);
+  const reason = String((body as { reason?: unknown })?.reason ?? '').trim();
+  if (!reason) return fail('Give the reason for rejecting this request — the employee will be shown it.', 400);
+  if (r.status !== 'pending_approval') return fail('This request has already been reviewed.', 409);
+  Object.assign(r, { status: 'rejected', rejectedStage: 'keka', rejectedAt: nowIso(), rejectedById: ME.id, rejectedByName: ME.name, rejectionReason: reason });
   return { ok: true };
 }
 
@@ -518,6 +548,7 @@ function submitBills(body: unknown) {
   const bills = Array.isArray((body as { bills?: unknown })?.bills) ? ((body as { bills: Record<string, unknown>[] }).bills) : [];
   if (!bills.length) return fail('Add at least one bill before submitting.');
   const latest = addDays(today(), 1);
+  const earliest = addDays(today(), -(MAX_BILL_AGE_DAYS + 1));
   const prepared: Sub[] = [];
   const batchId = newId('pcbb');
   for (let i = 0; i < bills.length; i++) {
@@ -531,9 +562,14 @@ function submitBills(body: unknown) {
     if (!String(b.paidTo || '').trim()) return fail(`${label}: "Paid To" is required.`);
     const amount = parseAmount(b.amount);
     if (amount === null) return fail(`${label}: enter a valid amount.`);
-    const billDate = b.billDate ? String(b.billDate) : null;
-    if (billDate && (!/^\d{4}-\d{2}-\d{2}$/.test(billDate) || billDate > latest)) return fail(`${label}: bill date cannot be in the future.`);
-    if (b.fileData && !receiptOk(b.fileData)) return fail(`${label}: the bill must be a photo (JPG/PNG) or a PDF.`);
+    const billDate = String(b.billDate || '').trim();
+    if (!billDate) return fail(`${label}: bill date is required.`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(billDate) || Number.isNaN(Date.parse(`${billDate}T00:00:00Z`))) return fail(`${label}: bill date is not a valid date.`);
+    if (billDate > latest) return fail(`${label}: bill date cannot be in the future.`);
+    if (billDate < earliest) return fail(`${label}: bill date cannot be more than ${MAX_BILL_AGE_DAYS} days ago.`);
+    // Every bill needs its receipt.
+    if (!b.fileData) return fail(`${label}: attach the bill/receipt.`);
+    if (!receiptOk(b.fileData)) return fail(`${label}: the bill must be a photo (JPG/PNG) or a PDF.`);
     if (!p) return fail(`${label}: Keka Code could not be found.`);
     const created = nowIso();
     prepared.push({
@@ -552,12 +588,36 @@ function submitBills(body: unknown) {
       paidTo: String(b.paidTo).trim().slice(0, 200),
       amount,
       voucherNumber: voucher(created, `${batchId}-${i}`),
-      fileName: b.fileData ? String(b.fileName || 'bill').slice(0, 180) : '',
-      fileData: b.fileData ? String(b.fileData) : '',
-      mimeType: b.fileData ? String(b.mimeType || '') : '',
-      hasFile: !!b.fileData,
+      fileName: String(b.fileName || 'bill').slice(0, 180),
+      fileData: String(b.fileData),
+      mimeType: String(b.mimeType || ''),
+      hasFile: true,
       createdAt: created,
     });
+  }
+  // The same bill twice — in this submission, or one already sent and still counted — is a warning the
+  // employee confirms (409 needsConfirmation), not a refusal: two identical cab rides can be genuine.
+  if ((body as { confirmDuplicates?: unknown })?.confirmDuplicates !== true) {
+    const keyOf = (x: Sub) => [x.projectId, x.departmentId, Number(x.amount), x.billDate, String(x.paidTo || '').trim().toLowerCase()].join('|');
+    const clashes: string[] = [];
+    const seen = new Map<string, number>();
+    prepared.forEach((p, i) => {
+      const k = keyOf(p);
+      if (seen.has(k)) clashes.push(`Bill ${i + 1} looks identical to Bill ${seen.get(k)! + 1}`);
+      else seen.set(k, i);
+    });
+    const earlier = new Map(SUBS.filter((x) => x.employeeId === ME.id && counts(x)).map((x) => [keyOf(x), x]));
+    prepared.forEach((p, i) => {
+      const hit = earlier.get(keyOf(p));
+      if (hit) clashes.push(`Bill ${i + 1} looks identical to ${hit.voucherNumber || 'a bill you already submitted'}`);
+    });
+    if (clashes.length) {
+      return {
+        ...fail(`${clashes.join('; ')} (same Keka Code, expense head, amount, date and payee). Submit anyway only if they really are separate bills.`, 409),
+        needsConfirmation: true,
+        duplicates: clashes,
+      };
+    }
   }
   SUBS.unshift(...prepared);
   const excess = settleOverspend(batchId, prepared);
@@ -574,7 +634,7 @@ function statement(batchId: string, requestId: string): (PettyCashStatement & { 
     byCode.set(k, [...(byCode.get(k) ?? []), b]);
   }
   const statements: PettyCashStatementSheet[] = [...byCode.entries()].map(([kekaCode, all]) => {
-    const bills = all.filter((b) => b.status !== 'rejected');
+    const bills = all.filter(counts);
     const total = round2(bills.reduce((s, b) => s + b.amount, 0));
     const totals = new Map<string, number>();
     for (const b of bills) totals.set(b.departmentId || '_none', round2((totals.get(b.departmentId || '_none') ?? 0) + b.amount));
@@ -609,9 +669,11 @@ function statement(batchId: string, requestId: string): (PettyCashStatement & { 
         project: b.projectName || '',
         description: b.description || '',
         paidTo: b.paidTo || '',
-        status: b.status === 'rejected' ? ('rejected' as const) : ('active' as const),
+        status: b.status === 'rejected' ? ('rejected' as const) : b.status === 'withdrawn' ? ('withdrawn' as const) : ('active' as const),
         canReject: false,
+        canWithdraw: pullable(b) && b.employeeId === ME.id,
         ...(b.status === 'rejected' ? { rejectionReason: b.rejectionReason || '', rejectedByName: b.rejectedByName || '', rejectedAt: b.rejectedAt || '' } : {}),
+        ...(b.status === 'withdrawn' ? { withdrawnAt: b.withdrawnAt || '', withdrawnByName: b.withdrawnByName || '' } : {}),
       })),
     };
   });
@@ -624,6 +686,83 @@ function statement(batchId: string, requestId: string): (PettyCashStatement & { 
 }
 
 const newest = <T extends { createdAt?: string }>(a: T, b: T) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+
+/** A bill that can still be rejected or withdrawn: counted, and not inside an extra claim already decided. */
+export function pullable(b: Sub) {
+  const linked = b.excessRequestId ? find(b.excessRequestId) : null;
+  return counts(b) && (!linked || PULLABLE_CLAIM.includes(linked.status));
+}
+
+/**
+ * pettyCashRebalancePool (server.js): once a bill is pulled out (rejected or withdrawn), every extra
+ * claim of that person and code still waiting to be authorized is measured again, newest first, and can
+ * only shrink; one left with nothing to claim is closed and its bills detached. Returns what changed.
+ */
+export function rebalanceAfterPull(bill: Sub, kind: 'rejected' | 'withdrawn', reason: string, by: { id: string; name: string } = ME) {
+  const code = String(bill.kekaCode || '').toLowerCase();
+  const sum = (rows: { amount: number }[]) => round2(rows.reduce((s, x) => s + x.amount, 0));
+  const same = (x: { employeeId: string; kekaCode?: string }) => x.employeeId === bill.employeeId && String(x.kekaCode || '').toLowerCase() === code;
+  const changes: { requestId: string; before: number; after: number; closed: boolean }[] = [];
+  for (const r of REQUESTS.filter((x) => same(x) && x.kind === 'excess' && PULLABLE_CLAIM.includes(x.status)).sort(newest)) {
+    const mine = REQUESTS.filter(same);
+    const allocated = sum(mine.filter((x) => x.kind !== 'excess' && ADVANCE.includes(x.status)));
+    const claimed = sum(mine.filter((x) => x.kind === 'excess' && x.id !== r.id));
+    const spent = sum(SUBS.filter((x) => same(x) && counts(x)));
+    const after = Math.min(r.amount, Math.max(0, round2(spent - allocated - claimed)));
+    if (after === r.amount) continue;
+    const before = r.amount;
+    const live = SUBS.filter((x) => x.excessRequestId === r.id && counts(x)).sort(newest);
+    let left = after;
+    const heads = new Map<string, PettyCashHeadLine>();
+    for (const x of live) {
+      if (left <= 0) break;
+      const take = round2(Math.min(left, x.amount));
+      const k = x.departmentId || '_none';
+      const cur = heads.get(k) ?? { departmentId: x.departmentId || '', departmentName: x.departmentName || 'Not specified', amount: 0 };
+      cur.amount = round2(cur.amount + take);
+      heads.set(k, cur);
+      left = round2(left - take);
+    }
+    Object.assign(r, { amount: after, billsTotal: spent, departments: [...heads.values()] });
+    if (after <= 0) {
+      const own = r.id === bill.excessRequestId ? kind : 'pool';
+      Object.assign(r, {
+        status: 'rejected',
+        rejectedStage: own === 'rejected' ? 'accounts' : own,
+        rejectedAt: nowIso(),
+        rejectedById: by.id,
+        rejectedByName: by.name,
+        rejectionReason:
+          own === 'withdrawn'
+            ? `Every bill in this extra claim was withdrawn by ${by.name || 'the employee'}`
+            : own === 'pool'
+              ? 'No longer needed: a bill that shared this petty cash was pulled out, so the petty cash already given covers the rest'
+              : `Every bill in this extra claim was rejected by Accounts${reason ? ` — ${reason}` : ''}`,
+      });
+      // A closed claim no longer exists, so its bills are plain bills inside the petty cash again.
+      for (const x of live) x.excessRequestId = undefined;
+    }
+    changes.push({ requestId: r.id, before, after, closed: after <= 0 });
+  }
+  return changes;
+}
+
+// DELETE /petty_cash_bill_submissions/:id — the employee withdraws a bill they sent (server.js:4570).
+function withdrawBill(id: string) {
+  const b = SUBS.find((x) => x.id === id);
+  if (!b) return notFound('Bill not found.');
+  if (b.employeeId !== ME.id) return fail('Only the person who submitted this bill can withdraw it.', 403);
+  if (b.status === 'withdrawn') return fail('This bill has already been withdrawn.', 409);
+  if (b.status === 'rejected') return fail('Accounts has already rejected this bill.', 409);
+  const linked = b.excessRequestId ? find(b.excessRequestId) : null;
+  if (linked && !PULLABLE_CLAIM.includes(linked.status))
+    return fail(`This bill is part of an extra claim that has already been ${linked.status === 'rejected' ? 'rejected' : 'authorized'}, so it can no longer be withdrawn on its own.`, 409);
+  const claimId = b.excessRequestId;
+  Object.assign(b, { status: 'withdrawn', withdrawnAt: nowIso(), withdrawnById: ME.id, withdrawnByName: ME.name });
+  const changes = rebalanceAfterPull(b, 'withdrawn', '');
+  const own = changes.find((c) => c.requestId === claimId) ?? null;
+  return { ok: true, bill: { id, status: 'withdrawn' as const }, claim: own ? { before: own.before, after: own.after, closed: own.closed } : null, otherClaimsChanged: changes.filter((c) => c !== own).length };
+}
 
 export const pettyCashRoutes: Route[] = [
   ['GET', /^\/petty_cash_departments$/, () => HEADS],
@@ -672,6 +811,7 @@ export const pettyCashRoutes: Route[] = [
     },
   ],
   ['POST', /^\/petty_cash_bill_submissions$/, (_p, body) => submitBills(body)],
+  ['DELETE', /^\/petty_cash_bill_submissions\/([^/]+)$/, ([, id]) => withdrawBill(id!)],
 ];
 
 // ── Exports for the domain fixtures (Wave 0, docs/port/EXTENSION-POINTS.md §10) ──

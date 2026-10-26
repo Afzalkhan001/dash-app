@@ -2,8 +2,11 @@
 // sql/petty_cash_bill_submissions.sql). Request flow:
 //   pending_confirmation (on-behalf OTP) -> pending_approval (Keka Code Owner) -> pending_accounts_approval
 //   -> ready_for_payment -> payment_processing -> received | not_received        (rejected at either approval)
+// The first approval is the Keka Code Owner's alone (Accounts stands in only on a code with no owner)
+// and always moves the request on to Accounts; whoever gave it cannot also authorize it.
 // Bill Submission is a separate expense log against a Keka Code; bills that add up to more than the
-// employee's petty cash raise an automatic "extra" request (kind: 'excess') server-side.
+// employee's petty cash raise an automatic "extra" request (kind: 'excess') server-side. A bill
+// Accounts rejects or the employee withdraws stays on record but never counts as spent.
 //
 // Receipts are never part of these lists (the server strips fileData); they are fetched on demand.
 
@@ -47,13 +50,19 @@ export type PettyCashRequest = {
   createdAt?: string;
   confirmedAt?: string;
   kekaApprovedAt?: string;
+  kekaApprovedById?: string;
   kekaApprovedByName?: string;
+  /** 'accounts' when Accounts gave the first approval because the code has no owner (with kekaStageNote saying so). */
+  kekaStageBy?: 'accounts' | string;
+  kekaStageNote?: string;
   approvedAt?: string; // = authorized by Accounts
   approvedByName?: string;
   rejectedAt?: string;
   rejectedByName?: string;
   rejectionReason?: string;
-  rejectedStage?: 'keka' | 'accounts' | string;
+  // 'withdrawn': an extra claim closed because every bill in it was withdrawn; 'pool': no longer needed
+  // because a bill sharing the petty cash was pulled out.
+  rejectedStage?: 'keka' | 'accounts' | 'withdrawn' | 'pool' | string;
   processingAt?: string;
   processingByName?: string;
   paidAt?: string;
@@ -105,10 +114,12 @@ export type PettyCashSubmission = {
   fileName?: string;
   hasFile?: boolean;
   createdAt?: string;
-  status?: string; // 'rejected' once Accounts rejects it; otherwise unset
+  status?: 'rejected' | 'withdrawn' | string; // 'rejected' by Accounts, 'withdrawn' by the employee; otherwise unset
   rejectionReason?: string;
   rejectedByName?: string;
   rejectedAt?: string;
+  withdrawnAt?: string;
+  withdrawnByName?: string;
   excessRequestId?: string;
 };
 
@@ -138,11 +149,15 @@ export type PettyCashStatementLine = {
   project: string;
   description: string;
   paidTo: string;
-  status: 'active' | 'rejected';
+  status: 'active' | 'rejected' | 'withdrawn';
   canReject?: boolean;
+  /** Mine, still counted, and not inside an extra claim that has been decided. */
+  canWithdraw?: boolean;
   rejectionReason?: string;
   rejectedByName?: string;
   rejectedAt?: string;
+  withdrawnAt?: string;
+  withdrawnByName?: string;
 };
 export type PettyCashStatementSheet = {
   kekaCode: string;
@@ -300,9 +315,24 @@ export type NewPettyCashBill = {
   mimeType: string;
   fileData: string;
 };
-// voucherNumber and the submission time are stamped by the server.
-export const submitPettyCashBills = (bills: NewPettyCashBill[]) =>
-  api.post<{ bills: PettyCashSubmission[]; batchId: string; excess: PettyCashExcess[] }>('/petty_cash_bill_submissions', { bills });
+// voucherNumber and the submission time are stamped by the server. The same bill twice (in this batch,
+// or one already sent and still counted) is answered 409 { error, needsConfirmation: true, duplicates };
+// sending again with confirmDuplicates: true goes through.
+export type PettyCashDuplicateWarning = { error: string; status?: number; needsConfirmation?: boolean; duplicates?: string[] };
+export const submitPettyCashBills = (bills: NewPettyCashBill[], confirmDuplicates = false) =>
+  api.post<{ bills: PettyCashSubmission[]; batchId: string; excess: PettyCashExcess[] }>(
+    '/petty_cash_bill_submissions',
+    confirmDuplicates ? { bills, confirmDuplicates: true } : { bills },
+  );
+
+// The employee withdraws a bill they sent by mistake (only theirs; not once its extra claim is decided).
+// `claim` is how the bill's own extra claim changed (null when it had none or nothing changed).
+export type PettyCashWithdrawResult = {
+  bill: { id: string; status: 'withdrawn' };
+  claim: { before: number; after: number; closed: boolean } | null;
+  otherClaimsChanged: number;
+};
+export const withdrawPettyCashBill = (id: string) => api.del<PettyCashWithdrawResult>(`/petty_cash_bill_submissions/${encodeURIComponent(id)}`);
 
 // Receipts (data URLs) — fetched only when someone asks to see one.
 export const fetchSubmissionReceipt = (id: string) =>

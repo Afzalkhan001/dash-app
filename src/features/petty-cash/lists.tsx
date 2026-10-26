@@ -2,10 +2,11 @@
 // my requests, my bills, my expense reports, and the one notice about bills that went over the
 // petty cash. All read the one overview query and render as the kit's ActivityList (a title, a "See
 // all" link or a filter pill, and one frosted card of rows). Rows never hold buttons: a request opens
-// its own screen, a bill opens its receipt (or a small menu when it also has an expense report).
+// its own screen, a bill opens its receipt (or a small menu when it also has an expense report, or can
+// still be withdrawn).
 
 import { useRouter } from 'expo-router';
-import { FileSpreadsheet, Paperclip, TriangleAlert } from 'lucide-react-native';
+import { FileSpreadsheet, Paperclip, TriangleAlert, Undo2 } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 
 import type { PettyCashExcess, PettyCashOverview, PettyCashRequest, PettyCashSubmission } from '@/api/petty-cash';
@@ -13,8 +14,9 @@ import { useTodayIst } from '@/features/attendance/use-now';
 import { ActivityList, Banner, type MenuItem, MenuSheet, Text } from '@/ui';
 
 import { PettyCashBillRow, PettyCashRequestRow, PettyStatementRow } from './components';
-import { billBatches, isAuthorized, list, money, myRequests, pettyCashPool, pettyCashRef } from './logic';
+import { billBatches, canWithdrawBill, isAuthorized, list, money, myRequests, pettyCashPool, pettyCashRef } from './logic';
 import { useReceiptViewer } from './receipt';
+import { useWithdrawBill } from './withdraw';
 
 type ListHead = {
   /** Section title over the card ("My requests"). */
@@ -86,7 +88,7 @@ export function PettyExcessBanner({ excess }: { excess: PettyCashExcess[] | null
 // ── My bills ─────────────────────────────────────────────────────────────────
 /**
  * Every bill I added (or those `filter` keeps). A bill opens its receipt; with an expense report as
- * well, a small menu asks which.
+ * well, or while it can still be withdrawn, a small menu asks which.
  */
 export function PettyBillsCard({
   data,
@@ -99,6 +101,7 @@ export function PettyBillsCard({
   const router = useRouter();
   const today = useTodayIst();
   const receipts = useReceiptViewer();
+  const withdraw = useWithdrawBill();
   // The menu's bill outlives its visibility, so the sheet keeps its title and rows while it fades out.
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuFor, setMenuFor] = useState<PettyCashSubmission | null>(null);
@@ -118,13 +121,17 @@ export function PettyBillsCard({
       const batch = b.batchId;
       items.push({ key: 'report', label: 'Expense report', icon: FileSpreadsheet, hint: 'For the bills sent with this one', onPress: () => router.push(`/petty-cash/statement/${encodeURIComponent(batch)}`) });
     }
+    if (canWithdrawBill(b, b.excessRequestId ? byId.get(b.excessRequestId) : null)) {
+      // The confirm sheet rises once the menu has gone (as the expense report's Reject does).
+      items.push({ key: 'withdraw', label: 'Withdraw this bill', icon: Undo2, tone: 'danger', hint: 'Sent by mistake? It stops counting', onPress: () => setTimeout(() => withdraw.ask(b), 400) });
+    }
     return items;
   };
-  // One thing to do → do it; two → ask which.
+  // One thing to do → do it (a withdrawal is always asked about in the menu); two → ask which.
   const pressFor = (b: PettyCashSubmission) => {
     const items = actionsFor(b);
     if (!items.length) return undefined;
-    if (items.length === 1) return items[0]!.onPress;
+    if (items.length === 1 && items[0]!.key !== 'withdraw') return items[0]!.onPress;
     return () => {
       setMenuFor(b);
       setMenuOpen(true);
@@ -154,6 +161,7 @@ export function PettyBillsCard({
         items={menuFor ? actionsFor(menuFor) : []}
       />
       {receipts.sheet}
+      {withdraw.sheet}
     </>
   );
 }

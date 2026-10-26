@@ -109,7 +109,13 @@ export const inboxKinds: InboxKindPlugin[] = [
     row: (item, { now }) => ({
       title: item.who,
       subtitle: `${item.record.project || item.record.kekaCode || '—'} · ${item.record.type === 'pcbill' ? 'Petty cash bill' : item.record.what}`,
-      meta: item.record.type === 'pcbill' ? 'Old-style bill to approve' : 'Approved by the project owner',
+      // A code with no owner: Accounts gave the first approval (kekaStageBy 'accounts'), so someone else authorizes it.
+      meta:
+        item.record.type === 'pcbill'
+          ? 'Old-style bill to approve'
+          : (item.record.row as { kekaStageBy?: string }).kekaStageBy === 'accounts'
+            ? 'First approval by Accounts'
+            : 'Approved by the project owner',
       value: rowInr(item.record.amount),
       age: ago(item.at, now),
     }),

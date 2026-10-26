@@ -1,13 +1,15 @@
 // One visit at the desk, in a sheet: the check-in photo, the status, and everything the desk needs —
 // phone (tap Call), who they came to meet, why, when they arrived and left, how they checked in and who
-// answered. For someone still in the building the footer has **Check out**, which opens a ConfirmSheet
+// answered (the web's decision line; "Let in by Visitor Manager … host did not answer" stands out as a
+// warning). For someone still in the building the footer has **Check out**, which opens a ConfirmSheet
 // ("Inside → Left", "Swipe to check out"): there is no un-check-out on the server, so it is a swipe.
 // Nobody is messaged when a visitor is checked out (visitors.js:603). Waiting visitors never open here:
 // their decision lives on /inbox/desk/<id> (one home for Let in / Turn away).
 //
-// useDeskVisitSheet() → { show(visit), element }: put `element` once on the screen.
+// useDeskVisitSheet() → { show(visit), checkOut(visit), element }: put `element` once on the screen;
+// checkOut(visit) goes straight to the swipe (the board's inline "Check out" on Inside-now rows).
 
-import { DoorOpen, LogOut, Phone } from 'lucide-react-native';
+import { DoorOpen, LogOut, Phone, ShieldAlert } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Linking, View } from 'react-native';
 
@@ -16,14 +18,14 @@ import type { Visit } from '@/api/visitors';
 import { useSession } from '@/auth/session';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { isDeskRole } from '@/features/desk/access';
-import { decidedByLine, dialOf, hostName, isInside, purposeOf, sourceLabel, visitorName } from '@/features/desk/format';
+import { dialOf, hostName, isInside, purposeOf, sourceLabel, visitorName } from '@/features/desk/format';
 import { SHEET_SWAP_MS } from '@/features/visitors/invite-form';
-import { clockOf, dateLabel, phoneLabel, visitStatus } from '@/features/visitors/format';
+import { clockOf, dateLabel, phoneLabel, visitDecision, visitStatus } from '@/features/visitors/format';
 import { VisitPhoto } from '@/features/visitors/visit-photo';
 import { istDateOf } from '@/lib/dates';
 import { themedStyles } from '@/theme/themed';
 import { space } from '@/theme/tokens';
-import { ActionRow, Button, ConfirmSheet, haptic, Sheet, StatusPill, SummaryCard, toast } from '@/ui';
+import { ActionRow, Banner, Button, ConfirmSheet, haptic, Sheet, StatusPill, SummaryCard, toast } from '@/ui';
 
 const call = (mobile?: string | null) => {
   const d = dialOf(mobile);
@@ -48,6 +50,7 @@ export function DeskVisitSheet({
   const canOut = !!visit && !!onCheckOut && isInside(visit);
   const dial = visit ? dialOf(visit.visitorMobile) : '';
   const first = name.split(/\s+/)[0] || name;
+  const decision = visitDecision(visit);
   const callBtn = dial ? <Button variant="ghost" title={`Call ${first}`} icon={<Phone />} onPress={() => call(visit?.visitorMobile)} /> : null;
 
   return (
@@ -72,6 +75,7 @@ export function DeskVisitSheet({
             <VisitPhoto visit={visit} size={112} />
             <StatusPill label={st.label} tone={st.tone} style={styles.center} />
           </View>
+          {decision?.override ? <Banner tone="warning" icon={ShieldAlert} message={decision.text} /> : null}
           <SummaryCard
             hideEmpty
             rows={[
@@ -81,7 +85,7 @@ export function DeskVisitSheet({
               { label: 'Arrived', value: clockOf(visit.createdAt) },
               { label: 'Left', value: visit.checkOutAt ? clockOf(visit.checkOutAt) : null },
               { label: 'Checked in with', value: sourceLabel(visit.source) || null },
-              { label: 'Answered by', value: decidedByLine(visit) || null },
+              { label: 'Decision', value: decision && !decision.override ? decision.text : null },
             ]}
           />
         </>
@@ -171,6 +175,13 @@ export function useDeskVisitSheet({ desk = true }: { desk?: boolean } = {}) {
       setVisit(v);
       setOpen(true);
     },
+    checkOut: (v: Visit) => {
+      if (!allowed || !isInside(v)) return;
+      setVisit(v);
+      setConfirm(true);
+    },
+    /** Whether checkOut() does anything for this viewer (the desk roles). */
+    canCheckOut: allowed,
     element: (
       <>
         <DeskVisitSheet visit={visit} open={open} onClose={() => setOpen(false)} onCheckOut={allowed ? askCheckOut : undefined} />

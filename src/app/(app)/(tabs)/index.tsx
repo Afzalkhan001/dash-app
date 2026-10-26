@@ -9,7 +9,7 @@
 //               otherwise a light wash "Today" card with the date (features/home/greeting.tsx)
 //   2 people    this week's birthdays / work anniversaries (kit AvatarTiles), right under the clock card
 //               (No shortcuts row: Apply leave, Payslips and the rest are on the + button and Me.)
-//   3 coming up kit UpcomingCards: my shift's end while clocked in, my next approved leave, the next
+//   3 coming up kit UpcomingCards: my next approved leave, the next
 //               holiday — with the Me screens' own queries and gates (features/home/coming-up.tsx)
 //   4 needs you up to 3 things waiting on me (codes to read out, visitors, approvals, policies), a
 //               kit ActivityList with "See all" → Inbox

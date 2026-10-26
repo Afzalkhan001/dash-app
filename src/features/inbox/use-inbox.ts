@@ -6,8 +6,9 @@
 //                  or anyone whose Expense claims screen lists claims for them to approve (GET
 //                  /reimbursements/keka-all, read from that screen's cache — the old Approvals tab's
 //                  rule, e.g. a super admin who sees the company's claims without owning a code)
-//   Petty cash     the old Petty cash Approvals tab's rule: a petty cash role, and Accounts, a project
-//                  code owner, or someone with a request waiting on them (features/petty-cash/logic)
+//   Petty cash     the old Petty cash Approvals tab's rule: a petty cash role, and Accounts (who approve
+//                  only on a code with no owner), a project code owner, or someone with a request
+//                  waiting on them (features/petty-cash/logic canApprove)
 //   Visitors       everyone but master_admin / announcement_viewer / visitor_manager (dash.html navFor)
 //   Plug-ins      every domain's inboxKinds (features/<domain>/inbox.ts via features/domains
 //                  inboxPlugins): each one's useItems(access) hook gates and reads its own queue

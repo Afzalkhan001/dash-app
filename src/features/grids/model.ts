@@ -317,7 +317,7 @@ export function submissionsAsBills(requests: PettyCashRequest[], subs: PettyCash
   pools.forEach((a) => a.sort((x, y) => str(x.createdAt).localeCompare(str(y.createdAt))));
   const used = new Map<string, number>();
   [...subs]
-    .filter((b) => b && b.status !== 'rejected')
+    .filter((b) => b && b.status !== 'rejected' && b.status !== 'withdrawn') // neither counts as spent
     .sort((a, b) => str(a.createdAt).localeCompare(str(b.createdAt)))
     .forEach((b) => {
       const list = pools.get(`${b.employeeId}|${str(b.kekaCode).toLowerCase()}`);

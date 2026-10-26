@@ -1,9 +1,10 @@
 // Add bills — the website's PettyCashBillSubmissionTab (dash.html ~L16504): one or more bills in one
-// go, each with an expense type*, amount*, bill date (not in the future), paid to*, what it was for*,
-// project code* and an optional photo / PDF of the bill. Photos are taken with the camera (compressed
-// on the phone) so a bill can be captured on the spot. Body is exactly the website's
+// go, each with an expense type*, amount*, bill date* (not in the future, not more than 180 days ago),
+// paid to*, what it was for*, project code* and a photo / PDF of the bill*. Photos are taken with the
+// camera (compressed on the phone) so a bill can be captured on the spot. Body is exactly the website's
 // POST /petty_cash_bill_submissions { bills: [...] }; the bill number (voucherNumber) and time are
-// stamped by the server.
+// stamped by the server. A bill that looks like one already sent comes back 409 needsConfirmation: the
+// confirm sheet shows the server's words and the swipe becomes "Submit anyway" (confirmDuplicates).
 // Layout (Payno): per bill — the photo first, the expense type as SelectTiles, the amount as a giant
 // AmountEntry typed on the NumericKeypad (on its deep wash while an amount is being typed), the date,
 // who was paid and what for, and the project code as an AccountRow ("Change"). "Review" opens the
@@ -19,11 +20,11 @@ import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { isApiError } from '@/api/client';
-import { type NewPettyCashBill, type PettyCashExcess, submitPettyCashBills, useExpenseHeads, useKekaProjects } from '@/api/petty-cash';
+import { type NewPettyCashBill, type PettyCashDuplicateWarning, type PettyCashExcess, submitPettyCashBills, useExpenseHeads, useKekaProjects } from '@/api/petty-cash';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { fileSizeLabel, MAX_PAYLOAD_CHARS } from '@/features/bounty/files';
 import { type PickerItem, SearchPickerField } from '@/features/petty-cash/components';
-import { list, localToday, money, roleSeesPettyCash, shortDate } from '@/features/petty-cash/logic';
+import { list, localToday, MAX_BILL_AGE_DAYS, money, oldestBillDate, roleSeesPettyCash, shortDate } from '@/features/petty-cash/logic';
 import { KeypadReadout } from '@/features/petty-cash/keypad-readout';
 import { ExpenseTypeTiles } from '@/features/petty-cash/type-tiles';
 import { plural } from '@/lib/format';
@@ -37,6 +38,7 @@ import {
   Button,
   ConfirmSheet,
   DateField,
+  FieldMessage,
   haptic,
   IconAction,
   IconButton,
@@ -80,7 +82,9 @@ const blank = (key: number, day: string, project: PickerItem | null = null): Bil
   file: null,
 });
 
-type BillErrors = Partial<Record<'project' | 'head' | 'description' | 'paidTo' | 'amount' | 'billDate', string>>;
+type BillErrors = Partial<Record<'project' | 'head' | 'description' | 'paidTo' | 'amount' | 'billDate' | 'file', string>>;
+// The server's answer when a bill looks like one already sent: a warning to confirm, not a refusal.
+class DuplicateWarning extends Error {}
 type Sent = { batchId: string; excess: PettyCashExcess[]; count: number; total: number };
 
 // Petty cash is for the roles whose web menu has it (the More tile's rule); others are sent home.
@@ -106,6 +110,8 @@ function SubmitBillsBody() {
   const [keypadFor, setKeypadFor] = useState<number | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [sent, setSent] = useState<Sent | null>(null);
+  // The server's "looks identical to…" words, while the confirm sheet asks to submit anyway.
+  const [duplicate, setDuplicate] = useState<string | null>(null);
 
   const projects = list(projectsQ.data).filter((p) => !!p && !!p.id);
   const heads = list(headsQ.data).filter((h) => !!h && !!h.id);
@@ -149,7 +155,10 @@ function SubmitBillsBody() {
     setErr(null);
     try {
       const f = how === 'camera' ? await pickImage('camera') : how === 'library' ? await pickImage('library') : await pickDocument(['application/pdf', 'image/jpeg', 'image/png']);
-      if (f) setRow(key, { file: f });
+      if (f) {
+        setRow(key, { file: f });
+        clearError(key, 'file');
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not attach that file.');
     } finally {
@@ -158,13 +167,17 @@ function SubmitBillsBody() {
   };
 
   const send = useMutation({
-    mutationFn: async (bills: NewPettyCashBill[]) => {
-      const r = await submitPettyCashBills(bills);
-      if (isApiError(r)) throw new Error(r.error);
+    mutationFn: async ({ bills, anyway }: { bills: NewPettyCashBill[]; anyway: boolean }) => {
+      const r = await submitPettyCashBills(bills, anyway);
+      if (isApiError(r)) {
+        if ((r as PettyCashDuplicateWarning).needsConfirmation === true) throw new DuplicateWarning(r.error);
+        throw new Error(r.error);
+      }
       return r;
     },
-    onSuccess: (r, bills) => {
+    onSuccess: (r, { bills }) => {
       haptic.success();
+      setDuplicate(null);
       void qc.invalidateQueries({ queryKey: ['petty'] });
       setConfirming(false);
       const done: Sent = { batchId: r?.batchId || '', excess: list(r?.excess), count: bills.length, total: bills.reduce((s, b) => s + b.amount, 0) };
@@ -172,6 +185,11 @@ function SubmitBillsBody() {
       setTimeout(() => setSent(done), 380);
     },
     onError: (e: Error) => {
+      if (e instanceof DuplicateWarning) {
+        haptic.warning();
+        setDuplicate(e.message);
+        return;
+      }
       haptic.error();
       setErr(e.message);
     },
@@ -181,6 +199,7 @@ function SubmitBillsBody() {
   const review = () => {
     setErr(null);
     const todayNow = localToday(); // read fresh at submit time (the screen may have stayed open past midnight)
+    const oldest = oldestBillDate(todayNow);
     const next: Record<number, BillErrors> = {};
     for (const r of rows) {
       const e: BillErrors = {};
@@ -189,7 +208,10 @@ function SubmitBillsBody() {
       if (!r.description.trim()) e.description = 'Say what it was for.';
       if (!r.paidTo.trim()) e.paidTo = 'Enter who you paid.';
       if (!(amountValue(r.amount) > 0)) e.amount = 'Enter an amount.';
-      if (r.billDate && r.billDate > todayNow) e.billDate = 'The date can’t be in the future.';
+      if (!r.billDate) e.billDate = 'Choose the date on the bill.';
+      else if (r.billDate > todayNow) e.billDate = 'The date can’t be in the future.';
+      else if (oldest && r.billDate < oldest) e.billDate = `The date can’t be more than ${MAX_BILL_AGE_DAYS} days ago.`;
+      if (!r.file) e.file = 'Add a photo or PDF of the bill.';
       if (Object.keys(e).length) next[r.key] = e;
     }
     setFieldErrors(next);
@@ -204,14 +226,16 @@ function SubmitBillsBody() {
       return setErr('The photos are too big to send together. Send fewer bills at a time, or use smaller files.');
     }
     setKeypadFor(null);
+    setDuplicate(null);
     setConfirming(true);
   };
 
   const submit = () => {
     if (send.isPending) return;
     setErr(null);
-    send.mutate(
-      rows.map((r) => {
+    send.mutate({
+      anyway: !!duplicate,
+      bills: rows.map((r) => {
         const p = projects.find((x) => x.id === r.project!.id);
         return {
           projectId: r.project!.id,
@@ -227,7 +251,7 @@ function SubmitBillsBody() {
           fileData: r.file?.dataUrl || '',
         };
       }),
-    );
+    });
   };
 
   const openReport = () => {
@@ -331,10 +355,10 @@ function SubmitBillsBody() {
                   </IconButton>
                 </View>
               ) : (
-                <View style={styles.attach}>
+                <View style={[styles.attach, !!e.file && styles.attachError]}>
                   <View style={styles.attachHead}>
                     <Text variant="labelStrong" muted numberOfLines={1} style={styles.flex}>
-                      Photo of the bill (optional)
+                      Photo of the bill
                     </Text>
                     {busy ? <ActivityIndicator size="small" color={palette.primaryText} /> : null}
                   </View>
@@ -343,6 +367,7 @@ function SubmitBillsBody() {
                     <IconAction icon={Images} label="Photos" disabled={picking !== null} onPress={() => void attach(r.key, 'library')} />
                     <IconAction icon={Paperclip} label="PDF" disabled={picking !== null} onPress={() => void attach(r.key, 'pdf')} />
                   </View>
+                  <FieldMessage error={e.file} />
                 </View>
               )}
 
@@ -370,6 +395,7 @@ function SubmitBillsBody() {
               <DateField
                 label="Bill date"
                 value={r.billDate || null}
+                minimumDate={oldestBillDate(today) || undefined}
                 maximumDate={today}
                 error={e.billDate}
                 onChange={(d) => {
@@ -432,7 +458,7 @@ function SubmitBillsBody() {
         onClose={() => setConfirming(false)}
         title={many ? `Send these ${rows.length} bills?` : 'Send this bill?'}
         detailsTitle={many ? 'Bills' : 'Bill'}
-        confirmLabel={many ? 'Swipe to send bills' : 'Swipe to send bill'}
+        confirmLabel={duplicate ? 'Swipe to submit anyway' : many ? 'Swipe to send bills' : 'Swipe to send bill'}
         onConfirm={submit}
         loading={send.isPending}
         note="An expense report is made from them.">
@@ -445,6 +471,7 @@ function SubmitBillsBody() {
           }))}
           total={{ label: 'Total', value: money(total) }}
         />
+        {duplicate ? <Banner tone="warning" title="This looks like a bill already sent" message={duplicate} /> : null}
         {err ? <Banner tone="danger" title="Couldn’t send yet" message={err} /> : null}
       </ConfirmSheet>
 
@@ -497,6 +524,7 @@ const styles = themedStyles(() => ({
     borderWidth: 1,
     borderColor: withAlpha(palette.ink, 0.07),
   },
+  attachError: { borderColor: palette.danger },
   attachHead: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 20 },
   attachActions: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-start' },
 }));

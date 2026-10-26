@@ -1,16 +1,17 @@
-// Visitor log (web: VisitorLog, dash.html:35728; GET /visitors/log?from&to&status&q).
-// Filters as the web has them: a search (visitor, mobile, host, reason — sent on return or after a short
-// pause), the dates (Today · 7 days (default) · 30 days · Custom, IST, on the visit's day) and the status.
+// Visitor log (web: VisitorLog, dash.html:35728; GET /visitors/log?from&to&status&q&by).
+// Filters as the web has them: a search (visitor, mobile, host, reason, who decided — sent on return or
+// after a short pause), the dates (Today · 7 days (default) · 30 days · Custom, IST, on the visit's day),
+// the status, and who decided (Anyone · the host · let in without the host · any desk decision).
 // The list is newest first, one frosted card per day, 50 at a time ("Show more"); a row opens the visit
 // (read-only, like the web — no edits, no export). The server sends at most 2,000 visits, so a full
 // page says to narrow the dates. Desk roles only.
 
 import { Redirect } from 'expo-router';
-import { CalendarDays, History, ListFilter, Search } from 'lucide-react-native';
+import { CalendarDays, History, ListFilter, Search, UserCheck } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
-import { LOG_LIMIT, useVisitorLog, VISIT_STATUSES } from '@/api/desk';
+import { type DecidedByFilter, LOG_LIMIT, useVisitorLog, VISIT_STATUSES } from '@/api/desk';
 import type { Visit } from '@/api/visitors';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { canRunDesk, canSeeVisitorLog } from '@/features/desk/access';
@@ -28,6 +29,9 @@ import { ActivityList, Banner, Button, DateField, EmptyState, ErrorState, MenuSh
 type Range = 'today' | '7' | '30' | 'custom';
 const RANGE_LABEL: Record<Range, string> = { today: 'Today', '7': 'Last 7 days', '30': 'Last 30 days', custom: 'Pick dates' };
 const PAGE = 50;
+// The web's select (dash.html:35985), in that order.
+const BY_LABEL: Record<DecidedByFilter, string> = { '': 'Anyone decided', host: 'Decided by the host', override: 'Let in without the host', desk: 'Any desk decision' };
+const BY_ORDER: DecidedByFilter[] = ['', 'host', 'override', 'desk'];
 
 export default function VisitorLogScreen() {
   const access = useAccess();
@@ -39,10 +43,11 @@ export default function VisitorLogScreen() {
   const [range, setRange] = useState<Range>('7');
   const [custom, setCustom] = useState<{ from: string; to: string }>(() => ({ from: addDaysYmd(today, -7), to: today }));
   const [status, setStatus] = useState('');
+  const [by, setBy] = useState<DecidedByFilter>('');
   const [text, setText] = useState('');
   const [q, setQ] = useState('');
   const [shown, setShown] = useState(PAGE);
-  const [menu, setMenu] = useState<'range' | 'status' | null>(null);
+  const [menu, setMenu] = useState<'range' | 'status' | 'by' | null>(null);
 
   // Search after a short pause, as well as on return.
   useEffect(() => {
@@ -54,7 +59,7 @@ export default function VisitorLogScreen() {
   const from = range === 'today' ? today : range === '7' ? addDaysYmd(today, -7) : range === '30' ? addDaysYmd(today, -30) : custom.from;
   const to = range === 'custom' ? custom.to : today;
   const badDates = range === 'custom' && !!from && !!to && from > to;
-  const log = useVisitorLog({ from, to, status, q }, allowed && !badDates);
+  const log = useVisitorLog({ from, to, status, q, by }, allowed && !badDates);
 
   if (!allowed) return <Redirect href="/" />;
 
@@ -82,11 +87,12 @@ export default function VisitorLogScreen() {
           returnKeyType="search"
           onSubmitEditing={() => setQ(text.trim())}
           autoCorrect={false}
-          accessibilityLabel="Search the visitor log by name, mobile, host or reason"
+          accessibilityLabel="Search the visitor log by name, mobile, host, reason or who decided"
         />
         <View style={styles.pills}>
           <PillSelector icon={CalendarDays} label={RANGE_LABEL[range]} onPress={() => setMenu('range')} accessibilityLabel={`Dates: ${RANGE_LABEL[range]}`} />
           <PillSelector icon={ListFilter} label={st ? st.label : 'All statuses'} onPress={() => setMenu('status')} accessibilityLabel={`Status: ${st ? st.label : 'all'}`} />
+          <PillSelector icon={UserCheck} label={BY_LABEL[by]} onPress={() => setMenu('by')} accessibilityLabel={`Who decided: ${BY_LABEL[by]}`} />
         </View>
         {range === 'custom' ? (
           <View style={{ gap }}>
@@ -126,7 +132,7 @@ export default function VisitorLogScreen() {
           <EmptyState
             icon={<History color={palette.textMuted} />}
             title="No visitors found"
-            message={q || status ? 'Try another search or status, or wider dates.' : 'Nobody visited in these dates.'}
+            message={q || status || by ? 'Try another search or filter, or wider dates.' : 'Nobody visited in these dates.'}
           />
         )
       ) : log.isError ? (
@@ -149,6 +155,20 @@ export default function VisitorLogScreen() {
           { key: 'all', label: 'All statuses', icon: ListFilter, onPress: () => setStatus('') },
           ...VISIT_STATUSES.map((s) => ({ key: s, label: visitStatus(s).label, icon: ListFilter, onPress: () => setStatus(s) })),
         ]}
+      />
+      <MenuSheet
+        visible={menu === 'by'}
+        onClose={() => setMenu(null)}
+        title="Who decided"
+        items={BY_ORDER.map((b) => ({
+          key: b || 'any',
+          label: BY_LABEL[b],
+          icon: UserCheck,
+          onPress: () => {
+            setBy(b);
+            setShown(PAGE);
+          },
+        }))}
       />
       {sheet.element}
     </Screen>
