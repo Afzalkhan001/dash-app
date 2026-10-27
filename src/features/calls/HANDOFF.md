@@ -52,6 +52,17 @@ Wave 3, spec `docs/port/meets.md` §1.4–1.5, §2.2, §4.3, §5.2. Existing end
 - Owner guide: `docs/CALLS-TURN.md` (`MEETS_TURN_URLS`, `MEETS_TURN_SECRET`, ExpressTURN Premium or coturn).
 - The Calls screen shows "Other networks: Relay on / Direct only". IT and super admins see which setting is missing.
 
+## Call history and "Call in progress · Join" (tester fixes, 2026-10-27)
+- **No server call history exists.** meets.js writes no chat message for a call and keeps no call list (`missedCalls: 0`); dash.html shows nothing in the thread. So the app keeps a **call log on the phone** (`call-log.ts`, zustand persist `dash.calls.log`, per person, 80 max).
+  - Filled by: the ring (`incoming-call.tsx`), Decline, starting a call (`start-call.tsx`), and the open call (`call-store.ts`: joined, time with someone else, camera ever on).
+  - Shown: call rows between messages in the thread (`call-row.tsx`: voice/video, who called, length or "Missed", time; tap = call back), the chat list preview + order when a call is newer than the last message, and "Recent calls" on the Calls screen.
+  - Only calls this phone saw. A call while the app was closed is not there.
+- **X on the ring** (and the backdrop, and Not now) only hides the ring and tells nobody, like the website's ring running out. **Decline** tells the caller (POST /decline) and the call drops from the bar.
+- **The way back in:** `call-bar.tsx` `<LiveCallBar/>` (mounted in `(app)/_layout.tsx`) floats "Call in progress · Join" above the tab bar on every screen; its × hides it for that call. `<ThreadCallBar/>` at the top of that chat always offers Join. Both hide during the ring, during a call, and on the call screen.
+  - Still going? GET /meets/meetings/:id every 15 s: refused → over; empty twice after the 45 s ring → over; `meeting-ended` → over at once. Over and never joined = "Missed".
+  - A new invite to the same call (host "Add person") rings again.
+- **Demo:** `demoCallHistory()` (fixtures/calls.ts) adds a missed call and a 4m 12s call with Priya, an 18m 40s video call in Creative Team and a call with Lakshmi (the list preview). Test call alert → X → the bar → Join works; Priya hangs up after 3 minutes if nobody joins.
+
 ## Plug-ins filled
 - [x] **More › links**: `calls.calls` "Calls" → `/call`. tourId `more.calls`, order 11, right after Chat.
 - [x] **+ sheet**: `calls.start` "Start call" → `/call?start=1`, which opens the people picker. Order 120; the integrator sets the cap.

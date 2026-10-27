@@ -6,7 +6,12 @@
 //   - Answer: "Swipe to answer" opens the call screen. In Expo Go there is no answer, only
 //     "Available in the installed app", Decline and Not now — so the caller is told, not left waiting.
 //   - Decline: ConfirmSheet + SwipeToConfirm; POST /decline tells the caller (nothing is written).
-//   - Silent while a call is open (meetsBus.callLive).
+//   - X (or the backdrop, or Not now) only hides the ring on this phone and tells nobody — the same as
+//     the website's ring running out (onDecline({silent:true}), dash.html:8395). The call stays
+//     joinable while it lasts: the "Call in progress" bar (call-bar.tsx) and the chat's Join pill.
+//     A new invite to the same call (the host's "Add person") rings again.
+//   - Silent while a call is open (meetsBus.callLive); the call still goes in the phone's call log
+//     (call-log.ts) so it can be joined, or shows as missed, afterwards.
 //
 // <IncomingCallWatcher/> is meant to be mounted ONCE for the signed-in area (next to <MeetsWatcher/>,
 // see HANDOFF.md). It may also sit on a screen (the Calls screen does, so the demo ring works before
@@ -24,6 +29,7 @@ import { useSession } from '@/auth/session';
 import { callsDemoEvents, ringFromColleague } from '@/demo/fixtures/calls';
 import { useNow } from '@/features/attendance/use-now';
 import { canSeeCalls, callSupport } from '@/features/calls/access';
+import { logDecline, logOver, logRing, setRingingCall } from '@/features/calls/call-log';
 import { activeCall } from '@/features/calls/call-store';
 import { UnavailableCard } from '@/features/calls/unavailable';
 import { chatBus } from '@/features/chat/realtime';
@@ -97,8 +103,10 @@ export function IncomingCallWatcher() {
     if (!on || !me || !primary) return;
     const take = (name: string, data: any) => {
       if (name === 'meeting') {
-        if (!data?.meetingId || chatBus.callLive || activeCall()) return;
+        if (!data?.meetingId) return;
         if (data.startedBy?.id && String(data.startedBy.id) === String(me)) return;
+        logRing(data as RingEvent);
+        if (chatBus.callLive || activeCall()) return;
         haptic.warning();
         setRing({ ...(data as RingEvent), receivedAt: Date.now() });
         return;
@@ -109,6 +117,7 @@ export function IncomingCallWatcher() {
         return;
       }
       if (name === 'meeting-ended' && typeof data?.meetingId === 'string') {
+        logOver(data.meetingId);
         setRing((r) => (r && r.meetingId === data.meetingId ? null : r));
       }
     };
@@ -137,6 +146,13 @@ function RingSheets({ ring, onDone }: { ring: Ring; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const who = ring.startedBy?.name || 'A colleague';
 
+  // While the sheet is up, the "Call in progress" bar stays out of its way.
+  useEffect(() => {
+    if (ring.test) return;
+    setRingingCall(ring.meetingId);
+    return () => setRingingCall(null);
+  }, [ring.meetingId, ring.test]);
+
   // Gives up after 45 s, sending nothing (dash.html:8390).
   useEffect(() => {
     const left = RING_SECONDS * 1000 - (Date.now() - ring.receivedAt);
@@ -161,6 +177,12 @@ function RingSheets({ ring, onDone }: { ring: Ring; onDone: () => void }) {
     router.push({ pathname: '/call/[meetingId]', params: { meetingId: ring.meetingId, title: who } });
   };
 
+  // X, the backdrop or Not now: the ring goes, nobody is told, and the call can still be joined.
+  const hide = () => {
+    onDone();
+    if (!ring.test) toast.show(`${who} isn’t told. Join from “Call in progress” while the call lasts.`, 'info');
+  };
+
   const decline = async () => {
     if (ring.test) {
       onDone();
@@ -172,12 +194,15 @@ function RingSheets({ ring, onDone }: { ring: Ring; onDone: () => void }) {
     setBusy(false);
     onDone();
     if (isApiError(r)) toast.show(r.error, 'danger');
-    else toast.show(`Declined. ${who} sees that you declined.`);
+    else {
+      logDecline(ring.meetingId);
+      toast.show(`Declined. ${who} sees that you declined.`);
+    }
   };
 
   return (
     <>
-      <Sheet visible={step === 'ring'} onClose={onDone} title="Incoming call" floatingClose>
+      <Sheet visible={step === 'ring'} onClose={hide} title="Incoming call" floatingClose>
         <View style={styles.hero}>
           <Avatar name={who} size={72} ring={false} />
           <Text variant="title" align="center" numberOfLines={2}>
@@ -199,7 +224,7 @@ function RingSheets({ ring, onDone }: { ring: Ring; onDone: () => void }) {
           <View style={styles.actions}>
             <UnavailableCard />
             <Button title="Decline" variant="danger" icon={<PhoneOff />} onPress={() => setStep('decline')} />
-            <Button title="Not now" variant="ghost" onPress={onDone} />
+            <Button title="Not now" variant="ghost" onPress={hide} />
           </View>
         ) : (
           <View style={styles.actions}>
@@ -208,7 +233,9 @@ function RingSheets({ ring, onDone }: { ring: Ring; onDone: () => void }) {
           </View>
         )}
         <Text variant="caption" muted align="center">
-          {ring.test ? 'A sample call. Answering or declining tells nobody.' : `${who} sees whether you answer or decline.${support === 'demo' ? ' Demo: no sound or video is sent.' : ''}`}
+          {ring.test
+            ? 'A sample call. Answering or declining tells nobody.'
+            : `${who} sees whether you answer or decline. × only hides the ring.${support === 'demo' ? ' Demo: no sound or video is sent.' : ''}`}
         </Text>
       </Sheet>
 

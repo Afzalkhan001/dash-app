@@ -8,13 +8,19 @@
 // answering on timers, and /signal simply answers { delivered: true }.
 // Live feel: `callsDemoEvents` is the demo's stand-in for the stream's `meeting` (ring) event;
 // `ringFromColleague()` starts a call from Priya Sharma in the "Priya Sharma" chat (c-priya, demo chat
-// fixtures) so the incoming-call sheet, Accept and Decline can be tried.
+// fixtures) so the incoming-call sheet, Accept and Decline can be tried. Closed with X, her call stays
+// joinable from the "Call in progress" bar; she hangs up after 3 minutes unless I am in it, and it
+// then shows as a missed call.
+// History: the server keeps no call list (features/calls/call-log.ts), so `demoCallHistory()` gives the
+// phone's call log a few past calls: a missed call and a finished call with Priya, a video call in
+// Creative Team, and a call with Lakshmi that is newer than her last message (the chat list preview).
 
 import type { CallPerson, CallsConfig, CreatedMeeting, HeartbeatResponse, JoinResponse, MeetingInfo, PeerCard, RingEvent } from '@/api/calls';
 import { DEMO_USER } from '@/demo/config';
 import { personById } from '@/demo/fixtures/org';
 import { selfAs } from '@/demo/personas';
-import { fail, hex6, notFound, nowIso, type Route } from '@/demo/state';
+import { daysAgo, fail, hex6, minutesAgo, notFound, nowIso, type Route } from '@/demo/state';
+import type { CallLogEntry } from '@/features/calls/call-log';
 
 const ME = DEMO_USER.id;
 
@@ -104,7 +110,26 @@ export function ringFromColleague(fromId = 'u-priya', conversationId = 'c-priya'
   meetings.set(m.id, m);
   const ring: RingEvent = { conversationId, meetingId: m.id, title: null, startedBy: publicUser(fromId), startedAt: at };
   setTimeout(() => emit('meeting', ring), 600);
+  // She gives up after 3 minutes unless I am in the call (the room is then empty: a missed call).
+  setTimeout(() => {
+    if (!m.live.has(ME)) m.live.delete(fromId);
+  }, 180_000);
   return ring;
+}
+
+// ── Past calls (the phone's call log) ────────────────────────────────────────
+let history: CallLogEntry[] | null = null;
+const by = (id: string) => ({ id, name: personById(id)?.name ?? 'Colleague' });
+
+/** A few past calls for the demo's chats, made once per app run. */
+export function demoCallHistory(): CallLogEntry[] {
+  history ??= [
+    { meetingId: 'demo-call-priya-missed', conversationId: 'c-priya', title: null, direction: 'in', by: by('u-priya'), at: minutesAgo(41), outcome: 'missed' },
+    { meetingId: 'demo-call-priya-done', conversationId: 'c-priya', title: null, direction: 'out', by: null, at: daysAgo(1, '16:20'), outcome: 'answered', seconds: 252 },
+    { meetingId: 'demo-call-creative', conversationId: 'c-creative', title: null, direction: 'in', by: by('u-rahul'), at: daysAgo(2, '11:00'), outcome: 'answered', seconds: 1120, video: true },
+    { meetingId: 'demo-call-lakshmi', conversationId: 'c-lakshmi', title: null, direction: 'out', by: null, at: daysAgo(2, '15:10'), outcome: 'answered', seconds: 125 },
+  ];
+  return history;
 }
 
 const re = (s: string) => new RegExp(`^${s}$`);

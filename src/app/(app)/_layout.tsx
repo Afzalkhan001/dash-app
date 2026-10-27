@@ -9,9 +9,11 @@
 //     renders nothing until the chat domain fills it.
 //   Pass 3: <IncomingCallWatcher/> (features/calls: the ring sheet for incoming calls, everywhere in the app)
 //   and <PushBridge/> (features/push: routes a notification tap, even one that cold-starts the app).
+//   <LiveCallBar/> (features/calls/call-bar): "Call in progress · Join" for a call whose ring was closed.
 import { Stack } from 'expo-router';
 import { Keyboard } from 'react-native';
 
+import { LiveCallBar } from '@/features/calls/call-bar';
 import { IncomingCallWatcher } from '@/features/calls/incoming-call';
 import { MeetsWatcher } from '@/features/chat/meets-watcher';
 import { PushBridge } from '@/features/push/bridge';
@@ -44,6 +46,7 @@ export default function AppLayout() {
         <Stack.Screen name="(tabs)" />
       </Stack>
       <MeetsWatcher />
+      <LiveCallBar />
       <IncomingCallWatcher />
       <PushBridge />
     </>

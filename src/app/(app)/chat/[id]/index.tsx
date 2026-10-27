@@ -9,6 +9,10 @@
 //   Call      a phone button when I can post (website: canPost): the calls domain's StartCallSheet
 //             (features/calls/start-call.tsx) — ConfirmSheet + swipe naming who rings, then the call
 //             screen; a demo call in the demo; "Available in the installed app" where WebRTC is missing.
+//   Calls     the phone's call log (features/calls/call-log.ts; the server writes no message for a call)
+//             puts each call of this chat between the messages: who called, voice or video, how long or
+//             "Missed", the time (features/calls/call-row.tsx; tap = call back). While a call I was rung
+//             for is still going, a "Call in progress · Join" bar sits at the top (call-bar.tsx).
 //   Delete    long-press my own message → "Delete for everyone" → swipe to confirm (cannot be undone).
 //   Read      marked read on open, when a message lands while the thread is on screen, and when the app
 //             comes back to the foreground (dash.html:9881).
@@ -39,6 +43,9 @@ import { useMyTenant } from '@/api/me';
 import { useSession } from '@/auth/session';
 import { useTodayIst } from '@/features/attendance/use-now';
 import { canStartCall } from '@/features/calls/access';
+import { ThreadCallBar, useJoinCall } from '@/features/calls/call-bar';
+import { type CallLogEntry, useCallHistory } from '@/features/calls/call-log';
+import { CallRow } from '@/features/calls/call-row';
 import { CALL_ICON, type CallTarget, StartCallSheet } from '@/features/calls/start-call';
 import { canDeleteMessage, canSeeMeets } from '@/features/chat/access';
 import { DayChip, MessageBubble, NewDivider } from '@/features/chat/bubble';
@@ -56,8 +63,11 @@ import { Button, ConfirmSheet, EmptyState, ErrorState, haptic, MenuSheet, NavHea
 
 type Item =
   | { kind: 'msg'; key: string; m: MeetsMessage; mine: boolean; showName: boolean; showAvatar: boolean }
+  | { kind: 'call'; key: string; e: CallLogEntry }
   | { kind: 'day'; key: string; label: string }
   | { kind: 'new'; key: string };
+
+type Moment = { t: number; m: MeetsMessage; c?: undefined } | { t: number; c: CallLogEntry; m?: undefined };
 
 const RUN_GAP_MS = 5 * 60_000;
 
@@ -76,6 +86,8 @@ export default function ThreadScreen() {
   const msgs = useMessages(id, on);
   const policy = useAttachmentPolicy(on);
   const row = (useConversations(on).data ?? []).find((c) => c.id === id);
+  const history = useCallHistory();
+  const joinCall = useJoinCall();
 
   const [mark, setMark] = useState<{ for: string; dividerId: string | null } | null>(null);
   const [sending, setSending] = useState(false);
@@ -100,6 +112,9 @@ export default function ThreadScreen() {
   const title = (group ? detail?.name || row?.name : other?.name || row?.name) || params.name || 'Chat';
   const subtitle = conv.data ? subtitleOf(detail?.type, current.length, detail?.leftAt) : row ? subtitleOf(row.type, row.memberCount, row.leftAt) : undefined;
   const loaded = !!msgs.data && (!!conv.data || conv.isError);
+  // This chat's calls inside the loaded history (older ones appear as earlier pages load).
+  const from = msgs.hasNextPage && oldestFirst.length ? Date.parse(oldestFirst[0]!.createdAt) : -Infinity;
+  const calls = history.filter((e) => e.conversationId === id && e.outcome !== 'in-call' && Date.parse(e.at) >= from);
 
   // The read mark, captured once per open (during render, React's "adjust state on a change" pattern):
   // the earlier of the list row's and the thread's, and the divider goes above the first unread.
@@ -140,24 +155,32 @@ export default function ThreadScreen() {
     }, [id, me, markRead]),
   );
 
-  // Items, newest first for the inverted list: day chips above each day, the divider above the first unread.
+  // Items, newest first for the inverted list: day chips above each day, the divider above the first unread,
+  // calls between the messages by time (a call breaks a run of bubbles).
   const items: Item[] = [];
   {
     let lastDay = '';
     let prev: MeetsMessage | null = null;
     const up: Item[] = [];
-    oldestFirst.forEach((m, i) => {
-      const day = istDateOf(m.createdAt);
+    const moments: Moment[] = [...oldestFirst.map((m) => ({ t: Date.parse(m.createdAt), m })), ...calls.map((c) => ({ t: Date.parse(c.at), c }))].sort((a, b) => a.t - b.t);
+    moments.forEach((ev, i) => {
+      const day = istDateOf(ev.m ? ev.m.createdAt : ev.c.at);
       if (day !== lastDay) {
         up.push({ kind: 'day', key: `day-${day}`, label: dayChip(day, today) });
         lastDay = day;
         prev = null;
       }
+      if (ev.c) {
+        up.push({ kind: 'call', key: `call-${ev.c.meetingId}`, e: ev.c });
+        prev = null;
+        return;
+      }
+      const m = ev.m;
       if (mark?.for === id && mark.dividerId === m.id) {
         up.push({ kind: 'new', key: 'new' });
         prev = null;
       }
-      const next = oldestFirst[i + 1];
+      const next = moments[i + 1]?.m;
       const sameRun = (a: MeetsMessage | null | undefined, b: MeetsMessage | null | undefined) =>
         !!a && !!b && a.senderId === b.senderId && Math.abs(Date.parse(b.createdAt) - Date.parse(a.createdAt)) < RUN_GAP_MS && istDateOf(a.createdAt) === istDateOf(b.createdAt);
       const nextBreaks = !next || !sameRun(m, next) || (mark?.for === id && mark.dividerId === next.id);
@@ -235,11 +258,16 @@ export default function ThreadScreen() {
     setMenuFor(m);
   };
 
+  const callable = canStartCall(detail ?? (row ? { leftAt: row.leftAt } : null));
+  const callThisChat = () => setCall({ kind: 'conversation', conversationId: id, title, memberCount: conv.data ? current.length : (row?.memberCount ?? 2), group });
+
   const renderItem = ({ item }: { item: Item }) =>
     item.kind === 'day' ? (
       <DayChip label={item.label} />
     ) : item.kind === 'new' ? (
       <NewDivider />
+    ) : item.kind === 'call' ? (
+      <CallRow e={item.e} group={group} onJoin={(e) => joinCall(e, title)} onCallBack={callable ? callThisChat : undefined} />
     ) : (
       <MessageBubble
         m={item.m}
@@ -261,7 +289,7 @@ export default function ThreadScreen() {
     <View style={styles.top}>
       <Button title="Load earlier messages" variant="ghost" size="sm" onPress={() => void msgs.fetchNextPage()} />
     </View>
-  ) : newestFirst.length ? (
+  ) : items.length ? (
     <View style={styles.top}>
       <Text variant="caption" muted align="center">
         {group ? 'This is the start of the group.' : 'This is the start of your chat.'}
@@ -273,7 +301,7 @@ export default function ThreadScreen() {
   if (msgs.isPending && !conv.isError) body = <SkeletonList rows={6} avatar />;
   else if (!msgs.data && (msgs.isError || conv.isError)) {
     body = <ErrorState message={(msgs.error ?? conv.error)?.message ?? ''} onRetry={() => void Promise.all([msgs.refetch(), conv.refetch()])} />;
-  } else if (!newestFirst.length) {
+  } else if (!items.length) {
     body = (
       <View style={styles.empty}>
         <EmptyState icon={<MessageCircle color={palette.textMuted} />} title="No messages yet" message={canPost ? 'Say hello to get things going.' : 'Nothing was said before you left.'} />
@@ -323,21 +351,13 @@ export default function ThreadScreen() {
           title={title}
           subtitle={subtitle}
           actions={[
-            ...(canStartCall(detail ?? (row ? { leftAt: row.leftAt } : null))
-              ? [
-                  {
-                    key: 'call',
-                    icon: CALL_ICON,
-                    label: group ? 'Call the group' : 'Start call',
-                    onPress: () => setCall({ kind: 'conversation', conversationId: id, title, memberCount: conv.data ? current.length : (row?.memberCount ?? 2), group }),
-                  },
-                ]
-              : []),
+            ...(callable ? [{ key: 'call', icon: CALL_ICON, label: group ? 'Call the group' : 'Start call', onPress: callThisChat }] : []),
             { key: 'info', icon: Info, label: 'Chat details', onPress: () => router.push({ pathname: '/chat/[id]/info', params: { id } }) },
           ]}
         />
       }
       footer={<Composer canPost={canPost} policy={policy.data} sending={sending} onSend={send} />}>
+      <ThreadCallBar conversationId={id} title={title} />
       <VoiceProvider>{body}</VoiceProvider>
 
       <MenuSheet

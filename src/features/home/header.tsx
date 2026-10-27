@@ -3,7 +3,8 @@
 // IconPillGroup — one frosted pill holding two round buttons, each with a red dot when there is
 // something new (never a number: the count itself is only on the Inbox tab):
 //   bell   → Announcements (the company announcements), only for people who can see announcements; the dot
-//            shows while something was posted in the last 2 days
+//            shows while a post from the last 2 days hasn't been seen yet (features/announcements/seen:
+//            seen once it was listed on the Announcements screen or opened), and comes back for the next one
 //   inbox  → Inbox; the dot shows while something waits on me
 //   chat   → (slot) the chat domain's button, before the inbox, when features/chat/header-action
 //            useChatHeaderAction() returns one. Only while there is room for three buttons: below
@@ -19,10 +20,10 @@
 import { useRouter } from 'expo-router';
 import { Inbox } from 'lucide-react-native';
 
-import { isCelebration, useVisibleAnnouncements } from '@/api/announcements';
+import { useVisibleAnnouncements } from '@/api/announcements';
 import { useMyProfile, useMyTenant } from '@/api/me';
 import { useSession } from '@/auth/session';
-import { postedWithin } from '@/features/announcements/parts';
+import { useUnseenNews } from '@/features/announcements/seen';
 import { useNow } from '@/features/attendance/use-now';
 import { useChatHeaderAction } from '@/features/chat/header-action';
 import { useInboxCount } from '@/features/inbox/use-inbox-count';
@@ -30,8 +31,6 @@ import { canSeeAnnouncements } from '@/features/more/menu';
 import { greeting } from '@/lib/dates';
 import { firstName } from '@/lib/format';
 import { HomeHeader, type NavAction, shouldStack, useLayout } from '@/ui';
-
-const NEW_NEWS_DAYS = 2;
 
 export function HomeTopBar() {
   const router = useRouter();
@@ -49,7 +48,8 @@ export function HomeTopBar() {
 
   const news = canSeeAnnouncements(role, tenant);
   const { feed } = useVisibleAnnouncements();
-  const freshNews = news && (Array.isArray(feed) ? feed : []).some((a) => !!a && !isCelebration(a) && postedWithin(a, NEW_NEWS_DAYS, now));
+  const unseen = useUnseenNews(feed, now);
+  const freshNews = news && unseen;
 
   const inboxAction: NavAction = {
     key: 'inbox',

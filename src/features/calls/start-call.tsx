@@ -7,6 +7,7 @@
 // memberCount onClose />. In Expo Go it explains instead: "Available in the installed app".
 // From the Calls screen a person can be picked instead of a chat: on confirm their direct chat is
 // opened (POST /meets/conversations {type:'direct'} returns the existing one) and the call starts there.
+// The call goes in the phone's call log (call-log.ts), so the chat shows it once it is over.
 
 import { useRouter } from 'expo-router';
 import { Phone } from 'lucide-react-native';
@@ -18,6 +19,7 @@ import { chatApi } from '@/api/chat';
 import { isApiError, isDemoSession } from '@/api/client';
 import { useSession } from '@/auth/session';
 import { callSupport } from '@/features/calls/access';
+import { logStart } from '@/features/calls/call-log';
 import { UnavailableCard } from '@/features/calls/unavailable';
 import { plural } from '@/lib/format';
 import { themedStyles } from '@/theme/themed';
@@ -75,6 +77,7 @@ export function StartCallSheet({ target, onClose }: { target: CallTarget | null;
       return;
     }
     haptic.success();
+    logStart(r.meeting.id, conversationId, r.meeting.title ?? null);
     onClose();
     router.push({ pathname: '/call/[meetingId]', params: { meetingId: r.meeting.id, title: target.title } });
   };

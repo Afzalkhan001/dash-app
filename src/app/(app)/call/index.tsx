@@ -7,6 +7,9 @@
 //     from Priya Sharma that can be answered);
 //   - what calls can do here: the limits from GET /meets/calls/config, whether a relay (TURN) is on,
 //     and for IT / super admins which website setting the relay still needs (docs/CALLS-TURN.md).
+//   - Recent calls: the phone's call log (features/calls/call-log.ts; the server and the website keep
+//     none): missed in red, how long, when; Join while a call I was rung for is still going, otherwise
+//     a tap calls back (asks first).
 // In Expo Go: "Available in the installed app" — starting is explained, never attempted.
 
 import { Redirect, useLocalSearchParams } from 'expo-router';
@@ -18,10 +21,14 @@ import { type ConversationRow, type MeetsPerson, useConversations, useDirectory 
 import { isDemoSession } from '@/api/client';
 import { useMyTenant } from '@/api/me';
 import { useSession } from '@/auth/session';
+import { useTodayIst } from '@/features/attendance/use-now';
 import { callSupport, canSeeCalls } from '@/features/calls/access';
+import { JoinPill, useJoinCall } from '@/features/calls/call-bar';
+import { type CallLogEntry, callHeadline, callLength, useCallHistory } from '@/features/calls/call-log';
 import { IncomingCallWatcher, testCallAlert } from '@/features/calls/incoming-call';
 import { type CallTarget, StartCallSheet } from '@/features/calls/start-call';
 import { UnavailableCard } from '@/features/calls/unavailable';
+import { rowTime } from '@/features/chat/format';
 import { PeopleList } from '@/features/chat/people-list';
 import { isWeb } from '@/lib/capabilities';
 import { plural } from '@/lib/format';
@@ -29,6 +36,7 @@ import { palette } from '@/theme/tokens';
 import { Avatar, Banner, EmptyState, IconBadge, LabelledSection, ListCard, ListRow, NavHeader, Screen, Sheet, SkeletonList, SummaryCard, Text } from '@/ui';
 
 const RECENT = 6;
+const RECENT_CALLS = 8;
 
 // Who is told which website setting the relay still needs (the people who run DASH).
 const RELAY_ADMINS = ['master_admin', 'super_admin', 'it_admin'];
@@ -55,8 +63,37 @@ export default function CallsScreen() {
   const [picking, setPicking] = useState(() => params.start === '1');
   const dir = useDirectory(on && picking);
   const [target, setTarget] = useState<CallTarget | null>(null);
+  const history = useCallHistory();
+  const joinCall = useJoinCall();
+  const today = useTodayIst();
 
   if (user && !on) return <Redirect href="/" />;
+
+  const convById = new Map((convs.data ?? []).map((c) => [c.id, c]));
+  const recent = history.filter((e) => e.outcome !== 'in-call').slice(0, RECENT_CALLS);
+  const callRow = (e: CallLogEntry) => {
+    const c = e.conversationId ? convById.get(e.conversationId) : undefined;
+    const name = c ? titleOf(c) : e.by?.name || e.title || 'Call';
+    const live = e.outcome === 'ringing';
+    const bad = e.outcome === 'missed' || e.outcome === 'declined';
+    const back = c && !c.leftAt ? () => setTarget({ kind: 'conversation', conversationId: c.id, title: name, memberCount: c.memberCount, group: c.type === 'group' }) : undefined;
+    const what = [callHeadline(e), e.outcome === 'answered' && e.seconds ? callLength(e.seconds) : null].filter(Boolean).join(' · ');
+    const when = rowTime(e.at, today);
+    return (
+      <ListRow
+        key={e.meetingId}
+        left={<Avatar name={name} size={40} ring={false} />}
+        title={name}
+        titleColor={bad ? palette.dangerInk : undefined}
+        subtitle={what}
+        meta={when}
+        right={live ? <JoinPill /> : back ? <Phone size={20} color={palette.primaryText} strokeWidth={1.8} /> : undefined}
+        onPress={live ? () => joinCall(e, name) : back}
+        accessibilityLabel={`${name}, ${what}, ${when}`}
+        accessibilityHint={live ? 'Joins the call' : back ? 'Calls back. Asks first.' : undefined}
+      />
+    );
+  };
 
   const rows = (convs.data ?? []).filter((c) => !c.leftAt).slice(0, RECENT);
   const max = cfg.data?.maxParticipants ?? 8;
@@ -69,6 +106,15 @@ export default function CallsScreen() {
       {showRelayAdvice ? <Banner tone="warning" title="Calls on some networks can’t connect yet" message={relayAdvice(cfg.data?.turnState)} /> : null}
       {support === 'demo' ? (
         <Banner tone="info" title="Demo calls" message="Colleagues answer on their own. No sound or video leaves this phone." />
+      ) : null}
+
+      {recent.length ? (
+        <LabelledSection title="Recent calls">
+          <ListCard tone="surface">{recent.map(callRow)}</ListCard>
+          <Text variant="caption" muted>
+            Calls this phone rang for or made. DASH doesn’t keep a call list.
+          </Text>
+        </LabelledSection>
       ) : null}
 
       <LabelledSection title="Start a call">

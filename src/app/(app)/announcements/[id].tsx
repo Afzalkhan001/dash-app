@@ -28,6 +28,7 @@ import {
   postedLabel,
   shareAnnouncementFile,
 } from '@/features/announcements/parts';
+import { newPostIds, useMarkNewsSeen } from '@/features/announcements/seen';
 import { AnnouncementVideo } from '@/features/announcements/video';
 import { useNow } from '@/features/attendance/use-now';
 import { canSeeAnnouncements } from '@/features/more/menu';
@@ -139,6 +140,8 @@ function AnnouncementBody() {
   const feed = Array.isArray(ann.feed) ? ann.feed : [];
   const a = id ? feed.find((x) => !!x && String(x.id) === id) : undefined;
   const file = useFileAction(a);
+  // Opening a new post counts as seeing it (the red dot on Home's bell).
+  useMarkNewsSeen(newPostIds([a], now));
   // An image announcement whose file turns out to be empty ('') gets no media slot at all, so no empty
   // animated child (and its stack gap) sits above the article.
   const media = useAnnouncementMedia(a && a.type === 'image' ? a : null);

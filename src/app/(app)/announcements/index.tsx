@@ -12,6 +12,9 @@
 //
 // People who can post news (features/newsroom/access canUseNewsStudio, the web's Create Mode) get a
 // round "News studio" button in the header, the way into posting, editing and deleting posts.
+//
+// Every new post listed here counts as seen while this screen is on show, which clears the red dot on
+// Home's bell (features/announcements/seen).
 
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
@@ -24,6 +27,7 @@ import { type Announcement, isCelebration, useVisibleAnnouncements } from '@/api
 import { useMyTenant } from '@/api/me';
 import { useSession } from '@/auth/session';
 import { useNow } from '@/features/attendance/use-now';
+import { newPostIds, useMarkNewsSeen } from '@/features/announcements/seen';
 import { canSeeAnnouncements } from '@/features/more/menu';
 import { canUseNewsStudio } from '@/features/newsroom/access';
 import { CelebrationTiles, NewsHero, NewsHeroSkeleton, NewsRow } from '@/features/more/news-row';
@@ -84,6 +88,8 @@ export default function AnnouncementsScreen() {
   const studio = canUseNewsStudio(user, tenant.data);
   const feed = Array.isArray(ann.feed) ? ann.feed.filter((a) => a && a.id != null) : [];
   const items = itemsOf(feed);
+  // Only what is actually listed: nothing while announcements are off for me or still loading.
+  useMarkNewsSeen(allowed && !ann.isPending ? newPostIds(feed, now) : []);
   const [refreshing, setRefreshing] = useState(false);
 
   const refresh = async () => {
