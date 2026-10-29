@@ -62,6 +62,24 @@ const secure = {
 };
 const USER_KEY = 'dash.user';
 const PHONE_KEY = 'dash.lastPhone';
+const INSTALLED_KEY = 'dash.installed';
+// Everything this app keeps in the Keychain/Keystore (the app lock's switch is auth/app-lock.tsx).
+const SECURE_KEYS = [TOKEN_KEY, 'dash.appLock'];
+
+// The iOS Keychain outlives an uninstall while AsyncStorage doesn't, so a reinstall would wake up signed
+// in with no user record (and the old app lock on). A fresh install has nothing in AsyncStorage: clear
+// the Keychain then. An older install updating to this version has its user or phone saved: keep it.
+async function forgetPreviousInstall() {
+  if (Platform.OS === 'web') return;
+  const [marker, userRaw, phone] = await Promise.all([
+    AsyncStorage.getItem(INSTALLED_KEY),
+    AsyncStorage.getItem(USER_KEY),
+    AsyncStorage.getItem(PHONE_KEY),
+  ]);
+  if (marker) return;
+  if (!userRaw && !phone) await Promise.all(SECURE_KEYS.map((k) => SecureStore.deleteItemAsync(k).catch(() => undefined)));
+  await AsyncStorage.setItem(INSTALLED_KEY, '1');
+}
 
 const HEAVY_FIELDS = ['password', 'avatar', 'photo', 'photoUrl', 'profilePhoto', 'signature', 'documents'];
 function slimUser(u: StaffUser): StaffUser {
@@ -89,6 +107,7 @@ export const useSession = create<SessionState>((set, get) => ({
 
   hydrate: async () => {
     try {
+      await forgetPreviousInstall();
       const [raw, userRaw, phone] = await Promise.all([
         secure.get(TOKEN_KEY),
         AsyncStorage.getItem(USER_KEY),

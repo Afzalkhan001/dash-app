@@ -42,14 +42,13 @@ type NotificationsModule = typeof import('expo-notifications');
 type NotificationResponse = import('expo-notifications').NotificationResponse;
 
 // ── The module, loaded on first use ─────────────────────────────────────────
-// Every native module expo-notifications 57 requires as it loads (its build/*.native.js, plus the
-// Android-only topic module). If one is missing, requiring it would close the app.
+// Every native module expo-notifications 57 requires as it loads. The channel and topic modules are
+// Android-only (only its *.android.js files import them), so iOS must not wait for them. If one is
+// missing, requiring it would close the app.
 const NATIVE_MODULES = () => [
   'ExpoBackgroundNotificationTasksModule',
   'ExpoBadgeModule',
   'ExpoNotificationCategoriesModule',
-  'ExpoNotificationChannelGroupManager',
-  'ExpoNotificationChannelManager',
   'ExpoNotificationPermissionsModule',
   'ExpoNotificationPresenter',
   'ExpoNotificationScheduler',
@@ -57,7 +56,9 @@ const NATIVE_MODULES = () => [
   'ExpoNotificationsHandlerModule',
   'ExpoPushTokenManager',
   'NotificationsServerRegistrationModule',
-  ...(Platform.OS === 'android' ? ['ExpoTopicSubscriptionModule'] : []),
+  ...(Platform.OS === 'android'
+    ? ['ExpoNotificationChannelGroupManager', 'ExpoNotificationChannelManager', 'ExpoTopicSubscriptionModule']
+    : []),
 ];
 let loaded: NotificationsModule | null | undefined;
 export function notificationsModule(): NotificationsModule | null {

@@ -138,7 +138,9 @@ export class CallSession {
       this.subs.push(DeviceEventEmitter.addListener('onAudioDeviceChanged', this.onDevices));
       try {
         // 'audio' + automatic: earpiece by default, proximity screen-off on the earpiece, headsets win.
-        this.audio.start('audio', true, '');
+        // iOS video uses the system's video-chat mode instead: loudspeaker unless AirPods or a headset
+        // are connected (on iOS this module never sends the device events Android uses for that).
+        this.audio.start(Platform.OS === 'ios' && video ? 'video' : 'audio', true, '');
       } catch {
         this.audio = null;
       }
@@ -202,8 +204,11 @@ export class CallSession {
   private applySpeaker() {
     if (!this.audio || this.stopped) return;
     const on = this.wantSpeaker();
+    // iOS: left automatic, the call mode above picks the route (headsets win); a pick of "off" has to be
+    // forced (-1), because automatic on a video call means the loudspeaker there.
+    const flag = Platform.OS === 'ios' ? (this.choice == null ? 0 : this.choice ? 1 : -1) : on ? 1 : 0;
     try {
-      this.audio.setForceSpeakerphoneOn(on ? 1 : 0);
+      this.audio.setForceSpeakerphoneOn(flag);
     } catch {
       return;
     }

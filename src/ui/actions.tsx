@@ -4,8 +4,8 @@
 import { BlurView } from 'expo-blur';
 import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { Platform, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useBottomPad } from '@/lib/keyboard';
 import { themedStyles } from '@/theme/themed';
 import { layout, palette, space } from '@/theme/tokens';
 import { useLayout } from '@/ui/layout';
@@ -94,10 +94,10 @@ export function ActionRow({
  * caption above the buttons: why the submit is disabled, or what the button will do.
  */
 export function ActionBar({ children, note, style }: { children: ReactNode; note?: string | null; style?: StyleProp<ViewStyle> }) {
-  const insets = useSafeAreaInsets();
+  const bottom = useBottomPad(space.md);
   const { gutter } = useLayout();
   return (
-    <View style={[styles.bar, { paddingHorizontal: gutter, paddingBottom: Math.max(insets.bottom, space.md) }, style]}>
+    <View style={[styles.bar, { paddingHorizontal: gutter, paddingBottom: bottom }, style]}>
       {Platform.OS === 'ios' ? <BlurView intensity={40} tint={isDarkScheme() ? 'dark' : 'light'} style={StyleSheet.absoluteFill} /> : null}
       <View style={[StyleSheet.absoluteFill, styles.barFill]} pointerEvents="none" />
       {note ? (

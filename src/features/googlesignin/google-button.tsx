@@ -44,7 +44,8 @@ WebBrowser.maybeCompleteAuthSession();
 
 const LABEL = 'Continue with Google';
 // The sheet closes first, then the next step runs (the role picker is another sheet).
-const AFTER_CLOSE_MS = 280;
+// iOS won't present a sheet over one that is still closing, so it waits a little longer.
+const AFTER_CLOSE_MS = Platform.OS === 'ios' ? 400 : 280;
 
 /** Google's own four-colour mark (the website draws the same paths). It keeps its colours in dark mode. */
 function GoogleMark({ size = 18 }: { size?: number; color?: string; strokeWidth?: number }) {

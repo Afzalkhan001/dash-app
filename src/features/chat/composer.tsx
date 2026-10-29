@@ -12,13 +12,13 @@
 import { Camera, FileUp, ImageIcon, Mic, Paperclip, Plus, SendHorizontal, X } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { type AttachmentPolicy, DEFAULT_POLICY, MAX_BODY } from '@/api/chat';
 import { isAudioType, sendableType, sizeLabel, withType } from '@/features/chat/format';
 import { chatBus } from '@/features/chat/realtime';
 import { VoiceRecorder } from '@/features/chatvoice/recorder';
 import { FileError, pickDocument, pickImage, type PickedFile } from '@/lib/files';
+import { useBottomPad } from '@/lib/keyboard';
 import { themedStyles } from '@/theme/themed';
 import { font, palette, radius, space } from '@/theme/tokens';
 import { MenuSheet, Text, toast, useLayout } from '@/ui';
@@ -38,7 +38,8 @@ export function Composer({
   /** Resolves true when the message went (the draft and file are then cleared). */
   onSend: (body: string, attachment: Staged | null) => Promise<boolean>;
 }) {
-  const insets = useSafeAreaInsets();
+  const padNote = useBottomPad(space.md);
+  const padBar = useBottomPad(space.sm);
   const { gutter } = useLayout();
   const [draft, setDraft] = useState('');
   const [staged, setStaged] = useState<Staged | null>(null);
@@ -51,7 +52,7 @@ export function Composer({
 
   if (!canPost) {
     return (
-      <View style={[styles.bar, styles.note, { paddingHorizontal: gutter, paddingBottom: Math.max(insets.bottom, space.md) }]}>
+      <View style={[styles.bar, styles.note, { paddingHorizontal: gutter, paddingBottom: padNote }]}>
         <Text variant="label" muted align="center">
           You left this conversation. You can still read and export it.
         </Text>
@@ -99,7 +100,7 @@ export function Composer({
 
   if (voice) {
     return (
-      <View style={[styles.bar, { paddingHorizontal: gutter, paddingBottom: Math.max(insets.bottom, space.sm) }]}>
+      <View style={[styles.bar, { paddingHorizontal: gutter, paddingBottom: padBar }]}>
         <VoiceRecorder
           maxBytes={p.maxAudioBytes}
           sending={sending}
@@ -124,7 +125,7 @@ export function Composer({
   };
 
   return (
-    <View style={[styles.bar, { paddingHorizontal: gutter, paddingBottom: Math.max(insets.bottom, space.sm) }]}>
+    <View style={[styles.bar, { paddingHorizontal: gutter, paddingBottom: padBar }]}>
       {staged ? (
         <View style={styles.chip}>
           <Paperclip size={16} color={palette.primaryText} strokeWidth={1.8} />

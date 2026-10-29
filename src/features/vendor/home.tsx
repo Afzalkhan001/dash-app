@@ -34,7 +34,7 @@ import { dateIN, rupees } from '@/features/vendor/format';
 import { initForm, resumeStep, stepsFor } from '@/features/vendor/register-form';
 import { AgreementRow, BillRow } from '@/features/vendor/rows';
 import { StepProgress } from '@/features/vendor/ui';
-import { palette, radius, space } from '@/theme/tokens';
+import { font, palette, radius, space } from '@/theme/tokens';
 import { themedStyles } from '@/theme/themed';
 import {
   ActivityList,
@@ -465,6 +465,6 @@ const styles = themedStyles(() => ({
   pill: { alignSelf: 'flex-start' },
   regBody: { gap: space.md },
   regText: { gap: space.xxs },
-  quote: { fontStyle: 'italic' },
+  quote: { fontFamily: font.serifItalic },
   disc: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
 }));

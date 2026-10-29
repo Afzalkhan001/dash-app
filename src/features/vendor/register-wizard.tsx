@@ -42,7 +42,7 @@ import {
   StepVerify,
 } from '@/features/vendor/register-steps';
 import { StepProgress } from '@/features/vendor/ui';
-import { palette, space } from '@/theme/tokens';
+import { font, palette, space } from '@/theme/tokens';
 import { ActionBar, ActionRow, Backdrop, Banner, Button, haptic, IconButton, NavHeader, Reveal, Text, toast, useLayout } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
@@ -224,7 +224,7 @@ export function RegistrationWizard({ vendor }: { vendor: Vendor }) {
           {isCorrection && vendor.correction && !errorShown ? (
             <Banner tone="warning" title={toFix ? `Please fix: ${toFix}` : 'Please fix a few details'}>
               {vendor.correction.comments ? (
-                <Text variant="label" muted style={{ fontStyle: 'italic' }}>
+                <Text variant="label" muted style={{ fontFamily: font.serifItalic }}>
                   “{vendor.correction.comments}”
                 </Text>
               ) : null}
@@ -234,7 +234,7 @@ export function RegistrationWizard({ vendor }: { vendor: Vendor }) {
           {isRejected && !errorShown ? (
             <Banner tone="danger" title="Not approved. Update your details and send again.">
               {vendor.rejection?.reason ? (
-                <Text variant="label" style={{ fontStyle: 'italic' }}>
+                <Text variant="label" style={{ fontFamily: font.serifItalic }}>
                   “{vendor.rejection.reason}”
                 </Text>
               ) : null}

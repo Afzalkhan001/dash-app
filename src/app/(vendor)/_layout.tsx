@@ -16,7 +16,7 @@ export default function VendorLayout() {
   // Constant for a real vendor session; the persona's token in the demo.
   const key = useSession((s) => (isDemoToken(s.token) ? s.token : 'vendor'));
   return (
-    <Stack key={key} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.canvas }, animation: 'slide_from_right' }}>
+    <Stack key={key} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.canvas }, animation: 'slide_from_right', fullScreenGestureEnabled: false }}>
       <Stack.Screen name="portal" />
     </Stack>
   );

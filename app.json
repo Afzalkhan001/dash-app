@@ -19,7 +19,11 @@
       "bundleIdentifier": "com.tamadamedia.dashmobile",
       "supportsTablet": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryAddUsageDescription": "DASH saves passes, bills and photos you choose to your library.",
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {

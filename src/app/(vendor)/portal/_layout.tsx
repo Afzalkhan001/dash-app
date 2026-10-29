@@ -13,7 +13,7 @@ const LEAVE_LISTENERS = { beforeRemove: () => Keyboard.dismiss() };
 
 export default function VendorPortalLayout() {
   return (
-    <Stack screenListeners={LEAVE_LISTENERS} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.canvas }, animation: 'slide_from_right' }}>
+    <Stack screenListeners={LEAVE_LISTENERS} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.canvas }, animation: 'slide_from_right', fullScreenGestureEnabled: false }}>
       <Stack.Screen name="(tabs)" />
     </Stack>
   );

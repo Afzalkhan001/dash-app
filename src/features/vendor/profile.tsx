@@ -13,7 +13,7 @@ import { type ChangeRequest, requestVendorChange, type Vendor, VENDOR_ME_KEY, ty
 import { changeFieldLabel, docLabel, docStatus } from '@/features/vendor/constants';
 import { dateIN } from '@/features/vendor/format';
 import { Field, useLastValue, useOpenCount } from '@/features/vendor/ui';
-import { palette, radius, space } from '@/theme/tokens';
+import { font, palette, radius, space } from '@/theme/tokens';
 import { FIELD_LABEL_INSET, ActionRow, Banner, Button, Chip, ChipRow, haptic, ModuleBadge, Sheet, StatusPill, Text, TextField } from '@/ui';
 
 import { themedStyles } from '@/theme/themed';
@@ -249,7 +249,7 @@ export function ChangeRequestItem({ r }: { r: ChangeRequest }) {
       </Text>
       {label ? <StatusPill label={label} tone={tone} /> : null}
       {r.review_note ? (
-        <Text variant="label" muted style={{ fontStyle: 'italic' }}>
+        <Text variant="label" muted style={{ fontFamily: font.serifItalic }}>
           “{r.review_note}”
         </Text>
       ) : null}
@@ -289,7 +289,7 @@ export function DocumentItem({ doc, onView }: { doc: VendorDocument; onView: () 
             variant="label"
             color={doc.status === 'correction_required' ? palette.warningInk : palette.textMuted}
             numberOfLines={3}
-            style={{ fontStyle: 'italic' }}>
+            style={{ fontFamily: font.serifItalic }}>
             “{doc.remarks}”
           </Text>
         ) : null}

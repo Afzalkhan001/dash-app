@@ -154,7 +154,7 @@ export function Screen({
       <TourScrollProvider handle={tourScroll}>
         <ScrollView
           ref={scrollRef}
-          contentInsetAdjustmentBehavior="automatic"
+          contentInsetAdjustmentBehavior="never" // the root pads the top and `bottom` pads the home bar; iOS mustn't add them again
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           showsVerticalScrollIndicator={false}

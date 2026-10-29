@@ -11,7 +11,7 @@
 //   and <PushBridge/> (features/push: routes a notification tap, even one that cold-starts the app).
 //   <LiveCallBar/> (features/calls/call-bar): "Call in progress · Join" for a call whose ring was closed.
 import { Stack } from 'expo-router';
-import { Keyboard } from 'react-native';
+import { Keyboard, Platform } from 'react-native';
 
 import { LiveCallBar } from '@/features/calls/call-bar';
 import { IncomingCallWatcher } from '@/features/calls/incoming-call';
@@ -30,17 +30,22 @@ const CALL = 'call/[meetingId]';
 // Blur the field and start closing the keyboard before any screen leaves this stack (lib/keyboard.ts).
 const LEAVE_LISTENERS = { beforeRemove: () => Keyboard.dismiss() };
 
+// The kiosk and a call cover the whole app. On iOS a real full-screen modal is a separate UIKit window
+// layer, so the toasts and the app lock (drawn at the root) would sit hidden underneath it; a card with
+// no back swipe looks the same and keeps them on top. Android shows either one as a normal screen.
+const COVER = Platform.OS === 'ios' ? ('card' as const) : ('fullScreenModal' as const);
+
 export default function AppLayout() {
-  const base = { headerShown: false, contentStyle: { backgroundColor: palette.canvas }, animation: 'slide_from_right' as const };
+  const base = { headerShown: false, contentStyle: { backgroundColor: palette.canvas }, animation: 'slide_from_right' as const, fullScreenGestureEnabled: false };
   return (
     <>
       <Stack
         screenListeners={LEAVE_LISTENERS}
         screenOptions={({ route }) =>
           route.name === KIOSK
-            ? { ...base, presentation: 'fullScreenModal', gestureEnabled: false, animation: 'fade' }
+            ? { ...base, presentation: COVER, gestureEnabled: false, animation: 'fade' }
             : route.name === CALL
-              ? { ...base, presentation: 'fullScreenModal', gestureEnabled: false, animation: 'slide_from_bottom' }
+              ? { ...base, presentation: COVER, gestureEnabled: false, animation: 'slide_from_bottom' }
               : base
         }>
         <Stack.Screen name="(tabs)" />

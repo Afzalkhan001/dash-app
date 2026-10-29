@@ -245,7 +245,7 @@ export function MenuSheet({
               right={it.selected ? <Check size={20} color={palette.primaryText} strokeWidth={2.2} /> : undefined}
               onPress={() => {
                 onClose();
-                setTimeout(it.onPress, 280);
+                setTimeout(it.onPress, Platform.OS === 'ios' ? 400 : 280); // iOS can't open a modal over a closing one
               }}
             />
           );
