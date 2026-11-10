@@ -19,6 +19,7 @@ import { ActivityIndicator, AppState, View } from 'react-native';
 import { isApiError, isDemoSession } from '@/api/client';
 import { getKycStatus, startKyc, type Vendor, VENDOR_ME_KEY } from '@/api/vendor';
 import { InfoRows } from '@/features/vendor/ui';
+import { webUrl } from '@/lib/open-link';
 import { palette, radius, space } from '@/theme/tokens';
 import { Banner, Button, haptic, isDarkScheme, Text, useLayout } from '@/ui';
 
@@ -132,8 +133,14 @@ export function DigioVerifyCard({
       void pollOnce();
       return;
     }
+    // The server's Digio address opens only when it is a real https page.
+    const digio = webUrl(r.redirectUrl);
+    if (!digio) {
+      setMsg("Couldn't open Digio. Please try again.");
+      return;
+    }
     try {
-      const res = await WebBrowser.openBrowserAsync(r.redirectUrl, { dismissButtonStyle: 'done', controlsColor: palette.primaryText, toolbarColor: palette.surface });
+      const res = await WebBrowser.openBrowserAsync(digio.href, { dismissButtonStyle: 'done', controlsColor: palette.primaryText, toolbarColor: palette.surface });
       // iOS resolves when the browser is closed; Android resolves at once and the AppState listener
       // above takes over when the vendor returns.
       if (res.type === WebBrowser.WebBrowserResultType.CANCEL || res.type === WebBrowser.WebBrowserResultType.DISMISS) void pollOnce();

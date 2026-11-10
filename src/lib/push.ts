@@ -35,7 +35,7 @@ import { create } from 'zustand';
 import { isApiError, isDemoSession } from '@/api/client';
 import { type PushData, type PushKind, type PushSample, registerPushDevice, removePushDevice, sendTestPush } from '@/api/push';
 import { queryClient } from '@/api/query';
-import { onBeforeSignOut, useSession } from '@/auth/session';
+import { onBeforeSignOut, onSignOut, useSession } from '@/auth/session';
 import { hasLocalNotifications, hasRemotePush, isExpoGo, isWeb } from '@/lib/capabilities';
 
 type NotificationsModule = typeof import('expo-notifications');
@@ -140,9 +140,16 @@ async function setupChannels(N: NotificationsModule) {
     updates: N.AndroidImportance.DEFAULT,
     default: N.AndroidImportance.DEFAULT,
   };
+  // PRIVATE: on a secure lock screen Android shows only "DASH" and the channel, never the message text.
   await Promise.all(
     PUSH_CHANNELS.map((c) =>
-      N.setNotificationChannelAsync(c.id, { name: c.name, description: c.description, importance: importance[c.id] ?? N.AndroidImportance.DEFAULT, lightColor: '#C33B02' }).catch(() => null),
+      N.setNotificationChannelAsync(c.id, {
+        name: c.name,
+        description: c.description,
+        importance: importance[c.id] ?? N.AndroidImportance.DEFAULT,
+        lightColor: '#C33B02',
+        lockscreenVisibility: N.AndroidNotificationVisibility.PRIVATE,
+      }).catch(() => null),
     ),
   );
 }
@@ -316,6 +323,10 @@ export function safePushUrl(url: unknown): string | null {
 }
 
 let pendingUrl: string | null = null;
+// A tap waiting for a sign-in belongs to the person who left: the next person never lands on it.
+onSignOut(() => {
+  pendingUrl = null;
+});
 function openFromNotification(data: PushData | undefined) {
   const url = safePushUrl(data?.url) ?? '/inbox';
   const { ready, token } = useSession.getState();

@@ -1,7 +1,8 @@
 // Demo account — on the sign-in screen tap "Try a demo role", pick a role, enter the code 123456 and
 // explore the app on sample data. That button is the ONLY way in (owner, 2026-10-26): typing a number
-// or email always goes to the real DASH, so 8328617610 (a real person's number, once the demo's) and
-// afzal.demo@… sign in for real. DEMO_TYPED_SIGN_IN brings the old typed demo entries back if needed.
+// or email always goes to the real DASH, so the old demo number (now a real person's login) and
+// afzal.demo@… sign in for real. DEMO_TYPED_SIGN_IN brings the old typed demo entries back if needed
+// (with DEMO_PHONE below, which is nobody's login).
 //
 // It lives entirely on the phone: requests made with a demo token are answered by src/demo/server.ts
 // and never reach DASH, so it needs no server or database change and can never touch real records.

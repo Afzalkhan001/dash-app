@@ -10,7 +10,7 @@ You add **two variables** on expo.dev. Both are **Plain text**. Neither is a sec
 | Name | development | preview | production | Visibility | What it does |
 |---|---|---|---|---|---|
 | `EXPO_PUBLIC_DASH_URL` | `https://dash.tamadamedia.in` | `https://dash.tamadamedia.in` | `https://dash.tamadamedia.in` | Plain text | The DASH server address the app talks to. |
-| `EXPO_PUBLIC_DEMO` | do not add | `1` | **never add** | Plain text | Turns on the demo account ("Try a demo role", 8328617610 → 123456) in test builds you share with testers. |
+| `EXPO_PUBLIC_DEMO` | do not add | `1` | **never add** | Plain text | Turns on the demo account ("Try a demo role" → 123456) in test builds you share with testers. |
 
 One more value, `EXPO_PUBLIC_BUILD_PROFILE`, is already written in `eas.json` for each build
 (`development`, `preview`, `production`). **Do not add it on expo.dev.**
@@ -147,7 +147,7 @@ npx eas-cli@latest submit --profile production --platform ios
 ```
 
 - The version number goes up by itself on each production build (it is kept on expo.dev).
-- The store app has no demo. 8328617610 there is just a normal number sent to the real server.
+- The store app has no demo. Every number typed there is sent to the real server.
 
 ## Before the first build
 

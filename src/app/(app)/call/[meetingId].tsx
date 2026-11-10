@@ -37,10 +37,22 @@ import { themedStyles } from '@/theme/themed';
 import { gradient, palette, radius, space } from '@/theme/tokens';
 import { Avatar, AvatarStack, Banner, Button, ConfirmSheet, haptic, MenuSheet, Sheet, SummaryCard, Text, toast, useLayout } from '@/ui';
 
+// The `title` param is only a display hint from the screen that opened the call (the caller's name),
+// shown until the server's own title / host is known; nothing decides anything from it. Links from
+// outside never reach this screen (app/+native-intent.tsx sends /call/<id> to the calls list).
+const titleHint = (v: unknown) => {
+  // Control and text-direction characters dropped, so a name can't disguise itself.
+  const s = [...String(Array.isArray(v) ? (v[0] ?? '') : (v ?? ''))]
+    .filter((c) => c.charCodeAt(0) >= 32 && c.charCodeAt(0) !== 127 && !/[​-‏‪-‮⁦-⁩]/.test(c))
+    .join('')
+    .trim();
+  return s ? s.slice(0, 60) : null;
+};
+
 export default function CallScreen() {
   const params = useLocalSearchParams<{ meetingId?: string; title?: string }>();
   const meetingId = String(params.meetingId ?? '');
-  const title = params.title ? String(params.title) : null;
+  const title = titleHint(params.title);
   const user = useSession((s) => s.user);
   const tenant = useMyTenant().data;
   const on = canSeeCalls(user, tenant);

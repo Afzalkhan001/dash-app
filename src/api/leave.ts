@@ -94,6 +94,7 @@ export function useMyLeaveRequests(enabled = true) {
     queryKey: ['leave-requests', userId],
     enabled: enabled && !!userId,
     queryFn: ({ signal }) => unwrap(api.get<{ requests: LeaveRequest[] }>('/hr/leave/requests/mine', signal)),
+    meta: { persist: false }, // reasons can be medical or personal: memory only
   });
 }
 

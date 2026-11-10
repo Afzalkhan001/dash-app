@@ -6,9 +6,14 @@
 //
 // Storage: the token lives in SecureStore (Keychain/Keystore). The user record goes to AsyncStorage
 // because it can be large (iOS SecureStore rejects values over ~2KB) — with heavy fields such as the
-// base64 avatar stripped, since the profile screen re-fetches them anyway.
+// base64 avatar stripped, since the profile screen re-fetches them anyway — and with private details
+// (bank, ID numbers, salary, date of birth, address…) stripped too, so they never sit on the phone.
+//
+// Signing out (or a session found expired at launch) also wipes what DASH kept on the phone for that
+// person: its AsyncStorage records (wipeLocalData), the files it wrote to the cache and the image cache.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 import * as SecureStore from 'expo-secure-store';
 import { Keyboard, Platform } from 'react-native';
 import { create } from 'zustand';
@@ -16,6 +21,7 @@ import { create } from 'zustand';
 import { resetSignedOutGuard, setAuthBridge } from '@/api/client';
 import { DEMO_ENABLED, DEMO_TOKEN_PREFIX } from '@/demo/config';
 import { personaFromToken, personaUser } from '@/demo/personas';
+import { clearDashCache } from '@/lib/files';
 
 export type SessionKind = 'staff' | 'vendor';
 
@@ -82,11 +88,24 @@ async function forgetPreviousInstall() {
 }
 
 const HEAVY_FIELDS = ['password', 'avatar', 'photo', 'photoUrl', 'profilePhoto', 'signature', 'documents'];
+// Private details the app never reads from the stored user (screens that show them fetch the record):
+// any key containing one of these words, or made of one of the short codes (panNumber, uan_no, pfAccount…).
+// Checked against every read of the session user (bank and blood group on My profile are read from the
+// fresh record; the stored one was only a fallback while it loads).
+const PRIVATE_WORDS = /bank|account_?(no|num)|ifsc|aadhaa?r|passport|salary|birth|blood|address|emergency|nominee/i;
+const PRIVATE_CODES = new Set(['pan', 'uan', 'pf', 'esic', 'ctc', 'dob']);
+function isPrivateField(key: string) {
+  if (PRIVATE_WORDS.test(key)) return true;
+  // camelCase / snake_case / kebab-case parts: 'panNumber' → pan, number ('company' is not 'pan').
+  const parts = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[\s_\-.]+/);
+  return parts.some((p) => PRIVATE_CODES.has(p));
+}
 function slimUser(u: StaffUser): StaffUser {
   const out: StaffUser = { ...u };
   for (const k of HEAVY_FIELDS) delete out[k];
   for (const [k, v] of Object.entries(out)) {
     if (typeof v === 'string' && v.length > 2000) delete out[k]; // any other embedded data: URL
+    else if (isPrivateField(k)) delete out[k];
   }
   return out;
 }
@@ -119,6 +138,11 @@ export const useSession = create<SessionState>((set, get) => ({
       const deadDemo = !!p && typeof p.token === 'string' && p.token.startsWith(DEMO_TOKEN_PREFIX) && !DEMO_ENABLED;
       if (p && !expired && !deadDemo) {
         let user: StaffUser | null = p.kind === 'staff' && userRaw ? JSON.parse(userRaw) : null;
+        // A record saved by an older version may still hold private details: drop them on disk too.
+        if (user && Object.keys(user).some(isPrivateField)) {
+          user = slimUser(user);
+          await AsyncStorage.setItem(USER_KEY, JSON.stringify(user)).catch(() => undefined);
+        }
         // A demo role is named by its token; the stored user is only a cache of it (and may be the
         // demo's old self from before roles existed), so a mismatch takes the role's own record.
         const persona = p.kind === 'staff' ? personaFromToken(p.token) : null;
@@ -128,11 +152,12 @@ export const useSession = create<SessionState>((set, get) => ({
         }
         set({ kind: p.kind, token: p.token, tokenExpiresAt: p.tokenExpiresAt, user });
       } else if (p) {
-        await clearStored();
+        // Expired: the same clean-up as signing out (the server can't be told any more).
+        await forgetSignedIn();
       }
       set({ lastPhone: phone });
     } catch {
-      await clearStored();
+      await forgetSignedIn();
     } finally {
       set({ ready: true });
     }
@@ -167,14 +192,55 @@ export const useSession = create<SessionState>((set, get) => ({
     // device, PLAN §2.4). Best effort and time-boxed, so signing out never waits on the network.
     await runBeforeSignOut();
     await clearStored();
+    await wipeLocalData();
     Keyboard.dismiss(); // the whole signed-in stack goes (see signIn)
     set({ kind: null, token: null, tokenExpiresAt: null, user: null });
-    onSignOutListeners.forEach((fn) => fn());
+    notifySignedOut();
   },
 }));
 
 async function clearStored() {
   await Promise.allSettled([secure.del(TOKEN_KEY), AsyncStorage.removeItem(USER_KEY)]);
+}
+
+// What survives a sign-out in AsyncStorage: the next sign-in's prefill, this phone's settings and
+// install marker, and the tour records (dash.tour:<user> — only "seen / skipped" per person, kept so
+// the first-sign-in tour doesn't replay after every sign-in). Every other 'dash.' key is removed —
+// the call log, countersigned agreements, news "seen" marks, the query cache, push upload stamp, and
+// anything added later — so a new record is private by default.
+const KEEP_KEYS = new Set([PHONE_KEY, INSTALLED_KEY, 'dash.themePreference', 'dash.push.softAsk', 'dash.pay.privacy', 'dash.more.open']);
+const KEEP_PREFIXES = ['dash.tour:'];
+const keepOnSignOut = (k: string) => !k.startsWith('dash.') || KEEP_KEYS.has(k) || KEEP_PREFIXES.some((p) => k.startsWith(p));
+
+/** Removes what DASH kept on the phone for the person leaving. Never throws. */
+async function wipeLocalData() {
+  try {
+    const drop = (await AsyncStorage.getAllKeys()).filter((k) => !keepOnSignOut(k));
+    if (drop.length) await AsyncStorage.multiRemove(drop);
+  } catch {
+    // keep going: the files and images below still go
+  }
+  clearDashCache();
+  if (Platform.OS !== 'web') {
+    await Promise.allSettled([Image.clearDiskCache(), Image.clearMemoryCache()]);
+  }
+}
+
+/** A session found dead at launch: forget it exactly as signing out does. */
+async function forgetSignedIn() {
+  await clearStored();
+  await wipeLocalData();
+  notifySignedOut();
+}
+
+function notifySignedOut() {
+  onSignOutListeners.forEach((fn) => {
+    try {
+      fn();
+    } catch {
+      // one listener failing never stops the others
+    }
+  });
 }
 
 // Hooks that run at the start of signOut(), before the token is forgotten (push: remove this phone

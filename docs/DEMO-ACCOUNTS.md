@@ -10,16 +10,16 @@ A plain-words guide for the DASH mobile app. It covers three things:
 
 Tap **Try a demo role** on the sign-in screen, pick a role, and enter the code **123456**. That button is the only way in.
 
-Typing a number or email always signs in to the **real** DASH. **8328617610 is no longer the demo number**: it signs in for real like any other number. The demo email `afzal.demo@tamadamedia.com` and the demo sign-up / forgot-password addresses below no longer open the demo either. (Developers: `DEMO_TYPED_SIGN_IN` in `src/demo/config.ts` brings them back.) The parts below that mention typing them describe how it used to work.
+Typing a number or email always signs in to the **real** DASH. **The old demo number is now a real person's login**: it signs in for real like any other number. The demo email `afzal.demo@tamadamedia.com` and the demo sign-up / forgot-password addresses below no longer open the demo either. (Developers: `DEMO_TYPED_SIGN_IN` in `src/demo/config.ts` brings them back.) The parts below that mention typing them describe how it used to work.
 
-## Is 8328617610 in the DASH database?
+## Is the demo account in the DASH database?
 
-**No.** The demo number 8328617610, the code 123456, the email `afzal.demo@tamadamedia.com` and every "Afzal" person are **not** in the DASH database.
+**No.** The demo number `9000000000`, the code 123456, the email `afzal.demo@tamadamedia.com` and every "Afzal" person are **not** in the DASH database.
 
 - They live only inside the app, on your phone.
 - When you use them, the app answers itself with sample data. Nothing is sent to DASH, and no real data is read or changed.
 - The demo only exists in **development builds** (Expo Go or a dev build on your phone) and in **internal test builds** (the `preview` build you share with testers, when `EXPO_PUBLIC_DEMO=1` is set for it on expo.dev — see [EXPO-ENV.md](EXPO-ENV.md)). The app you publish to the Play Store or App Store has no demo at all.
-- In a store build, 8328617610 is treated like any other number: DASH sends a real WhatsApp code, then says "No staff account uses this number" (unless a real staff member has that number).
+- In a store build, the demo number is treated like any other number: DASH sends a real WhatsApp code, then says "No staff account uses this number" (unless a real staff member has that number).
 
 We did not look inside the live database. Nothing in the server, website or database code mentions this number.
 
@@ -121,17 +121,17 @@ Apart from the kiosk and pairing a TV, none of these are part of the mobile app.
 ## 3. Demo: one login, every role
 
 ### How to sign in
-On a development build (Expo Go or a dev build), or an internal preview build with the demo turned on:
+On a development build (Expo Go or a dev build), or an internal preview build with the demo turned on, tap **Try a demo role** and skip to step 3. Steps 1 and 2 only work when a developer switches `DEMO_TYPED_SIGN_IN` back on:
 
-1. **Mobile:** type `8328617610`, tap **Send code**, then type `123456`. No WhatsApp message is sent.
-2. **Or email:** tap **Sign in with email**, type `afzal.demo@tamadamedia.com` and the password `Demo@123`. Choose where the code goes (for WhatsApp, type `8328617610`), then type `123456`.
+1. **Mobile:** type `9000000000`, tap **Send code**, then type `123456`. No WhatsApp message is sent.
+2. **Or email:** tap **Sign in with email**, type `afzal.demo@tamadamedia.com` and the password `Demo@123`. Choose where the code goes (for WhatsApp, type `9000000000`), then type `123456`.
 3. A popup opens: **"Explore DASH as…"**. Tap the role you want, for example **Afzal HR**. You land on that role's Home.
 
 A wrong code or password tells you the right one. The gold pill at the top shows which role you are in, for example **DEMO · HR**.
 
-**Forgot password and sign-up (staff):** on the email screen, **Forgot password?** with `afzal.demo@tamadamedia.com`, then the number `8328617610`, the code `123456` and any new password of 4 or more characters (nothing changes: `Demo@123` still works). **New here? Create your account** with `afzal.newjoiner@tamadamedia.com` creates an account, and **Continue** opens Afzal Employee; `afzal.demo@tamadamedia.com` says the account already exists; `afzal.notlisted@tamadamedia.com` is refused because it is not on the list.
+**Forgot password and sign-up (staff):** on the email screen, **Forgot password?** with `afzal.demo@tamadamedia.com`, then the number `9000000000`, the code `123456` and any new password of 4 or more characters (nothing changes: `Demo@123` still works). **New here? Create your account** with `afzal.newjoiner@tamadamedia.com` creates an account, and **Continue** opens Afzal Employee; `afzal.demo@tamadamedia.com` says the account already exists; `afzal.notlisted@tamadamedia.com` is refused because it is not on the list.
 
-**Vendor sign-in screen:** `8328617610` with the password `123456` (or `Demo@123`). Or tap Register / Forgot password with `8328617610` or the demo email, then the code `123456`. From here the popup shows only the vendor roles.
+**Vendor sign-in screen:** `9000000000` with the password `123456` (or `Demo@123`). Or tap Register / Forgot password with `9000000000` or the demo email, then the code `123456`. From here the popup shows only the vendor roles.
 
 ### The roles in the popup
 CEO and COO are left out on purpose. Inbox counts below are where each role starts; they go down as you approve things.
@@ -169,7 +169,7 @@ CEO and COO are left out on purpose. Inbox counts below are where each role star
 | **Afzal App Manager** | Documents › pending reviews PDF. Employees and Managers. |
 | **Afzal Master Admin** | Open a company › **Delete this company**: Nexus Productions (3 people, 3 departments, 3 projects) → type the name → swipe. Tamada Media (Demo) is refused. Import & export › bounty coins report. |
 
-**Google (demo picker):** on the sign-in screen tap **Continue with Google**. `afzal.demo@tamadamedia.com` signs in and opens "Explore DASH as…"; `afzal.newjoiner@tamadamedia.com` says the account was created and opens Afzal Employee; `afzal.khan.personal@gmail.com` is refused because it is not on the employee roster.
+**Google (demo picker):** on the sign-in screen tap **Continue with Google**. `afzal.demo@tamadamedia.com` signs in and opens "Explore DASH as…"; `afzal.newjoiner@tamadamedia.com` says the account was created and opens Afzal Employee; `not.on.roster@example.com` is refused because it is not on the employee roster.
 
 **Vendor portal** (one sample business, Afzal Studios & Co.)
 

@@ -6,6 +6,10 @@ import { type Ref, useImperativeHandle, useRef } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { WebView } from 'react-native-webview';
 
+// The page never navigates: only its own first load (inline HTML, at about:blank) and data: frames.
+// A link inside a previewed document can't take the frame to another site.
+const staysInPage = (url: string) => url.startsWith('about:blank') || url.startsWith('data:');
+
 export type WebFrameHandle = { send: (cmd: Record<string, unknown>) => void };
 export type WebFrameMessage = { type?: string; [k: string]: unknown };
 
@@ -37,6 +41,7 @@ export function WebFrame({
       accessibilityLabel={title}
       originWhitelist={['*']}
       source={{ html }}
+      onShouldStartLoadWithRequest={(req) => staysInPage(req.url)}
       onMessage={(e) => {
         try {
           const m = JSON.parse(e.nativeEvent.data) as WebFrameMessage;

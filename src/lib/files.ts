@@ -6,9 +6,13 @@
 //
 // OUT (downloads): authenticated routes (payslip PDF, receipts, passes) need the bearer header, so
 // they are downloaded to the cache with expo-file-system and then opened/shared from there.
+//
+// Everything DASH writes goes into one `dash/` folder of the cache (cacheFile), so signing out can
+// delete it in one go (clearDashCache, called from auth/session.ts).
 
 import * as DocumentPicker from 'expo-document-picker';
-import { File, Paths } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
+import { Platform } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
@@ -25,6 +29,31 @@ export class FileError extends Error {}
 
 function safeName(name: string) {
   return name.replace(/[^\w.\-]+/g, '_').slice(-120) || 'file';
+}
+
+const CACHE_DIR = 'dash';
+// Folders in the cache where the pickers and the printer leave their own copies (receipts, ID photos,
+// generated PDFs). Removed on sign-out with DASH's own folder; a missing one is skipped.
+const LIBRARY_CACHE_DIRS = ['ImagePicker', 'DocumentPicker', 'ImageManipulator', 'Print'];
+
+/** A file (not created yet) in DASH's own cache folder, which is made when missing. */
+export function cacheFile(name: string): File {
+  const dir = new Directory(Paths.cache, CACHE_DIR);
+  if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
+  return new File(dir, name);
+}
+
+/** Deletes every file DASH (and the pickers) left in the cache. Never throws. */
+export function clearDashCache() {
+  if (Platform.OS === 'web') return;
+  for (const name of [CACHE_DIR, ...LIBRARY_CACHE_DIRS]) {
+    try {
+      const dir = new Directory(Paths.cache, name);
+      if (dir.exists) dir.delete();
+    } catch {
+      // keep going: the next sign-out tries again
+    }
+  }
 }
 
 // Photo from camera or gallery → compressed JPEG data URL.
@@ -72,9 +101,13 @@ export async function pickDocument(types: string[] = ['application/pdf', 'image/
 // Download an authenticated API route (e.g. '/hr/payslips/123/pdf') into the cache.
 export async function downloadAuthed(apiPath: string, fileName: string): Promise<string> {
   if (isDemoSession()) throw new FileError('Downloads are not available in the demo account.');
-  const dest = new File(Paths.cache, safeName(fileName));
-  const url = apiPath.startsWith('http') ? apiPath : `${API_URL}${apiPath.startsWith('/api/') ? apiPath.slice(4) : apiPath}`;
+  const url = /^[a-z][a-z0-9+.-]*:/i.test(apiPath) ? apiPath : `${API_URL}${apiPath.startsWith('/api/') ? apiPath.slice(4) : apiPath}`;
+  // The bearer token only ever goes to DASH's own API: a full link to anywhere else is refused.
+  if (url !== API_URL && !url.startsWith(`${API_URL}/`) && !url.startsWith(`${API_URL}?`)) {
+    throw new FileError('This file can’t be downloaded here.');
+  }
   try {
+    const dest = cacheFile(safeName(fileName));
     const out = await File.downloadFileAsync(url, dest, { headers: authHeaders(), idempotent: true });
     return out.uri;
   } catch (e: any) {
@@ -86,7 +119,7 @@ export async function downloadAuthed(apiPath: string, fileName: string): Promise
 export async function saveDataUrl(dataUrl: string, fileName: string): Promise<string> {
   const m = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(dataUrl);
   if (!m) throw new FileError('That file could not be read.');
-  const f = new File(Paths.cache, safeName(fileName));
+  const f = cacheFile(safeName(fileName));
   if (f.exists) f.delete();
   f.create();
   if (m[2]) f.write(m[3]!, { encoding: 'base64' });

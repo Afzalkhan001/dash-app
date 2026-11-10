@@ -12,10 +12,10 @@
 // Cells are written as typed values (text stays text), so nothing in a sheet is ever run as a formula.
 
 import * as DocumentPicker from 'expo-document-picker';
-import { File, Paths } from 'expo-file-system';
+import { File } from 'expo-file-system';
 import { Platform } from 'react-native';
 
-import { FileError, shareFile } from '@/lib/files';
+import { cacheFile, FileError, shareFile } from '@/lib/files';
 
 type XLSXModule = typeof import('xlsx');
 let cached: XLSXModule | null = null;
@@ -107,7 +107,7 @@ export async function shareXlsx(fileName: string, sheets: readonly SheetSpec[], 
   let uri: string;
   try {
     const b64 = workbookBase64(sheets);
-    const f = new File(Paths.cache, name);
+    const f = cacheFile(name); // DASH's cache folder, cleared on sign-out
     if (f.exists) f.delete();
     f.create();
     f.write(b64, { encoding: 'base64' });

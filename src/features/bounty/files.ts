@@ -4,10 +4,10 @@
 //     short-lived signed https link (bounty files kept in Storage). Both land in the cache first and
 //     are then opened with the system share sheet (Save to Files, open in…, print).
 
-import { File, Paths } from 'expo-file-system';
+import { File } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 
-import { FileError, type PickedFile, saveDataUrl, shareFile } from '@/lib/files';
+import { cacheFile, FileError, type PickedFile, saveDataUrl, shareFile } from '@/lib/files';
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
 // A whole request body has to fit the server's 12 MB JSON limit (data URLs are ~4/3 of the file).
@@ -78,12 +78,14 @@ export async function openDataUrl(dataUrl: string, fileName: string) {
   await openLocal(uri, name, mime);
 }
 
-// A signed https link (expires in minutes) → download now → share sheet.
+// A signed https link (expires in minutes) → download now → share sheet. Plain http is refused, so the
+// file can't be read or swapped on the way.
 export async function openRemoteFile(url: string, fileName: string) {
+  if (!/^https:\/\//i.test(url)) throw new FileError('This file link isn’t secure, so it wasn’t opened.');
   const name = safeName(fileName || 'file');
   let uri: string;
   try {
-    const out = await File.downloadFileAsync(url, new File(Paths.cache, name), { idempotent: true });
+    const out = await File.downloadFileAsync(url, cacheFile(name), { idempotent: true });
     uri = out.uri;
   } catch {
     throw new FileError('Could not download the file. Try again.');

@@ -182,6 +182,7 @@ export function useTeamAttendance(date: string, enabled = true) {
     enabled: enabled && !!userId,
     queryFn: async ({ signal }) =>
       (await unwrap(api.get<{ date: string; records: AttendanceRow[] }>(`/hr/attendance/team?date=${encodeURIComponent(date)}`, signal))).records ?? [],
+    meta: { persist: false }, // the team's clock-in places and pings: memory only
   });
 }
 
@@ -191,6 +192,7 @@ export function useMyRegularizations(enabled = true) {
     queryKey: ['att-regs', userId],
     enabled: enabled && !!userId,
     queryFn: async ({ signal }) => (await unwrap(api.get<{ requests: Regularization[] }>('/hr/regularizations/mine', signal))).requests ?? [],
+    meta: { persist: false },
   });
 }
 
@@ -252,6 +254,7 @@ export function useMyLeaveRequests(enabled = true) {
     enabled: enabled && !!userId,
     queryFn: async ({ signal }) => (await unwrap(api.get<{ requests: LeaveRequestLite[] }>('/hr/leave/requests/mine', signal))).requests ?? [],
     staleTime: 5 * 60_000,
+    meta: { persist: false },
   });
 }
 

@@ -43,7 +43,7 @@ These are patterns, not copies. The app's own words and look (Ember tokens, Plus
   - The person is on a tab root. No pushed screen is on top, and no Sheet, Alert or MenuSheet is open.
   - The app is in the foreground.
 - **Not shown** to a deactivated vendor (403 or `inactive`), and never while the demo role picker is open.
-- **Demo:** each "Afzal <Role>" persona has its own user id (`personaUserId`), so every persona gets its tour on first open. That makes it easy to test: sign in with 8328617610 → 123456, or "Try a demo role", then use More → Switch demo role.
+- **Demo:** each "Afzal <Role>" persona has its own user id (`personaUserId`), so every persona gets its tour on first open. That makes it easy to test: tap "Try a demo role" → 123456, then use More → Switch demo role.
 
 ### 2.2 Skipping, ending, replaying
 

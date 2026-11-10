@@ -10,7 +10,6 @@
 // the bar says why. Start and End may ask for the requester's 6-digit code; End is a swipe in a
 // confirm sheet (use-task-flow).
 
-import * as WebBrowser from 'expo-web-browser';
 import { useLocalSearchParams } from 'expo-router';
 import { Link2, type LucideIcon, Mail, Pause, Phone, Play, SearchX, Square } from 'lucide-react-native';
 import { type ReactNode } from 'react';
@@ -40,6 +39,7 @@ import { rowStatus, type TaskFlow, taskIcon } from '@/features/tasks/task-card';
 import { useTasksRouteGate } from '@/features/tasks/gate';
 import { useTaskFlow } from '@/features/tasks/use-task-flow';
 import { hmLabel, phoneLabel, stampLabel } from '@/features/visitors/format';
+import { mailtoLink, openExternal, telLink } from '@/lib/open-link';
 import { RouteGate } from '@/features/shared/route-gate';
 import { palette, radius, space, type as typeScale } from '@/theme/tokens';
 import {
@@ -72,9 +72,13 @@ const str = (v: unknown) => (v == null ? '' : String(v));
 const dayAndTime = (ymd: unknown, hm: unknown, today: string) =>
   [str(ymd) ? safeDay(str(ymd), today) : '', str(hm) ? hmLabel(str(hm)) : ''].filter(Boolean).join(', ');
 
-// No dialler / mail app (or a malformed address) must not surface as an unhandled rejection.
-const tel = (phone: string) => () => void Linking.openURL(`tel:${phone.replace(/[^\d+]/g, '')}`).catch(() => {});
-const mail = (email: string) => () => void Linking.openURL(`mailto:${email}`).catch(() => {});
+// No dialler / mail app (or a malformed address) must not surface as an unhandled rejection. The
+// links are built by lib/open-link, so a stored email can't add recipients or a prefilled body.
+const openIf = (url: string | null) => {
+  if (url) void Linking.openURL(url).catch(() => {});
+};
+const tel = (phone: string) => () => openIf(telLink(phone));
+const mail = (email: string) => () => openIf(mailtoLink(email));
 
 /** Someone (or something) to reach from the task: an AccountRow with a Call / Email / Open pill. */
 type Contact = { key: string; icon: LucideIcon; title: string; sub: string; action: string; onPress: () => void };
@@ -230,7 +234,7 @@ function useFacts(row: TaskRow | undefined, bookings: Booking[] | undefined, tod
         title: 'Reference link',
         sub: link.replace(/^https?:\/\//i, ''),
         action: 'Open',
-        onPress: () => void WebBrowser.openBrowserAsync(/^https?:\/\//i.test(link) ? link : `https://${link}`).catch(() => {}),
+        onPress: () => void openExternal(link, { addScheme: true }),
       });
     }
   } else if (row.requesterName) {

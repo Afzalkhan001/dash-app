@@ -121,6 +121,7 @@ export function useMyReimbursements() {
       const r = await unwrap(api.get<{ ok: true; reimbursements: Reimbursement[] }>('/reimbursements/mine', signal));
       return Array.isArray(r.reimbursements) ? r.reimbursements : [];
     },
+    meta: { persist: false },
   });
 }
 
@@ -134,6 +135,7 @@ export function useKekaReimbursements(enabled = true) {
       const r = await unwrap(api.get<{ ok: true; reimbursements: Reimbursement[] }>('/reimbursements/keka-all', signal));
       return Array.isArray(r.reimbursements) ? r.reimbursements : [];
     },
+    meta: { persist: false },
   });
 }
 

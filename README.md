@@ -78,9 +78,10 @@ without a DASH account.
 The plain-words guide (every sign-in method, every role, and the demo personas) is
 [docs/DEMO-ACCOUNTS.md](docs/DEMO-ACCOUNTS.md).
 
-- **Mobile:** `8328617610`, code `123456`.
-- **Email:** `afzal.demo@tamadamedia.com`, password `Demo@123`, then either way to get the code. The WhatsApp step wants `8328617610`. The code is `123456`.
-- **Vendor sign-in:** `8328617610` with the password `123456` (or `Demo@123`), or **Register / Forgot password** with `8328617610` or the demo email, then the code `123456`. This shows only the vendor roles.
+- **The only way in:** tap **Try a demo role** on the sign-in screen. Typing a number or email always
+  goes to the real DASH server (the old demo number is a real person's sign-in now), so there are no demo numbers,
+  passwords or codes to type.
+- Inside the demo every code is `123456`.
 
 After the code, **"Explore DASH as…"** lists one person per role, each named "Afzal &lt;Role&gt;". Pick one to sign straight in.
 
@@ -128,7 +129,7 @@ The **Vendor portal** section is one sample business, Afzal Studios & Co., at fi
 **The Afzal personas do not exist in the DASH database.**
 - No user, vendor, mobile number or email for them exists on the server.
 - The vendor's PAN and GSTIN (`AFZ…1234…`), Udyam number and bank accounts are made up.
-- A store build (`production` profile) has no demo at all. There, 8328617610 is just a number sent to the real server.
+- A store build (`production` profile) has no demo at all. There, every number typed is sent to the real server.
   The demo is on only when `__DEV__` is true, or when `EXPO_PUBLIC_DEMO` is `1` **and** `EXPO_PUBLIC_BUILD_PROFILE`
   is `preview` (set per profile in `eas.json`; production sets `production`).
 

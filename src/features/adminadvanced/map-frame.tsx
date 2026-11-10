@@ -19,10 +19,15 @@ export type MapFrameProps = {
 
 const HTML = mapHtml();
 
+// The map page never leaves itself: only its first load (at DASH_URL, its base address) and blank /
+// data: frames. A link inside the map (the OpenStreetMap credit, anything injected) goes nowhere.
+const isBase = (url: string) => url === DASH_URL || url === `${DASH_URL}/`;
+
 export function MapFrame({ state, fitKey, onPick, onError, height }: MapFrameProps) {
   const ref = useRef<WebView>(null);
   const lastFit = useRef('');
   const [ready, setReady] = useState(false);
+  const loaded = useRef(false);
   const payload = JSON.stringify(state);
 
   useEffect(() => {
@@ -52,6 +57,11 @@ export function MapFrame({ state, fitKey, onPick, onError, height }: MapFramePro
         source={{ html: HTML, baseUrl: DASH_URL }}
         originWhitelist={['*']}
         onMessage={onMessage}
+        onShouldStartLoadWithRequest={(req) => req.url === 'about:blank' || req.url.startsWith('data:') || (!loaded.current && isBase(req.url))}
+        onLoadEnd={() => {
+          loaded.current = true;
+        }}
+        setSupportMultipleWindows={false}
         javaScriptEnabled
         scrollEnabled={false}
         nestedScrollEnabled

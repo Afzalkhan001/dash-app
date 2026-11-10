@@ -11,7 +11,6 @@
 // Nobody is emailed or WhatsApped by any of these: chat lists update live.
 
 import { useQueryClient } from '@tanstack/react-query';
-import { File, Paths } from 'expo-file-system';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Download, FileSpreadsheet, FileText, LogOut, Pencil, Type, UserMinus, UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
@@ -28,7 +27,7 @@ import { PeopleList } from '@/features/chat/people-list';
 import { shareChatXlsx } from '@/features/chatvoice/excel';
 import { shareCsv } from '@/lib/csv';
 import { dateLabel } from '@/lib/dates';
-import { FileError, shareFile } from '@/lib/files';
+import { cacheFile, FileError, shareFile } from '@/lib/files';
 import { plural } from '@/lib/format';
 import { themedStyles } from '@/theme/themed';
 import { palette, space } from '@/theme/tokens';
@@ -76,7 +75,7 @@ async function shareText(fileName: string, text: string) {
   // Written straight to the cache (lib/files saveDataUrl does not accept a `;charset=` data URL).
   let uri: string;
   try {
-    const f = new File(Paths.cache, fileName);
+    const f = cacheFile(fileName); // under the folder sign-out deletes
     if (f.exists) f.delete();
     f.create();
     f.write(text);

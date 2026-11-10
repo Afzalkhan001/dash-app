@@ -16,7 +16,7 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { FileText, Forward, Inbox, Link2, NotebookPen, RefreshCcw } from 'lucide-react-native';
 import { useState } from 'react';
-import { Linking, View } from 'react-native';
+import { View } from 'react-native';
 
 import {
   addPublicAppNote,
@@ -36,6 +36,7 @@ import { useHiring } from '@/features/hiring/use-hiring';
 import { type PickPerson, PersonPicker, usePickablePeople } from '@/features/shared/person-picker';
 import { dateLabel, stampLabel } from '@/lib/dates';
 import { downloadAuthed, FileError, shareFile } from '@/lib/files';
+import { openExternal } from '@/lib/open-link';
 import { themedStyles } from '@/theme/themed';
 import { palette, space } from '@/theme/tokens';
 import {
@@ -233,7 +234,8 @@ export default function ApplicationScreen() {
             title="Portfolio or profile"
             sub={a.profileLink}
             actionLabel="Open"
-            onPress={() => void Linking.openURL(openableUrl(a.profileLink))}
+            // Typed by the applicant: asks "Open <site>?" first, and only https opens.
+            onPress={() => void openExternal(openableUrl(a.profileLink), { confirm: true, via: 'system' })}
             accessibilityLabel={`Open portfolio, ${a.profileLink}`}
           />
         ) : null}

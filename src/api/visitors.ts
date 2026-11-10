@@ -87,6 +87,7 @@ export function useMyVisitors({ poll = false, enabled = true }: { poll?: boolean
       return { pending: Array.isArray(r.pending) ? r.pending : [], history: Array.isArray(r.history) ? r.history : [] };
     },
     refetchInterval: poll ? 30_000 : false,
+    meta: { persist: false }, // visitors' names, mobiles and photos: memory only
   });
 }
 
@@ -99,6 +100,7 @@ export function useMyInvites(enabled = true) {
       const r = await unwrap(api.get<{ ok: true; invites: Invite[] }>('/visitors/invites', signal));
       return Array.isArray(r.invites) ? r.invites : [];
     },
+    meta: { persist: false },
   });
 }
 

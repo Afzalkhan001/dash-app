@@ -31,6 +31,7 @@ import { type FileSource, FileViewerSheet } from '@/features/vendor/files';
 import { dateIN, maskTail, prettyPhone } from '@/features/vendor/format';
 import { ChangeRequestItem, ChangeRequestSheet, DocumentItem, PasswordSheet, panAadhaarText } from '@/features/vendor/profile';
 import { type InfoRow, InfoRows, useLastValue } from '@/features/vendor/ui';
+import { mailtoLink } from '@/lib/open-link';
 import { palette, radius, space } from '@/theme/tokens';
 import {
   ActivityList,
@@ -135,7 +136,9 @@ export default function VendorProfile() {
   const pocEmail = (v.business?.pocEmail || '').trim();
 
   function emailTamada() {
-    void Linking.openURL(`mailto:${pocEmail}`).catch(() => toast.show(`Couldn’t open your email app. Write to ${pocEmail}.`, 'danger'));
+    const u = mailtoLink(pocEmail);
+    if (!u) return toast.show(`Write to ${pocEmail}.`, 'danger');
+    void Linking.openURL(u).catch(() => toast.show(`Couldn’t open your email app. Write to ${pocEmail}.`, 'danger'));
   }
 
   const sections: DetailSection[] = [

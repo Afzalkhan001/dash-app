@@ -211,6 +211,7 @@ export function usePettyCashOverview(enabled = true) {
         excess: isApiError(rc) ? [] : arr<PettyCashExcess>(rc.excess),
       };
     },
+    meta: { persist: false },
   });
 }
 
@@ -253,6 +254,7 @@ export function useTeammates(enabled = true) {
         .map((u) => ({ id: u.id, name: u.name || 'Unnamed', dept: u.dept, employeeNumber: u.employeeNumber, email: u.email }))
         .sort((a, b) => a.name.localeCompare(b.name)),
     staleTime: 10 * 60_000,
+    meta: { persist: false }, // colleagues' emails and employee numbers
   });
 }
 
@@ -269,6 +271,7 @@ export function usePettyCashStatement(batchId: string, requestId?: string) {
           signal,
         ),
       ),
+    meta: { persist: false },
   });
 }
 

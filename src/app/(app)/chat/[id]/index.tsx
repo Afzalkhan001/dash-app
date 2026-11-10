@@ -57,6 +57,7 @@ import { rememberClip } from '@/features/chatvoice/clips';
 import { VoiceProvider } from '@/features/chatvoice/voice-player';
 import { istDateOf, stampLabel, timeOf } from '@/lib/dates';
 import { FileError, downloadAuthed, shareFile } from '@/lib/files';
+import { safeMime } from '@/lib/mime';
 import { themedStyles } from '@/theme/themed';
 import { palette, space } from '@/theme/tokens';
 import { Button, ConfirmSheet, EmptyState, ErrorState, haptic, MenuSheet, NavHeader, Screen, SkeletonList, SummaryCard, Text, toast } from '@/ui';
@@ -246,7 +247,8 @@ export default function ThreadScreen() {
     if (!m.attachment) return;
     try {
       const uri = await downloadAuthed(attachmentPath(id, m.id), m.attachment.name);
-      await shareFile(uri, m.attachment.type, m.attachment.name);
+      // The sender picked the type: only everyday file types go to the share sheet as themselves.
+      await shareFile(uri, safeMime(m.attachment.type), m.attachment.name);
     } catch (e) {
       toast.show(e instanceof FileError ? e.message : 'Could not open that file. Try again.', 'danger');
     }

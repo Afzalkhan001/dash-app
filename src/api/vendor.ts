@@ -338,6 +338,7 @@ export function useVendorMe() {
       return r.vendor;
     },
     staleTime: 15_000,
+    meta: { persist: false }, // PAN, GSTIN, bank account and address: memory only
   });
 }
 
@@ -376,6 +377,7 @@ export function useVendorChangeRequests(enabled = true) {
     queryKey: ['vendor', 'change-requests'],
     enabled,
     queryFn: async ({ signal }) => (await unwrap(vget<{ ok: true; changeRequests: ChangeRequest[] }>('/vendor/change-requests', signal))).changeRequests ?? [],
+    meta: { persist: false }, // old and new bank / tax values
   });
 }
 
@@ -388,6 +390,7 @@ export function useVendorBills(enabled = true) {
     queryKey: ['vendor', 'bills'],
     enabled,
     queryFn: async ({ signal }) => (await unwrap(vget<{ ok: true; bills: VendorBill[] }>('/vendor/bills', signal))).bills ?? [],
+    meta: { persist: false },
   });
 }
 
@@ -399,6 +402,7 @@ export function useVendorAgreements(enabled = true) {
     queryKey: ['vendor', 'agreements'],
     enabled,
     queryFn: async ({ signal }) => (await unwrap(vget<{ ok: true; agreements: VendorAgreement[] }>('/vendor/agreements', signal))).agreements ?? [],
+    meta: { persist: false },
   });
 }
 

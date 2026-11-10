@@ -40,6 +40,7 @@ import {
 } from '@/api/announcements';
 import { dateLabel, dayLabel, istParts } from '@/lib/dates';
 import { FileError, saveDataUrl, shareFile } from '@/lib/files';
+import { OCTET_STREAM, safeMime } from '@/lib/mime';
 import { themedStyles } from '@/theme/themed';
 import { lightPalette, moduleTone, palette, radius, space } from '@/theme/tokens';
 import { Avatar, Card, haptic, PressableScale, Skeleton, Text, useLayout } from '@/ui';
@@ -197,8 +198,8 @@ const MIME: Record<string, string> = {
 
 function fileNameFor(a: Announcement, dataUrl: string) {
   if (a.fileName) return a.fileName;
-  const mime = /^data:([^;,]+)/.exec(dataUrl)?.[1] ?? '';
-  const ext = a.type === 'excel' ? 'xlsx' : a.type === 'ppt' ? 'pptx' : mime.split('/')[1] || 'bin';
+  const mime = safeMime(/^data:([^;,]+)/.exec(dataUrl)?.[1]);
+  const ext = a.type === 'excel' ? 'xlsx' : a.type === 'ppt' ? 'pptx' : mime === OCTET_STREAM ? 'bin' : mime.split('/')[1] || 'bin';
   return `announcement.${ext}`;
 }
 
@@ -207,7 +208,8 @@ export async function shareAnnouncementFile(a: Announcement) {
   try {
     const dataUrl = await annMediaCache.load(a.id);
     if (!dataUrl) throw new FileError('This announcement has no file attached.');
-    const mime = /^data:([^;,]+)/.exec(dataUrl)?.[1] || MIME[a.type || ''] || undefined;
+    // The poster's file type reaches the share sheet only when it is an everyday one (lib/mime).
+    const mime = safeMime(/^data:([^;,]+)/.exec(dataUrl)?.[1] || MIME[a.type || '']);
     const uri = await saveDataUrl(dataUrl, fileNameFor(a, dataUrl));
     await shareFile(uri, mime, a.title || 'Announcement');
   } catch (e) {

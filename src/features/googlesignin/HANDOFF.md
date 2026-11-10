@@ -18,7 +18,7 @@ Owner setup: `docs/GOOGLE-SIGNIN.md`. Env vars: `docs/EXPO-ENV.md`, `.env.exampl
     It opens a "Choose an account" sheet with three sample accounts (`demo/fixtures/googlesignin.ts`):
     - `afzal.demo@…` signs in, then "Explore DASH as…" (staff personas);
     - `afzal.newjoiner@…` shows "account created" and opens Afzal Employee;
-    - `afzal.khan.personal@gmail.com` shows the server's 403 "not on the employee roster" wording.
+    - `not.on.roster@example.com` shows the server's 403 "not on the employee roster" wording.
     When client ids are set but this is Expo Go, the sheet adds "Real Google sign-in · Available in the installed app".
   - **off**: store builds without ids render nothing.
 - [x] `(auth)/login.tsx` and `(auth)/email.tsx` (credentials step): the button sits under the other

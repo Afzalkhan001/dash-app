@@ -19,6 +19,11 @@ import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Banner, IconButton, Skeleton, Text } from '@/ui';
 
 const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174';
+// Subresource Integrity (sha384 of cdnjs's exact files): a changed copy on the CDN is refused, not run.
+// The worker is loaded as a plain script too (pdf.js then parses on the page instead of a Web Worker),
+// because a worker started by URL can't be integrity-checked.
+const PDFJS_SRI = 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e';
+const PDFJS_WORKER_SRI = 'sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2';
 
 /** Strip a data URL to its base64. */
 export const b64Of = (dataUrl: string) => String(dataUrl || '').replace(/^data:[^;,]*;base64,/, '');
@@ -39,7 +44,8 @@ html,body{margin:0;padding:0;background:transparent;-webkit-user-select:none;use
 .m:before{content:'';position:absolute;left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:currentColor}
 #msg{font:13px -apple-system,Roboto,Arial,sans-serif;color:#b91c1c;padding:12px}
 </style>
-<script src="${PDFJS}/pdf.min.js"></script></head><body><div id="wrap"><canvas id="c"></canvas><div id="layer"></div></div><div id="msg"></div>
+<script src="${PDFJS}/pdf.min.js" integrity="${PDFJS_SRI}" crossorigin="anonymous"></script>
+<script src="${PDFJS}/pdf.worker.min.js" integrity="${PDFJS_WORKER_SRI}" crossorigin="anonymous"></script></head><body><div id="wrap"><canvas id="c"></canvas><div id="layer"></div></div><div id="msg"></div>
 <script>
 var B64=${data};var TAP=${tappable ? 'true' : 'false'};
 var pdf=null,cur=1,markers=[],busy=false,want=null;
@@ -47,9 +53,9 @@ function send(m){var s=JSON.stringify(m);if(window.ReactNativeWebView){window.Re
 function fail(t){document.getElementById('msg').textContent=t;send({type:'error',message:t});}
 function bytes(){var raw=atob(B64);var out=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out;}
 async function boot(){
-  if(!window.pdfjsLib)return fail('The PDF viewer could not load. Check the internet connection and try again.');
-  pdfjsLib.GlobalWorkerOptions.workerSrc='${PDFJS}/pdf.worker.min.js';
-  try{pdf=await pdfjsLib.getDocument({data:bytes()}).promise;}catch(e){return fail('This PDF could not be opened.');}
+  if(!window.pdfjsLib||!window.pdfjsWorker)return fail('The PDF viewer could not load. Check the internet connection and try again.');
+  // isEvalSupported:false closes the font-code hole in pdf.js before 4.2 (CVE-2024-4367).
+  try{pdf=await pdfjsLib.getDocument({data:bytes(),isEvalSupported:false}).promise;}catch(e){return fail('This PDF could not be opened.');}
   send({type:'ready',pages:pdf.numPages});
   show(1);
 }

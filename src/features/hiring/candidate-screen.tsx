@@ -22,7 +22,6 @@
 import { Redirect, useRouter } from 'expo-router';
 import { BriefcaseBusiness, CircleCheck, Forward, Link2, MoreHorizontal, UserCheck, UserRoundX, Users } from 'lucide-react-native';
 import { useState } from 'react';
-import { Linking } from 'react-native';
 
 import { useBountyWallet } from '@/api/bounty';
 import {
@@ -59,6 +58,7 @@ import { noteDecision } from '@/features/inbox/decided';
 import type { InboxDetailProps } from '@/features/plugin-types';
 import { type PickPerson, PersonPicker, usePickablePeople } from '@/features/shared/person-picker';
 import { dateLabel, stampLabel } from '@/lib/dates';
+import { openExternal } from '@/lib/open-link';
 import { themedStyles } from '@/theme/themed';
 import { palette, space } from '@/theme/tokens';
 import {
@@ -317,7 +317,8 @@ export function CandidateScreen({ id }: { id: string }) {
             title="Profile link"
             sub={r.profileLink}
             actionLabel="Open"
-            onPress={() => void Linking.openURL(openableUrl(r.profileLink))}
+            // Typed by the candidate or referrer: asks "Open <site>?" first, and only https opens.
+            onPress={() => void openExternal(openableUrl(r.profileLink), { confirm: true, via: 'system' })}
             accessibilityLabel={`Open profile link, ${r.profileLink}`}
           />
         ) : null}

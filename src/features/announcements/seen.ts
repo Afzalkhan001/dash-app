@@ -7,8 +7,8 @@
 // The server keeps no read state for announcements, so this is kept on the phone (AsyncStorage
 // `dash.news.seen`), one list per person — the way the website keeps its pop-up "seen" marks in the
 // browser (dash.html annPopupSeen, localStorage dash_ann_popup_seen). Marks older than 30 days are
-// dropped (a post is only new for 2), and at most 200 are kept per person. Signing out does not clear
-// it. Until the saved marks are read the dot stays off, so it never flashes on and off at launch.
+// dropped (a post is only new for 2), and at most 200 are kept per person. Signing out clears them (the
+// session wipe removes the key; the in-memory copy is emptied below so it isn't written back). Until the saved marks are read the dot stays off, so it never flashes on and off at launch.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
@@ -17,7 +17,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { type Announcement, isCelebration } from '@/api/announcements';
-import { useSession } from '@/auth/session';
+import { onSignOut, useSession } from '@/auth/session';
 import { postedWithin } from '@/features/announcements/parts';
 
 /** How long a post counts as new, in days. */
@@ -74,6 +74,9 @@ const useNewsSeen = create<NewsSeenState>()(
 
 // No storage at all would mean nothing to wait for (and no hydration callback): don't hide the dot forever.
 if (!useNewsSeen.persist.getOptions().storage) useNewsSeen.getState().markReady();
+
+// Sign-out wipes the saved marks; empty the copy in memory too, or the next mark would write them back.
+onSignOut(() => useNewsSeen.setState({ byUser: {} }));
 
 /** A post that lights the bell while unseen: posted in the last 2 days, and not a celebration card. */
 export function isNewPost(a: Announcement | null | undefined, now?: number): a is Announcement {

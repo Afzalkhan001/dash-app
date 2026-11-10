@@ -30,8 +30,8 @@ Scope: staff **forgot password** and **sign-up**. Google sign-in and push stay i
 
 ## Demo (no token before sign-in → `demo/auth-extras.ts`; same answers in `demo/fixtures/signin.ts`)
 - **Forgot:**
-  - `afzal.demo@tamadamedia.com` → "ends in 7610";
-  - 8328617610 (another number shows the "does not end in 7610" or mismatch wording);
+  - `afzal.demo@tamadamedia.com` → "ends in 0000";
+  - `DEMO_PHONE` (9000000000; another number shows the "does not end in 0000" or mismatch wording);
   - code 123456;
   - any password of at least 4 characters. Nothing is sent or stored, and Demo@123 stays.
 - **Sign-up:**

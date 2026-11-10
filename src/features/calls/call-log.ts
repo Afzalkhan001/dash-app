@@ -17,7 +17,8 @@
 //     time spent with someone else, or 'no-answer' / 'missed' when nobody was there
 //   - `meeting-ended`, or the bar's check finding the call over → a 'ringing' call becomes 'missed'
 // A call this phone never heard about (the app was closed) is not here. One list per person under
-// `dash.calls.log` (AsyncStorage), newest first, at most 80. Signing out does not clear it.
+// `dash.calls.log` (AsyncStorage), newest first, at most 80. Signing out clears it (auth/session.ts
+// removes the stored copy; the in-memory list is emptied below).
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMemo } from 'react';
@@ -26,7 +27,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { RingEvent } from '@/api/calls';
 import { isDemoSession } from '@/api/client';
-import { useSession } from '@/auth/session';
+import { onSignOut, useSession } from '@/auth/session';
 import { demoCallHistory } from '@/demo/fixtures/calls';
 import { hms } from '@/features/attendance/format';
 
@@ -68,6 +69,9 @@ const useCallLogStore = create<LogState>()(
     onRehydrateStorage: () => () => settleStale(),
   }),
 );
+
+// Signing out empties the list in memory too, or the next change would write it back to the phone.
+onSignOut(() => useCallLogStore.setState({ byUser: {}, ringing: null }));
 
 /** A call that was open when the app was closed (or stopped) is over now; how long it lasted is unknown. */
 function settleStale() {

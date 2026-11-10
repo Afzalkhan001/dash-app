@@ -6,7 +6,7 @@
 
 import { Check, type LucideIcon, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,9 +24,62 @@ const FLOAT_INSET = space.xs;
 // How many sheets are open right now (written from effects only). The first-sign-in tour waits while
 // any is up, because a sheet's Modal would sit on top of the tour.
 const openSheets = { count: 0 };
+// How to close each open sheet: the app lock closes them all before it covers the app.
+const closers = new Set<() => void>();
+// iOS: the sheets whose Modal is on screen natively (onShow → onDismiss). UIKit can't present the lock's
+// Modal while another one is up or still leaving, so the lock waits for this to empty.
+const presented = new Set<object>();
+const presentedWaiters = new Set<() => void>();
+const notePresented = (id: object, on: boolean) => {
+  if (on) presented.add(id);
+  else if (presented.delete(id)) presentedWaiters.forEach((fn) => fn());
+};
 
 /** True while any Sheet (or MenuSheet) is showing. */
 export const isAnySheetOpen = () => openSheets.count > 0;
+
+/** iOS: a sheet's Modal is still on screen (shown, or not finished leaving). Always false elsewhere. */
+export const isAnySheetPresented = () => Platform.OS === 'ios' && presented.size > 0;
+
+/**
+ * Closes every open sheet at once, without the "Discard changes?" question and without the fade (the
+ * app lock is about to cover the app). Resolves once iOS has taken their Modals away (at most ~0.8 s).
+ */
+export function closeAllSheets(): Promise<void> {
+  [...closers].forEach((close) => close());
+  if (!isAnySheetPresented()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      presentedWaiters.delete(check);
+      resolve();
+    };
+    const check = () => {
+      if (presented.size === 0) done();
+    };
+    const timer = setTimeout(done, 800);
+    presentedWaiters.add(check);
+  });
+}
+
+// While the app is going to the background with the app lock on, every open sheet draws a plain cover
+// over itself, so the app switcher's snapshot never shows what was in it.
+let sheetsHidden = false;
+const hiddenListeners = new Set<() => void>();
+const subscribeHidden = (fn: () => void) => {
+  hiddenListeners.add(fn);
+  return () => {
+    hiddenListeners.delete(fn);
+  };
+};
+const readHidden = () => sheetsHidden;
+
+/** Covers (true) or uncovers every open sheet's content. Used by the app lock's privacy view. */
+export function setSheetsHidden(on: boolean) {
+  if (sheetsHidden === on) return;
+  sheetsHidden = on;
+  hiddenListeners.forEach((fn) => fn());
+}
 
 /**
  * Bottom sheet: title (1 line) + subtitle (2 lines), a scrolling body (gap 16) and an optional pinned
@@ -62,14 +115,41 @@ export function Sheet({
   const { height } = useWindowDimensions();
   const reduced = useReducedMotion();
   const y = useSharedValue(reduced ? 0 : height);
+  const hidden = useSyncExternalStore(subscribeHidden, readHidden);
+  // Closed by closeAllSheets: leave at once, with no fade. Reset when the sheet opens again.
+  const [instant, setInstant] = useState(false);
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (visible !== wasVisible) {
+    setWasVisible(visible);
+    if (visible) setInstant(false);
+  }
+  const [id] = useState(() => ({}));
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!visible) return;
     openSheets.count += 1;
+    const close = () => {
+      setInstant(true);
+      closeRef.current();
+    };
+    closers.add(close);
     return () => {
       openSheets.count = Math.max(0, openSheets.count - 1);
+      closers.delete(close);
     };
   }, [visible]);
+
+  // Unmounted while on screen: its Modal still fades out natively, so count it as leaving for a moment.
+  useEffect(
+    () => () => {
+      if (presented.has(id)) setTimeout(() => notePresented(id, false), 400);
+    },
+    [id],
+  );
 
   useEffect(() => {
     if (!visible) {
@@ -160,7 +240,15 @@ export function Sheet({
   );
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={requestClose} statusBarTranslucent navigationBarTranslucent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType={instant ? 'none' : 'fade'}
+      onRequestClose={requestClose}
+      onShow={Platform.OS === 'ios' ? () => notePresented(id, true) : undefined}
+      onDismiss={Platform.OS === 'ios' ? () => notePresented(id, false) : undefined}
+      statusBarTranslucent
+      navigationBarTranslucent>
       <SurfaceContext.Provider value="sheet">
         {/* The sheet sits in a flex column that ends above the keyboard and starts below the status bar,
             so it can never grow past the top of the screen — the body scrolls instead. */}
@@ -179,6 +267,7 @@ export function Sheet({
             </Animated.View>
           )}
         </KeyboardAvoidingView>
+        {hidden ? <View style={styles.privacy} pointerEvents="none" /> : null}
       </SurfaceContext.Provider>
     </Modal>
   );
@@ -293,4 +382,6 @@ const styles = themedStyles(() => ({
   },
   sheetFloat: { borderRadius: radius.xxl, borderBottomWidth: 1 },
   floatTop: { height: space.lg },
+  // The privacy cover over a sheet while the app goes to the background (app lock on).
+  privacy: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: palette.canvas },
 }));

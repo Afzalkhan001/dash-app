@@ -81,6 +81,7 @@ export function useAttendanceMonth(month: string, enabled = true) {
     enabled: enabled && !!userId,
     queryFn: ({ signal }) =>
       unwrap(api.get<{ month: string; records: AttendanceRecord[] }>(`/hr/attendance/mine?month=${month}`, signal)),
+    meta: { persist: false }, // a month of clock-in times and places: memory only
   });
 }
 

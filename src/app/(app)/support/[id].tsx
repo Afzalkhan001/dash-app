@@ -44,6 +44,7 @@ import {
 import { themedStyles } from '@/theme/themed';
 import { useSession } from '@/auth/session';
 import { webNav } from '@/lib/access';
+import { mailtoLink, telLink } from '@/lib/open-link';
 import { RouteGate } from '@/features/shared/route-gate';
 
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '');
@@ -75,8 +76,8 @@ function AssigneeSheet({ name, open, onClose }: { name: string | null; open: boo
         <>
           {dial || email ? (
             <View style={styles.contact}>
-              {dial ? <IconAction icon={Phone} label="Call" onPress={() => void Linking.openURL(`tel:${dial}`).catch(() => {})} /> : null}
-              {email ? <IconAction icon={Mail} label="Email" onPress={() => void Linking.openURL(`mailto:${email}`).catch(() => {})} /> : null}
+              {dial ? <IconAction icon={Phone} label="Call" onPress={() => { const u = telLink(dial); if (u) void Linking.openURL(u).catch(() => {}); }} /> : null}
+              {email ? <IconAction icon={Mail} label="Email" onPress={() => { const u = mailtoLink(email); if (u) void Linking.openURL(u).catch(() => {}); }} /> : null}
             </View>
           ) : null}
           <SummaryCard

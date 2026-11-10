@@ -109,7 +109,7 @@ export const DEMO_SAMPLE_SHEETS: Record<'employees' | 'updates' | 'projects' | '
         name: 'Master',
         rows: [
           ['Name', 'Department', 'Email ID', 'Password', 'For Login', 'Period', 'Plan', 'INR', 'USD', 'Renewal Date', 'Payee', 'Payment Mode', 'Keka Codes', 'Status', 'Owner', 'Comments'],
-          ['Frame.io', 'Creative', 'post@tamadamedia.com', '(not imported)', 'https://frame.io', 'yearly', 'Team', 45000, 540, '15/01/2027', 'Adobe', 'Card', 'YT-NW-C_SVC2_HaiTV', 'active', 'Priya Sharma', 'Review links for clients'],
+          ['Frame.io', 'Creative', 'post@tamadamedia.com', '(not imported)', 'https://frame.io', 'yearly', 'Team', 45000, 540, '15/01/2027', 'Adobe', 'Card', 'YT-NW-C_SVC2_TeluguTalkies', 'active', 'Priya Sharma', 'Review links for clients'],
           ['Epidemic Sound', 'Creative', 'music@tamadamedia.com', '(not imported)', 'https://epidemicsound.com', 'monthly', 'Business', 2999, '', '05/11/2026', 'Epidemic', 'Card', '', 'active', 'Sanjay Kumar', ''],
           ['Hootsuite', 'Marketing', 'social@tamadamedia.com', '(not imported)', 'https://hootsuite.com', 'monthly', 'Team', 8200, 99, '28/10/2026', 'Hootsuite', 'Card', '', 'not_using', 'Vikram Singh', 'Moving to Meta Business Suite'],
         ],

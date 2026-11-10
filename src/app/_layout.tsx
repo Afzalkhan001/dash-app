@@ -10,15 +10,16 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { type ErrorBoundaryProps, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { QueryProvider } from '@/api/query';
-import { AppLockGate } from '@/auth/app-lock';
+import { AppLockGate, appLockPrecheck } from '@/auth/app-lock';
 import { useSession } from '@/auth/session';
 import { describeError, installCrashReporter, takeLastCrash } from '@/lib/crash';
+import { useAppSwitcherProtection, useSensitiveScreenGuard } from '@/lib/privacy';
 import { ThemeProvider, useThemePreference } from '@/theme/theme-provider';
 import { palette } from '@/theme/tokens';
 import { ToastHost } from '@/ui/toast';
@@ -42,13 +43,19 @@ export default function RootLayout() {
   const hydrate = useSession((s) => s.hydrate);
   const themeLoaded = useThemePreference((s) => s.loaded);
   const loadTheme = useThemePreference((s) => s.load);
+  // The App lock setting, read before the splash hides, so a locked app never shows unlocked for a frame.
+  const [lockChecked, setLockChecked] = useState(false);
+  // No screenshots on sign-in codes, pay and other private screens; iOS blurs the app switcher's snapshot.
+  useSensitiveScreenGuard();
+  useAppSwitcherProtection();
 
   useEffect(() => {
     void hydrate();
     void loadTheme();
+    void appLockPrecheck().then(() => setLockChecked(true));
   }, [hydrate, loadTheme]);
 
-  const booted = (fontsLoaded || !!fontError) && ready && themeLoaded;
+  const booted = (fontsLoaded || !!fontError) && ready && themeLoaded && lockChecked;
   // The app closed on an error last time: show the saved report once, so it can be sent to support.
   useEffect(() => {
     if (!booted) return;

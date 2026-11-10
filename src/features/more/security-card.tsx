@@ -15,7 +15,7 @@ import { Fingerprint, ScanFace } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, Switch, View } from 'react-native';
 
-import { APP_LOCK_KEY } from '@/auth/app-lock';
+import { APP_LOCK_KEY, noteAppLockSetting } from '@/auth/app-lock';
 import { themedStyles } from '@/theme/themed';
 import { palette, radius } from '@/theme/tokens';
 import { haptic, isDarkScheme, ListRow, ModuleBadge, Skeleton } from '@/ui';
@@ -74,6 +74,7 @@ export function useAppLock() {
       if (!(await verify(next ? 'Turn on app lock' : 'Turn off app lock'))) return;
       if (next) await SecureStore.setItemAsync(APP_LOCK_KEY, '1');
       else await SecureStore.deleteItemAsync(APP_LOCK_KEY);
+      noteAppLockSetting(next); // the privacy cover follows the switch at once
       setEnabled(next);
       haptic.success();
     } catch {

@@ -14,10 +14,9 @@
 // - Never export bank, salary, ID or photo data unless the screen's own gate allows it.
 // - On the web build the file is downloaded instead of shared.
 
-import { File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
-import { FileError, shareFile } from '@/lib/files';
+import { cacheFile, FileError, shareFile } from '@/lib/files';
 
 export type CsvColumn<T> = { label: string; value: (row: T) => unknown };
 
@@ -55,9 +54,9 @@ function csvName(name: string) {
   return `${base}.csv`;
 }
 
-/** Write CSV text to the cache; returns the file's uri (the web build has no file system: use shareCsv). */
+/** Write CSV text to DASH's cache folder (cleared on sign-out); returns the file's uri (the web build has no file system: use shareCsv). */
 export function saveCsv(fileName: string, csv: string): string {
-  const f = new File(Paths.cache, csvName(fileName));
+  const f = cacheFile(csvName(fileName));
   if (f.exists) f.delete();
   f.create();
   f.write(`﻿${csv}`);

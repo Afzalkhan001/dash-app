@@ -7,7 +7,7 @@
 //
 //   afzal.demo@tamadamedia.com       a DASH user already           → signed in, then "Explore DASH as…"
 //   afzal.newjoiner@tamadamedia.com  on the approved list, no account yet → account created, Afzal Employee
-//   afzal.khan.personal@gmail.com    not on the roster             → the server's 403 wording
+//   not.on.roster@example.com    not on the roster             → the server's 403 wording
 //
 // None of these Google accounts are real or are ever sent to Google: the demo picker never opens Google.
 
@@ -38,7 +38,7 @@ export const DEMO_GOOGLE_ACCOUNTS: DemoGoogleAccount[] = [
     outcome: 'created',
   },
   {
-    email: 'afzal.khan.personal@gmail.com',
+    email: 'not.on.roster@example.com',
     name: 'Afzal (personal)',
     note: 'Not on the employee roster',
     outcome: 'not-listed',

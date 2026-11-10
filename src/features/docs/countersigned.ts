@@ -6,7 +6,8 @@
 // (never its files) at the moment of signing, and the signed copy and the agreement page read it back.
 //
 // One record per person under `dash.countersigned:<userId>`, newest first, at most 50. Every helper
-// catches its own errors and never throws. Signing out does not clear it; it holds no file data.
+// catches its own errors and never throws. It holds no file data, and signing out clears it
+// (auth/session.ts removes every `dash.countersigned:*` record; the query below is memory-only).
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useQueryClient } from '@tanstack/react-query';

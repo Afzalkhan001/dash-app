@@ -43,6 +43,7 @@ import { type PickPerson, PersonPicker } from '@/features/shared/person-picker';
 import { dayTime, priorityLabel, raisedOn, ticketStatus } from '@/features/support/format';
 import { phoneLabel } from '@/features/visitors/format';
 import { canDeleteTickets } from '@/features/adminadvanced/access';
+import { mailtoLink, telLink } from '@/lib/open-link';
 import { useAccess } from '@/lib/use-access';
 import { palette, radius, space } from '@/theme/tokens';
 import {
@@ -119,7 +120,7 @@ function ContactRow({ t }: { t: DeskTicket }) {
   const name = firstName(raiserOf(t));
   return (
     <View style={styles.contact}>
-      {dial ? <IconAction icon={Phone} label={`Call ${name}`} onPress={() => void Linking.openURL(`tel:${dial}`).catch(() => {})} /> : null}
+      {dial ? <IconAction icon={Phone} label={`Call ${name}`} onPress={() => { const u = telLink(dial); if (u) void Linking.openURL(u).catch(() => {}); }} /> : null}
       {wa.length >= 10 ? (
         <IconAction
           icon={MessageCircle}
@@ -127,7 +128,7 @@ function ContactRow({ t }: { t: DeskTicket }) {
           onPress={() => void Linking.openURL(`https://wa.me/${wa.length === 10 ? `91${wa}` : wa}`).catch(() => {})}
         />
       ) : null}
-      {email ? <IconAction icon={Mail} label="Email" onPress={() => void Linking.openURL(`mailto:${email}`).catch(() => {})} /> : null}
+      {email ? <IconAction icon={Mail} label="Email" onPress={() => { const u = mailtoLink(email); if (u) void Linking.openURL(u).catch(() => {}); }} /> : null}
     </View>
   );
 }

@@ -17,6 +17,10 @@ export type MapState = { type: 'state'; fences: MapFence[]; pin: MapPin | null; 
 export type MapEvent = { type: 'ready' } | { type: 'pick'; lat: number; lng: number } | { type: 'error'; message: string };
 
 export const LEAFLET_VERSION = '1.9.4';
+// Subresource Integrity: the browser refuses Leaflet unless it is byte-for-byte the 1.9.4 release
+// (sha384 of unpkg's dist files). The website's own copy must match too, else unpkg is tried.
+const LEAFLET_JS_SRI = 'sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH';
+const LEAFLET_CSS_SRI = 'sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H';
 
 export function mapHtml() {
   const own = `${DASH_URL}/public_assets/vendor/leaflet/`;
@@ -29,11 +33,14 @@ export function mapHtml() {
 </head><body><div id="m"></div><div id="e"></div>
 <script>
 (function(){
-  var OWN=${JSON.stringify(own)}, CDN=${JSON.stringify(cdn)};
+  var OWN=${JSON.stringify(own)}, CDN=${JSON.stringify(cdn)}, JS_SRI=${JSON.stringify(LEAFLET_JS_SRI)}, CSS_SRI=${JSON.stringify(LEAFLET_CSS_SRI)};
+  // Office names come from the server and tooltips are HTML: escaped, so a name can't add markup or script.
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];});}
+  function num(v,d){v=Number(v);return isFinite(v)?v:d;}
   function send(m){var s=JSON.stringify(m);
     if(window.ReactNativeWebView){window.ReactNativeWebView.postMessage(s);} else if(window.parent&&window.parent!==window){window.parent.postMessage({__dashMap:true,data:s},'*');}}
-  function css(href){var l=document.createElement('link');l.rel='stylesheet';l.href=href;document.head.appendChild(l);}
-  function js(src,ok,bad){var s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=bad;document.head.appendChild(s);}
+  function css(href,bad){var l=document.createElement('link');l.rel='stylesheet';l.integrity=CSS_SRI;l.crossOrigin='anonymous';if(bad)l.onerror=bad;l.href=href;document.head.appendChild(l);}
+  function js(src,ok,bad){var s=document.createElement('script');s.integrity=JS_SRI;s.crossOrigin='anonymous';s.src=src;s.onload=ok;s.onerror=bad;document.head.appendChild(s);}
   var map=null, layer=null, pending=null;
   function draw(st){
     if(!map){pending=st;return;}
@@ -41,7 +48,7 @@ export function mapHtml() {
     layer.clearLayers(); var all=[];
     (st.fences||[]).forEach(function(f){
       var col=f.selected?(c.pin||'#c33b02'):(c.fence||'#c33b02');
-      var circ=L.circle([f.lat,f.lng],{radius:f.radius_m,color:col,weight:f.selected?3:2,fillColor:col,fillOpacity:f.selected?.08:.14,dashArray:f.selected?'6 6':null}).bindTooltip(f.name+' · '+f.radius_m+' m');
+      var circ=L.circle([f.lat,f.lng],{radius:f.radius_m,color:col,weight:f.selected?3:2,fillColor:col,fillOpacity:f.selected?.08:.14,dashArray:f.selected?'6 6':null}).bindTooltip(esc(f.name)+' · '+esc(num(f.radius_m,0))+' m');
       layer.addLayer(circ); all.push(circ);
       layer.addLayer(L.circleMarker([f.lat,f.lng],{radius:4,color:col,fillColor:col,fillOpacity:1}));
     });
@@ -66,8 +73,8 @@ export function mapHtml() {
     if(pending){var p=pending;pending=null;draw(p);}
   }
   function fail(){var e=document.getElementById('e');e.style.display='flex';e.textContent='The map could not load. Check your internet connection.';send({type:'error',message:'The map could not load.'});}
-  css(OWN+'leaflet.css');
-  js(OWN+'leaflet.js',start,function(){css(CDN+'leaflet.css');js(CDN+'leaflet.js',start,fail);});
+  css(OWN+'leaflet.css',function(){css(CDN+'leaflet.css');});
+  js(OWN+'leaflet.js',start,function(){js(CDN+'leaflet.js',start,fail);});
 })();
 </script></body></html>`;
 }

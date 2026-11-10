@@ -13,7 +13,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowRight, Link2, Star } from 'lucide-react-native';
 import { useState } from 'react';
-import { Linking, View } from 'react-native';
+import { View } from 'react-native';
 
 import { type BookingRecord, postBooking, useAllBookings, useBookingDepartments, useBookingFeed, useBookingUsers } from '@/api/booking';
 import { type Project, useProjects } from '@/api/reimbursements';
@@ -37,6 +37,7 @@ import { useSlotHold } from '@/features/booking/use-slot-hold';
 import { ProjectPicker } from '@/features/shared/project-picker';
 import { dateLabel, istParts } from '@/lib/dates';
 import { addDaysYmd } from '@/lib/ist';
+import { openExternal } from '@/lib/open-link';
 import { useAccess } from '@/lib/use-access';
 import { palette, space } from '@/theme/tokens';
 import {
@@ -263,7 +264,7 @@ export default function BookProScreen() {
             </ChipRow>
           ) : null}
           {pro.workLinks.map((l) => (
-            <Button key={l} variant="text" size="sm" icon={<Link2 />} title={l} onPress={() => void Linking.openURL(l.startsWith('http') ? l : `https://${l}`)} style={styles.link} />
+            <Button key={l} variant="text" size="sm" icon={<Link2 />} title={l} onPress={() => void openExternal(l, { addScheme: true, via: 'system' })} style={styles.link} />
           ))}
         </Card>
 

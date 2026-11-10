@@ -321,8 +321,8 @@ New JS dependencies: `expo-notifications` (push) and one Google sign-in library 
 Requests made before sign-in never reach `demoFetch`, because `apiFetch` only redirects calls carrying a demo **token** (`src/api/client.ts:56`). So the sign-in extras need **inline demo branches** in the screens, the same way `email.tsx` (`isDemoEmail`) and `vendor.tsx` already work. Put them in one helper, `src/demo/auth-extras.ts`, so the screens stay clean. Everything is gated on `DEMO_ENABLED` (dev and preview builds only).
 
 - **Forgot password**:
-  - `afzal.demo@tamadamedia.com` → masked `•••••7610`.
-  - The phone must be `8328617610`, or the screen shows the server's "does not match" wording.
+  - `afzal.demo@tamadamedia.com` → masked `•••••0000`.
+  - The phone must be the demo number (`DEMO_PHONE`, `9000000000`), or the screen shows the server's "does not match" wording.
   - The code is `123456`, and an `AuthNote` says so.
   - Reset accepts any password of at least 4 characters and shows the success sheet. A note says "Demo: your password stays Demo@123". Nothing is stored.
   - Then go to `/email`, with **Afzal Employee** as the default persona once signed in.
